@@ -113,7 +113,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   useEffect(() => {
     scrollToBottom();
-  }, [chat.messages]);
+  }, [chat.messages, loading]);
 
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -482,11 +482,56 @@ export const ChatView: React.FC<ChatViewProps> = ({
         })}
 
         {loading && (
-          <div className="flex items-center space-x-3 text-xs text-[#ffd6eb]/70 pl-2">
-            <Loader2 className="w-4 h-4 animate-spin text-[#ff007f]" />
-            <span className="italic">
-              {activeCharacters[0]?.name || 'Character'} is typing your reply...
-            </span>
+          <div
+            data-testid="typing-indicator"
+            className="flex items-start space-x-3 max-w-md mr-auto animate-in fade-in slide-in-from-bottom-2 duration-300"
+          >
+            {/* Active Character Avatar with Pulsing Ring */}
+            <div className="relative shrink-0">
+              <img
+                src={activeCharacters[0]?.avatar || '/lucious.jpg'}
+                alt={activeCharacters[0]?.name || 'Character'}
+                className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#ff007f] shadow-[0_0_15px_rgba(255,0,128,0.5)] animate-pulse"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#12030f] rounded-full animate-ping" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#12030f] rounded-full" />
+            </div>
+
+            {/* Typing Indicator Bubble */}
+            <div className="relative rounded-2xl rounded-tl-none p-3.5 bg-[#1b0516]/95 border border-[#ff3399]/40 text-[#ffd6eb] shadow-[0_0_20px_rgba(255,51,153,0.25)] backdrop-blur-md">
+              {/* Header with Sparkles & Character Name */}
+              <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-white/10 text-[10px] font-bold">
+                <div className="flex items-center space-x-1.5 text-[#ff99cc]">
+                  <Sparkles className="w-3 h-3 text-[#ff007f] animate-spin" style={{ animationDuration: '4s' }} />
+                  <span>{activeCharacters[0]?.name || 'Character'}</span>
+                </div>
+                <span className="text-[9px] uppercase tracking-wider text-[#ffd6eb]/40 font-mono">
+                  Thinking
+                </span>
+              </div>
+
+              {/* Status Text & Subtle Animated Bouncing Dots */}
+              <div className="flex items-center space-x-3 text-xs sm:text-sm text-[#ffd6eb]/90">
+                <span className="font-medium italic tracking-wide text-white/90">
+                  Character is thinking...
+                </span>
+
+                <div className="flex items-center space-x-1.5 py-1 px-1 bg-white/5 rounded-full border border-white/10">
+                  <span
+                    className="w-2 h-2 rounded-full bg-[#ff007f] animate-bounce shadow-[0_0_6px_#ff007f]"
+                    style={{ animationDelay: '0ms', animationDuration: '900ms' }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-[#ff3399] animate-bounce shadow-[0_0_6px_#ff3399]"
+                    style={{ animationDelay: '200ms', animationDuration: '900ms' }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-[#ffd6eb] animate-bounce shadow-[0_0_6px_#ffd6eb]"
+                    style={{ animationDelay: '400ms', animationDuration: '900ms' }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
