@@ -14,6 +14,8 @@ import { ChatView } from './components/ChatView';
 import { CharacterModal } from './components/CharacterModal';
 import { LorebookModal } from './components/LorebookModal';
 import { PersonaModal } from './components/PersonaModal';
+import { PersonaCreatorView } from './components/PersonaCreatorView';
+import { PersonaLibraryView } from './components/PersonaLibraryView';
 import { PluginModal } from './components/PluginModal';
 import { OpenRouterSettingsModal } from './components/OpenRouterSettingsModal';
 import { StoryNotesModal } from './components/StoryNotesModal';
@@ -62,6 +64,10 @@ export default function App() {
   const [isSavedMessagesOpen, setIsSavedMessagesOpen] = useState(false);
   const [isSceneGeneratorOpen, setIsSceneGeneratorOpen] = useState(false);
   const [isGitSyncOpen, setIsGitSyncOpen] = useState(false);
+
+  // Persona Page & Creator Mode
+  const [isPersonaCreatorOpen, setIsPersonaCreatorOpen] = useState(false);
+  const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
@@ -237,10 +243,46 @@ export default function App() {
 
   const handleSavePersona = (persona: Persona) => {
     const exists = data.personas.find((p) => p.id === persona.id);
-    const updated = exists
-      ? data.personas.map((p) => (p.id === persona.id ? persona : p))
-      : [persona, ...data.personas];
+    let updated: Persona[];
+    if (exists) {
+      updated = data.personas.map((p) => (p.id === persona.id ? persona : p));
+    } else {
+      updated = [persona, ...data.personas];
+    }
+    // If this persona is marked default, set all others to false
+    if (persona.is_default) {
+      updated = updated.map((p) => ({ ...p, is_default: p.id === persona.id }));
+    }
     updateData({ ...data, personas: updated });
+  };
+
+  const handleDeletePersona = (personaId: string) => {
+    const updated = data.personas.filter((p) => p.id !== personaId);
+    // If the deleted persona was default, ensure there's at least one default
+    const hasDefault = updated.some((p) => p.is_default);
+    const ensured = updated.map((p, idx) => ({
+      ...p,
+      is_default: hasDefault ? p.is_default : idx === 0,
+    }));
+    updateData({ ...data, personas: ensured });
+  };
+
+  const handleSelectDefaultPersona = (pId: string) => {
+    const updated = data.personas.map((p) => ({ ...p, is_default: p.id === pId }));
+    updateData({ ...data, personas: updated });
+    try {
+      localStorage.setItem('colorpop_default_persona', pId);
+    } catch (e) {}
+  };
+
+  const handleStartChatWithPersona = (persona: Persona) => {
+    handleSelectDefaultPersona(persona.id);
+    if (activeChat) {
+      setInChatMode(true);
+    } else if (data.chats.length > 0) {
+      setActiveChat(data.chats[0]);
+      setInChatMode(true);
+    }
   };
 
   const handleTogglePlugin = (pluginId: string) => {
@@ -430,7 +472,8 @@ export default function App() {
               } else if (t === 'lorebooks') {
                 setIsLoreModalOpen(true);
               } else if (t === 'personas') {
-                setIsPersonaModalOpen(true);
+                setIsPersonaCreatorOpen(false);
+                setPersonaToEdit(null);
               }
             }}
             onOpenMoreMenu={() => setIsSettingsOpen(true)}
@@ -450,68 +493,112 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
-        {/* 3. Luxury Hero Banner + Quick Links 12-Jewel Grid */}
-        <ColorPopHero
-          onQuickAction={(id) => {
-            if (id === 'characters') setIsCharModalOpen(true);
-            else if (id === 'lorebooks') setIsLoreModalOpen(true);
-            else if (id === 'plugins') setIsPluginModalOpen(true);
-            else if (id === 'settings') setIsSettingsOpen(true);
-            else if (id === 'gallery') setIsSceneGeneratorOpen(true);
-            else if (id === 'templates' || id === 'loreberry') setIsCharModalOpen(true);
-          }}
-          onOpenCharacterModal={() => setIsCharModalOpen(true)}
-          onOpenLorebookModal={() => setIsLoreModalOpen(true)}
-          onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
-          onOpenChats={() => {
-            if (activeChat) setInChatMode(true);
-          }}
-          onOpenPlugins={() => setIsPluginModalOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-        />
+        {activeTab === 'personas' ? (
+          isPersonaCreatorOpen ? (
+            <PersonaCreatorView
+              initialPersona={personaToEdit}
+              onSavePersona={(persona) => {
+                handleSavePersona(persona);
+                setIsPersonaCreatorOpen(false);
+                setPersonaToEdit(null);
+              }}
+              onCancel={() => {
+                setIsPersonaCreatorOpen(false);
+                setPersonaToEdit(null);
+              }}
+              onSelectDefaultPersona={handleSelectDefaultPersona}
+            />
+          ) : (
+            <PersonaLibraryView
+              personas={data.personas}
+              onOpenCreator={(p) => {
+                setPersonaToEdit(p || null);
+                setIsPersonaCreatorOpen(true);
+              }}
+              onSavePersona={handleSavePersona}
+              onDeletePersona={handleDeletePersona}
+              onSelectDefaultPersona={handleSelectDefaultPersona}
+              onStartChatWithPersona={handleStartChatWithPersona}
+            />
+          )
+        ) : (
+          <>
+            {/* 3. Luxury Hero Banner + Quick Links 12-Jewel Grid */}
+            <ColorPopHero
+              onQuickAction={(id) => {
+                if (id === 'characters') setIsCharModalOpen(true);
+                else if (id === 'lorebooks') setIsLoreModalOpen(true);
+                else if (id === 'plugins') setIsPluginModalOpen(true);
+                else if (id === 'settings') setIsSettingsOpen(true);
+                else if (id === 'gallery') setIsSceneGeneratorOpen(true);
+                else if (id === 'templates' || id === 'loreberry') setIsCharModalOpen(true);
+              }}
+              onOpenCharacterModal={() => setIsCharModalOpen(true)}
+              onOpenLorebookModal={() => setIsLoreModalOpen(true)}
+              onOpenPersonaModal={() => {
+                setActiveTab('personas');
+                setIsPersonaCreatorOpen(false);
+                setPersonaToEdit(null);
+              }}
+              onOpenChats={() => {
+                if (activeChat) setInChatMode(true);
+              }}
+              onOpenPlugins={() => setIsPluginModalOpen(true)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
 
-        {/* 4. Glowing 4 Action Cards */}
-        <ActionCards
-          onCreateCharacter={() => setIsCharModalOpen(true)}
-          onCreateLorebook={() => setIsLoreModalOpen(true)}
-          onCreatePersona={() => setIsPersonaModalOpen(true)}
-          onOpenMyChats={() => {
-            if (activeChat) setInChatMode(true);
-          }}
-        />
+            {/* 4. Glowing 4 Action Cards */}
+            <ActionCards
+              onCreateCharacter={() => setIsCharModalOpen(true)}
+              onCreateLorebook={() => setIsLoreModalOpen(true)}
+              onCreatePersona={() => {
+                setActiveTab('personas');
+                setIsPersonaCreatorOpen(true);
+                setPersonaToEdit(null);
+              }}
+              onOpenMyChats={() => {
+                if (activeChat) setInChatMode(true);
+              }}
+            />
 
-        {/* 5. 10 Circular Category Pills */}
-        <CategoryPills
-          activeCategory={activeCategory}
-          onSelectCategory={(cat) => {
-            setActiveCategory(cat);
-            if (cat === 'characters') setIsCharModalOpen(true);
-            if (cat === 'personas') setIsPersonaModalOpen(true);
-            if (cat === 'lorebooks' || cat === 'locations') setIsLoreModalOpen(true);
-            if (cat === 'plugins') setIsPluginModalOpen(true);
-            if (cat === 'images') setIsSceneGeneratorOpen(true);
-            if (cat === 'favorites') setIsSavedMessagesOpen(true);
-            if (cat === 'recent') {
-              if (activeChat) setInChatMode(true);
-            }
-            if (cat === 'wardrobe') setIsStoryNotesOpen(true);
-          }}
-        />
+            {/* 5. 10 Circular Category Pills */}
+            <CategoryPills
+              activeCategory={activeCategory}
+              onSelectCategory={(cat) => {
+                setActiveCategory(cat);
+                if (cat === 'characters') setIsCharModalOpen(true);
+                if (cat === 'personas') {
+                  setActiveTab('personas');
+                  setIsPersonaCreatorOpen(false);
+                  setPersonaToEdit(null);
+                }
+                if (cat === 'lorebooks' || cat === 'locations') setIsLoreModalOpen(true);
+                if (cat === 'plugins') setIsPluginModalOpen(true);
+                if (cat === 'images') setIsSceneGeneratorOpen(true);
+                if (cat === 'favorites') setIsSavedMessagesOpen(true);
+                if (cat === 'recent') {
+                  if (activeChat) setInChatMode(true);
+                }
+                if (cat === 'wardrobe') setIsStoryNotesOpen(true);
+              }}
+            />
 
-        {/* 6. Recent Chats Carousel & Continue Sidebar */}
-        <RecentChatsSection
-          chats={data.chats}
-          onSelectChat={handleSelectChat}
-          onContinueLastChat={() => {
-            if (activeChat) setInChatMode(true);
-          }}
-          onGenerateSceneImage={() => setIsSceneGeneratorOpen(true)}
-          onOpenStoryNotes={() => setIsStoryNotesOpen(true)}
-          onOpenSavedMessages={() => setIsSavedMessagesOpen(true)}
-          onViewAllChats={() => {
-            if (activeChat) setInChatMode(true);
-          }}
-        />
+            {/* 6. Recent Chats Carousel & Continue Sidebar */}
+            <RecentChatsSection
+              chats={data.chats}
+              onSelectChat={handleSelectChat}
+              onContinueLastChat={() => {
+                if (activeChat) setInChatMode(true);
+              }}
+              onGenerateSceneImage={() => setIsSceneGeneratorOpen(true)}
+              onOpenStoryNotes={() => setIsStoryNotesOpen(true)}
+              onOpenSavedMessages={() => setIsSavedMessagesOpen(true)}
+              onViewAllChats={() => {
+                if (activeChat) setInChatMode(true);
+              }}
+            />
+          </>
+        )}
       </main>
 
       {/* DUAL TRACK SCREEN OVERLAY (Pops up and slides over from both sides) */}
@@ -534,7 +621,12 @@ export default function App() {
         onOpenHome={() => setIsDualTrackOpen(false)}
         onOpenCharacterModal={() => setIsCharModalOpen(true)}
         onOpenLorebookModal={() => setIsLoreModalOpen(true)}
-        onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
+        onOpenPersonaModal={() => {
+          setIsDualTrackOpen(false);
+          setActiveTab('personas');
+          setIsPersonaCreatorOpen(false);
+          setPersonaToEdit(null);
+        }}
         onOpenPluginModal={() => setIsPluginModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
         onOpenStoryNotesModal={() => setIsStoryNotesOpen(true)}

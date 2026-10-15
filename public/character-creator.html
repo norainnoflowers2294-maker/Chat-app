@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ColorPop • Character Creator</title>
+  <style>
+    :root{--pink:#ff007f}*{box-sizing:border-box}body{margin:0;color:white;font:15px system-ui;background:radial-gradient(ellipse at top,#54104a,#09071c 65%);min-height:100dvh}header{position:sticky;top:0;background:#100b24ee;z-index:3;padding:16px;border-bottom:2px solid #ff69b4;display:flex;justify-content:space-between;align-items:center}h1{font-size:22px;margin:0;color:#ffb3db}main{max-width:860px;margin:auto;padding:16px 14px 90px}a{color:#9be7ff;text-decoration:none}button,.btn{border:1px solid #ff9ed8;border-radius:14px;background:linear-gradient(110deg,#ff007f,#9e2caa);color:white;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}input,textarea,select{background:#0c112a;color:white;border:1px solid #ad76b7;border-radius:12px;padding:12px;width:100%;font:inherit}textarea{min-height:92px}label{display:block;font-size:13px;color:#ffc4e7;margin:8px 0}.panel{border:1px solid #ff69b4;border-radius:18px;background:#160f2b;padding:18px;margin:14px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✧ ColorPop • Character Creator</h1>
+    <div style="display:flex;gap:12px;">
+      <a href="character-library.html">✧ Character Library</a>
+      <a href="persona-library.html">✧ Persona Library</a>
+      <a href="index.html">⌂ Home</a>
+    </div>
+  </header>
+  <main>
+    <div class="panel">
+      <h2>Character Creator</h2>
+      <label>Character Name <input id="name" placeholder="e.g. Lucious Vance"></label>
+      <label>Personality <textarea id="personality" placeholder="Dominant, protective, seductive..."></textarea></label>
+      <label>Appearance <textarea id="appearance" placeholder="Sharp jawline, bespoke midnight suit..."></textarea></label>
+      <label>Avatar URL or Preset <input id="avatar" value="/lucious.jpg"></label>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button onclick="saveChar()">Save to Library</button>
+        <button onclick="location.href='character-library.html'" style="background:#333;">View Library</button>
+      </div>
+    </div>
+  </main>
+  <script>
+    function saveChar(){
+      let name=document.querySelector('#name').value.trim();
+      if(!name)return alert('Name required');
+      let items=JSON.parse(localStorage.getItem('colorpop_character_library')||'[]');
+      items.unshift({
+        id:'char_'+Date.now(),
+        full_name:name,
+        personality_description:document.querySelector('#personality').value,
+        physical_description:document.querySelector('#appearance').value,
+        avatar_url:document.querySelector('#avatar').value||'/lucious.jpg',
+        updated:Date.now()
+      });
+      localStorage.setItem('colorpop_character_library',JSON.stringify(items));
+      location.href='character-library.html';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ColorPop • Character Library</title>
+  <style>
+    :root{--pink:#ff007f}*{box-sizing:border-box}body{margin:0;color:white;font:15px system-ui;background:radial-gradient(ellipse at top,#54104a,#09071c 65%);min-height:100dvh}header{position:sticky;top:0;background:#100b24ee;z-index:3;padding:16px;border-bottom:2px solid #ff69b4;display:flex;justify-content:space-between;align-items:center}h1{font-size:22px;margin:0;color:#ffb3db}main{max-width:1000px;margin:auto;padding:16px 14px 90px}a{color:#9be7ff}button,.btn{border:1px solid #ff9ed8;border-radius:14px;background:linear-gradient(110deg,#ff007f,#9e2caa);color:white;padding:11px 14px;font:inherit;font-weight:700;cursor:pointer}input,textarea,select{background:#0c112a;color:white;border:1px solid #ad76b7;border-radius:12px;padding:12px;width:100%;font:inherit}textarea{min-height:92px}label{display:block;font-size:13px;color:#ffc4e7;margin:8px 0}.tools{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:13px}.card{border:1px solid var(--c,#ff69b4);background:linear-gradient(145deg,color-mix(in srgb,var(--c,#ff69b4) 27%,#100b24),#0b0c20);border-radius:20px;padding:13px;min-height:160px;box-shadow:0 0 12px color-mix(in srgb,var(--c,#ff69b4) 35%,transparent)}.avatar{width:100%;height:125px;object-fit:cover;border-radius:13px;background:#20213c}.avatar.fallback{display:grid;place-items:center;font-size:45px}.card h3{margin:9px 0 3px}.muted{color:#d0c4d5;font-size:12px}.card .tools button{padding:8px;font-size:12px}.panel,details{border:1px solid #b14caf;border-radius:18px;background:#160f2b;padding:16px;margin:12px 0}summary{font-weight:700;padding:8px;cursor:pointer}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.hidden{display:none!important}.notice{color:#ffbddf}nav{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}#toast{position:fixed;bottom:12px;left:12px;right:12px;background:#152244;border:1px solid #ff007f;padding:12px;border-radius:14px;display:none;text-align:center;z-index:9}dialog{width:min(94vw,660px);max-height:90dvh;overflow:auto;border:2px solid #ff007f;border-radius:22px;background:#120c25;color:white;padding:18px}dialog::backdrop{background:#000b}button:focus-visible{outline:3px solid #8bc0ff}@media(max-width:520px){header{align-items:flex-start;gap:8px}h1{font-size:19px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:9px}.card .tools{gap:5px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✧ ColorPop • Character Library</h1>
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <a href="persona-library.html">✧ Persona Library</a>
+      <a href="index.html">⌂ Home</a>
+    </div>
+  </header>
+  <main>
+    <p class="notice">Your cast, in one place. Search, favorite, organize, duplicate, export, or edit a character.</p>
+    <div class="tools">
+      <button onclick="location.href='character-creator.html'">＋ Create Character</button>
+      <button onclick="document.querySelector('#file').click()">Import JSON</button>
+      <button onclick="download('colorpop-characters.json',items)">Export Library</button>
+      <input hidden type="file" id="file" accept=".json" onchange="importFile(this.files[0])">
+    </div>
+    <div class="fields">
+      <label>Search characters<input id="q" placeholder="Name, nickname, tag, personality" oninput="render()"></label>
+      <label>Filter<select id="filter" onchange="render()"><option value="all">All Characters</option><option value="fav">Favorites</option><option value="recent">Recently Updated</option></select></label>
+      <label>Sort<select id="sort" onchange="render()"><option value="updated">Recently Edited</option><option value="name">Name A–Z</option></select></label>
+    </div>
+    <p id="count" class="muted"></p>
+    <section class="grid" id="cards"></section>
+  </main>
+  <dialog id="editor">
+    <h2>Edit Character</h2>
+    <input type="hidden" id="eid">
+    <label>Full name<input id="name"></label>
+    <label>Nicknames<input id="nick"></label>
+    <label>Personality<textarea id="personality"></textarea></label>
+    <label>Physical description<textarea id="appearance"></textarea></label>
+    <label>Backstory<textarea id="backstory"></textarea></label>
+    <label>Tags<input id="tags"></label>
+    <label>Avatar URL<input id="avatar"></label>
+    <label>Upload avatar<input type="file" accept="image/*" onchange="pickImage(this.files[0],v=>document.querySelector('#avatar').value=v)"></label>
+    <div class="tools">
+      <button onclick="saveEdit()">Save</button>
+      <button onclick="editor.close()">Cancel</button>
+    </div>
+  </dialog>
+  <div id="toast" role="status"></div>
+  <script>
+    const COLORS=['#06128f','#0094f5','#8ab0f5','#ff3e00','#ff007f','#fb78ae','#ffd0ae','#ff988c','#e60065','#ad005b','#ad31a8','#b17aba','#f39a08','#ff6049','#f44f52','#34b8a4','#008679','#020923'];
+    const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function toast(t){let e=document.querySelector('#toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
+    function load(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return []}}
+    function store(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{toast('Storage full: export a backup');return false}}
+    function download(name,obj){let u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));let a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+    function uid(){return crypto.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)}
+    function pickImage(file,cb){if(!file)return;let r=new FileReader();r.onload=()=>cb(r.result);r.readAsDataURL(file)}
+
+    const KEY='colorpop_character_library';
+    let items=load(KEY);
+    if(items.length===0){
+      items=[
+        {id:'char_lucious',full_name:'Lucious Vance',nicknames:'The Sovereign',personality_description:'Commanding, protective, unapologetically dominant',physical_description:'Sharp jawline, bespoke midnight suit, piercing grey eyes',tags:'CEO, Mafia, Seductive',avatar_url:'/lucious.jpg',favorite:true,updated:Date.now()}
+      ];
+    }
+    function normalize(o){let d=o.data||o;let x=d.extensions?.colorpop||d;return {id:o.id||uid(),full_name:x.full_name||d.name||'Unnamed Character',nicknames:x.nicknames||'',personality_description:x.personality_description||d.personality||'',physical_description:x.physical_description||d.description||'',backstory:x.backstory||'',tags:x.tags||d.tags||'',avatar_url:x.avatar_url||'',favorite:!!o.favorite,updated:Date.now(),raw:o}}
+    function persist(){if(store(KEY,items))render()}
+    function render(){
+      let q=document.querySelector('#q').value.toLowerCase(),f=document.querySelector('#filter').value;
+      let a=items.filter(x=>(x.full_name+' '+x.nicknames+' '+x.tags+' '+x.personality_description).toLowerCase().includes(q));
+      if(f==='fav')a=a.filter(x=>x.favorite);
+      a.sort((x,y)=>document.querySelector('#sort').value==='name'?x.full_name.localeCompare(y.full_name):y.updated-x.updated);
+      document.querySelector('#count').textContent=a.length+' character(s)';
+      document.querySelector('#cards').innerHTML=a.map((x,i)=>`<article class="card" style="--c:${COLORS[i%COLORS.length]}">${x.avatar_url?`<img class="avatar" src="${safe(x.avatar_url)}" alt="">`:'<div class="avatar fallback">♛</div>'}<h3>${safe(x.full_name)}</h3><p class="muted">${safe(x.nicknames||x.tags||'Character card')}</p><div class="tools"><button onclick="edit('${x.id}')">Edit</button><button onclick="fav('${x.id}')">${x.favorite?'♥':'♡'}</button><button onclick="dup('${x.id}')">Copy</button><button onclick="exp('${x.id}')">⇩</button><button onclick="del('${x.id}')">✕</button></div></article>`).join('')||'<p>No characters yet. Create one or import a JSON card.</p>';
+    }
+    function get(id){return items.find(x=>x.id===id)}
+    function fav(id){get(id).favorite=!get(id).favorite;persist()}
+    function dup(id){items.unshift({...get(id),id:uid(),full_name:get(id).full_name+' (Copy)',updated:Date.now()});persist()}
+    function exp(id){let x=get(id);download(x.full_name.replace(/[^a-z0-9]/gi,'_')+'.json',x.raw?.spec?x.raw:{spec:'chara_card_v2',data:{name:x.full_name,personality:x.personality_description,description:x.physical_description,extensions:{colorpop:x}}})}
+    function del(id){if(confirm('Delete this character?')){items=items.filter(x=>x.id!==id);persist()}}
+    function edit(id){let x=get(id);eid.value=id;name.value=x.full_name;nick.value=x.nicknames;personality.value=x.personality_description;appearance.value=x.physical_description;backstory.value=x.backstory;tags.value=Array.isArray(x.tags)?x.tags.join(', '):x.tags;avatar.value=x.avatar_url;editor.showModal()}
+    function saveEdit(){let x=get(eid.value);Object.assign(x,{full_name:name.value,nicknames:nick.value,personality_description:personality.value,physical_description:appearance.value,backstory:backstory.value,tags:tags.value,avatar_url:avatar.value,updated:Date.now()});editor.close();persist()}
+    async function importFile(f){if(!f)return;try{let v=JSON.parse(await f.text());let a=Array.isArray(v)?v:[v];items.unshift(...a.map(normalize));persist();toast('Imported '+a.length+' character(s)')}catch(e){toast('Invalid JSON file')}}
+    render();
+  </script>
+</body>
+</html>

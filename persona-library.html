@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ColorPop • Persona Library</title>
+  <style>
+    :root { --pink: #ff007f; --purple: #9b51e0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: white;
+      font: 15px system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at top, #54104a, #09071c 65%);
+      min-height: 100dvh;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      background: #100b24ee;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      padding: 16px 20px;
+      border-bottom: 2px solid #ff69b4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { font-size: 22px; margin: 0; color: #ffb3db; display: flex; align-items: center; gap: 8px; }
+    main { max-width: 1100px; margin: auto; padding: 20px 16px 90px; }
+    a { color: #9be7ff; text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+    button, .btn {
+      border: 1px solid #ff9ed8;
+      border-radius: 14px;
+      background: linear-gradient(110deg, #ff007f, #9e2caa);
+      color: white;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    button:hover, .btn:hover { transform: scale(1.02); opacity: 0.95; }
+    input, textarea, select {
+      background: #0c112a;
+      color: white;
+      border: 1px solid #ad76b7;
+      border-radius: 12px;
+      padding: 12px;
+      width: 100%;
+      font: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #ff007f;
+      box-shadow: 0 0 10px rgba(255, 0, 128, 0.4);
+    }
+    label { display: block; font-size: 13px; color: #ffc4e7; margin: 8px 0; font-weight: 600; }
+    .tools { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+    .card {
+      border: 1px solid var(--c, #ff69b4);
+      background: linear-gradient(145deg, color-mix(in srgb, var(--c, #ff69b4) 22%, #100b24), #0b0c20);
+      border-radius: 20px;
+      padding: 14px;
+      min-height: 240px;
+      box-shadow: 0 0 15px color-mix(in srgb, var(--c, #ff69b4) 30%, transparent);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: translateY(-3px); }
+    .avatar-wrapper { position: relative; width: 100%; height: 160px; border-radius: 14px; overflow: hidden; background: #20213c; }
+    .avatar { width: 100%; height: 100%; object-fit: cover; }
+    .avatar.fallback { display: grid; place-items: center; font-size: 50px; height: 100%; }
+    .active-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: #f59e0b;
+      color: black;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .card h3 { margin: 10px 0 2px; font-size: 16px; }
+    .muted { color: #d0c4d5; font-size: 12px; }
+    .traits { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .trait-tag { font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 6px; }
+    .card .tools { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+    .card .tools button { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+    .notice { color: #ffbddf; margin-bottom: 4px; }
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #152244;
+      border: 2px solid #ff007f;
+      padding: 12px 24px;
+      border-radius: 20px;
+      display: none;
+      text-align: center;
+      z-index: 99;
+      box-shadow: 0 0 25px rgba(255,0,128,0.6);
+      font-weight: 700;
+    }
+    @media(max-width: 520px) {
+      header { align-items: flex-start; gap: 8px; }
+      h1 { font-size: 18px; }
+      .grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✧ ColorPop • Persona Library</h1>
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <a href="persona-creator.html">＋ Create Persona</a>
+      <a href="index.html">⌂ Home</a>
+    </div>
+  </header>
+
+  <main>
+    <p class="notice">Switch between your roleplay identities, customize your picture, set a default persona, and manage your saved profiles.</p>
+    
+    <div class="tools">
+      <button onclick="location.href='persona-creator.html'">＋ Create Persona</button>
+      <button onclick="document.querySelector('#imp').click()">Import JSON</button>
+      <button onclick="download('colorpop-personas.json', items)">Export All</button>
+      <input hidden type="file" id="imp" accept=".json" onchange="importFile(this.files[0])">
+    </div>
+
+    <div class="fields">
+      <label>Search personas
+        <input id="search" placeholder="Name, nickname, occupation, traits..." oninput="render()">
+      </label>
+      <label>Filter
+        <select id="filter" onchange="render()">
+          <option value="all">All Personas</option>
+          <option value="fav">Favorites Only</option>
+          <option value="active">Active Persona</option>
+        </select>
+      </label>
+      <label>Sort
+        <select id="sort" onchange="render()">
+          <option value="updated">Recently Edited</option>
+          <option value="name">Name A–Z</option>
+        </select>
+      </label>
+    </div>
+
+    <p class="muted" id="count" style="margin-top: 14px;"></p>
+    <div id="cards" class="grid"></div>
+  </main>
+
+  <div id="toast" role="status"></div>
+
+  <script>
+    const COLORS = ['#ff007f','#9b51e0','#0094f5','#ff3e00','#34b8a4','#ad31a8','#f39a08','#e60065'];
+    const KEY = 'colorpop_persona_library';
+    const DEFAULT = 'colorpop_default_persona';
+
+    const safe = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    
+    function toast(t) {
+      let e = document.querySelector('#toast');
+      e.textContent = t;
+      e.style.display = 'block';
+      setTimeout(() => e.style.display = 'none', 2600);
+    }
+
+    function load(k) {
+      try {
+        let v = localStorage.getItem(k);
+        if (!v) {
+          return [
+            {
+              id: 'persona_siren',
+              name: 'The Muse',
+              display_name: 'The Muse',
+              nicknames: 'Vivi, Siren',
+              occupation: 'Haute Couture Heiress & Socialite',
+              avatar_url: '/colorpop_hero.jpg',
+              description: 'Glamorous, perceptive, and effortlessly captivating. You carry yourself with magnetic elegance.',
+              speaking_style: 'Confident, playful, seductive, and intellectually agile.',
+              traits: ['Alluring', 'Independent', 'Clever', 'Chic'],
+              favorite: true,
+              updated: Date.now()
+            },
+            {
+              id: 'persona_vip',
+              name: 'The Partner in Crime',
+              display_name: 'The Partner in Crime',
+              nicknames: 'Shadow Broker',
+              occupation: 'Underground Syndicate Strategist',
+              avatar_url: '/lucious.jpg',
+              description: 'Bold, adventurous, and unapologetically ambitious. Equal standing in high society.',
+              speaking_style: 'Direct, witty, bold, fearless.',
+              traits: ['Fearless', 'Cunning', 'Loyal', 'Stylish'],
+              favorite: false,
+              updated: Date.now() - 100000
+            }
+          ];
+        }
+        return JSON.parse(v);
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function store(k, v) {
+      try {
+        localStorage.setItem(k, JSON.stringify(v));
+        return true;
+      } catch(e) {
+        toast('Storage full: export a backup');
+        return false;
+      }
+    }
+
+    function download(name, obj) {
+      let u = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'}));
+      let a = document.createElement('a');
+      a.href = u;
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(u), 1500);
+    }
+
+    function uid() {
+      return crypto.randomUUID ? crypto.randomUUID() : 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    let items = load(KEY);
+    if (!localStorage.getItem(DEFAULT) && items.length > 0) {
+      localStorage.setItem(DEFAULT, items[0].id);
+    }
+
+    function persist() {
+      store(KEY, items);
+      render();
+    }
+
+    function render() {
+      let q = (document.querySelector('#search')?.value || '').toLowerCase();
+      let f = document.querySelector('#filter')?.value || 'all';
+      let sort = document.querySelector('#sort')?.value || 'updated';
+      let defId = localStorage.getItem(DEFAULT);
+
+      let a = items.filter(x => {
+        let text = `${x.display_name||''} ${x.name||''} ${x.full_name||''} ${x.nicknames||''} ${x.occupation||''} ${(x.traits||[]).join(' ')} ${x.description||''}`.toLowerCase();
+        return text.includes(q);
+      });
+
+      if (f === 'fav') a = a.filter(x => x.favorite);
+      if (f === 'active') a = a.filter(x => x.id === defId);
+
+      a.sort((x, y) => {
+        if (sort === 'name') return (x.display_name || x.name || '').localeCompare(y.display_name || y.name || '');
+        return (y.updated || 0) - (x.updated || 0);
+      });
+
+      document.querySelector('#count').textContent = a.length + ' persona(s) found';
+
+      document.querySelector('#cards').innerHTML = a.map((x, i) => {
+        let pic = x.avatar_url || x.avatar;
+        let isActive = defId === x.id;
+        let traitsHtml = (x.traits || []).slice(0, 3).map(t => `<span class="trait-tag">#${safe(t)}</span>`).join('');
+
+        return `
+          <article class="card" style="--c:${COLORS[i % COLORS.length]}">
+            <div>
+              <div class="avatar-wrapper">
+                ${pic ? `<img class="avatar" src="${safe(pic)}" alt="">` : '<div class="avatar fallback">✧</div>'}
+                ${isActive ? '<span class="active-badge">★ Active</span>' : ''}
+              </div>
+              <h3>${safe(x.display_name || x.name || x.full_name || 'Unnamed')}</h3>
+              <p class="muted">${safe(x.occupation || x.nicknames || 'Roleplay persona')}</p>
+              <div class="traits">${traitsHtml}</div>
+            </div>
+            
+            <div class="tools">
+              <button onclick="activate('${x.id}')">${isActive ? 'Active ✓' : 'Use'}</button>
+              <button onclick="location.href='persona-creator.html?id=${encodeURIComponent(x.id)}'">Edit</button>
+              <button onclick="fav('${x.id}')">${x.favorite ? '♥' : '♡'}</button>
+              <button onclick="dup('${x.id}')">Copy</button>
+              <button onclick="exp('${x.id}')">⇩</button>
+              <button onclick="del('${x.id}')">✕</button>
+            </div>
+          </article>
+        `;
+      }).join('') || '<p style="padding: 20px; text-align: center;">No personas saved yet. Click "Create Persona" to design your identity.</p>';
+    }
+
+    function get(id) { return items.find(x => x.id === id); }
+
+    function activate(id) {
+      localStorage.setItem(DEFAULT, id);
+      render();
+      toast('Default persona activated');
+    }
+
+    function fav(id) {
+      let x = get(id);
+      if (x) {
+        x.favorite = !x.favorite;
+        persist();
+      }
+    }
+
+    function dup(id) {
+      let x = get(id);
+      if (x) {
+        let copy = {
+          ...x,
+          id: uid(),
+          display_name: (x.display_name || x.name || 'Persona') + ' (Copy)',
+          name: (x.name || 'Persona') + ' (Copy)',
+          updated: Date.now()
+        };
+        items.unshift(copy);
+        persist();
+        toast('Persona duplicated');
+      }
+    }
+
+    function exp(id) {
+      let x = get(id);
+      if (x) {
+        download(((x.display_name || x.name || 'persona').replace(/[^a-z0-9]/gi, '_')) + '.json', x);
+      }
+    }
+
+    function del(id) {
+      let x = get(id);
+      if (confirm(`Delete persona "${x?.display_name || x?.name || 'this persona'}"?`)) {
+        items = items.filter(x => x.id !== id);
+        if (localStorage.getItem(DEFAULT) === id) {
+          localStorage.removeItem(DEFAULT);
+          if (items.length > 0) localStorage.setItem(DEFAULT, items[0].id);
+        }
+        persist();
+        toast('Persona deleted');
+      }
+    }
+
+    async function importFile(f) {
+      if (!f) return;
+      try {
+        let a = JSON.parse(await f.text());
+        if (!Array.isArray(a)) a = [a];
+        let newItems = a.map(x => ({
+          ...x,
+          id: uid(),
+          avatar_url: x.avatar_url || x.avatar || '',
+          updated: Date.now()
+        }));
+        items.unshift(...newItems);
+        persist();
+        toast('Imported ' + newItems.length + ' persona(s)');
+      } catch(e) {
+        toast('Invalid JSON file');
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

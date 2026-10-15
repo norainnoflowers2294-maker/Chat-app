@@ -48,12 +48,19 @@ export interface Persona {
   id: string;
   userId?: string;
   name: string;
+  display_name?: string;
+  nicknames?: string;
+  occupation?: string;
   avatar: string;
   description: string;
+  appearance?: string;
+  backstory?: string;
   speaking_style: string;
   traits: string[];
   is_default: boolean;
+  favorite?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Plugin {

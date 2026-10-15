@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ColorPop • Persona Creator</title>
+  <style>
+    :root { --pink: #ff007f; --purple: #9b51e0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: white;
+      font: 15px system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at top, #54104a, #09071c 65%);
+      min-height: 100dvh;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      background: #100b24ee;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      padding: 16px 20px;
+      border-bottom: 2px solid #ff69b4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { font-size: 22px; margin: 0; color: #ffb3db; }
+    main { max-width: 860px; margin: auto; padding: 20px 16px 90px; }
+    a { color: #9be7ff; text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+    button, .btn {
+      border: 1px solid #ff9ed8;
+      border-radius: 14px;
+      background: linear-gradient(110deg, #ff007f, #9e2caa);
+      color: white;
+      padding: 11px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    button:hover, .btn:hover { transform: scale(1.02); opacity: 0.95; }
+    input, textarea, select {
+      background: #0c112a;
+      color: white;
+      border: 1px solid #ad76b7;
+      border-radius: 12px;
+      padding: 12px;
+      width: 100%;
+      font: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #ff007f;
+      box-shadow: 0 0 12px rgba(255, 0, 128, 0.4);
+    }
+    textarea { min-height: 80px; }
+    label { display: block; font-size: 13px; color: #ffc4e7; margin: 8px 0 4px; font-weight: 600; }
+    .panel {
+      border: 1px solid #ff69b4;
+      border-radius: 20px;
+      background: #160f2bee;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.2);
+    }
+    .avatar-section {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .preview-box {
+      width: 120px;
+      height: 120px;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 3px solid #ff007f;
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+      background: #0c091d;
+      flex-shrink: 0;
+    }
+    .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+    .presets-row { display: flex; gap: 8px; overflow-x: auto; padding: 6px 0; }
+    .preset-img {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      object-fit: cover;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .preset-img:hover { transform: scale(1.08); border-color: #ff007f; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .chip {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .chip:hover, .chip.active { background: #ff007f; border-color: #ff007f; }
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #152244;
+      border: 2px solid #ff007f;
+      padding: 12px 24px;
+      border-radius: 20px;
+      display: none;
+      text-align: center;
+      z-index: 99;
+      box-shadow: 0 0 25px rgba(255,0,128,0.6);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✧ ColorPop • Persona Creator</h1>
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <a href="persona-library.html">✧ Persona Library</a>
+      <a href="index.html">⌂ Home</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <h2 style="margin-top: 0; color: #ff99cc; font-size: 18px;">Persona Picture & Avatar</h2>
+      <p style="color: #ffd6eb; font-size: 12px; margin-bottom: 14px;">Upload your own image, enter an image URL, or choose a signature ColorPop preset.</p>
+      
+      <div class="avatar-section">
+        <div class="preview-box">
+          <img id="preview" src="/colorpop_hero.jpg" alt="Persona Avatar">
+        </div>
+
+        <div style="flex: 1; min-width: 260px;">
+          <label>Upload picture from device</label>
+          <input type="file" accept="image/*" onchange="pickImage(this.files[0])">
+          
+          <label style="margin-top: 10px;">Or image URL</label>
+          <input id="avatarUrl" placeholder="https://..." oninput="updateAvatar(this.value)">
+
+          <label style="margin-top: 10px;">Signature Presets</label>
+          <div class="presets-row">
+            <img class="preset-img" src="/colorpop_hero.jpg" title="The Muse" onclick="updateAvatar('/colorpop_hero.jpg')">
+            <img class="preset-img" src="/lucious.jpg" title="Lucious" onclick="updateAvatar('/lucious.jpg')">
+            <img class="preset-img" src="/mansion.jpg" title="Mansion" onclick="updateAvatar('/mansion.jpg')">
+            <img class="preset-img" src="/penthouse.jpg" title="Penthouse" onclick="updateAvatar('/penthouse.jpg')">
+            <img class="preset-img" src="/roadtrip.jpg" title="Supercar" onclick="updateAvatar('/roadtrip.jpg')">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top: 0; color: #ff99cc; font-size: 18px;">Core Identity</h2>
+      <div class="fields">
+        <div>
+          <label>Persona Name *</label>
+          <input id="name" placeholder="e.g. Vivienne St. Claire">
+        </div>
+        <div>
+          <label>Display / Casual Name</label>
+          <input id="displayName" placeholder="e.g. Vivienne">
+        </div>
+        <div>
+          <label>Nicknames / Aliases</label>
+          <input id="nicknames" placeholder="e.g. Vivi, The Siren">
+        </div>
+        <div>
+          <label>Occupation / Social Title</label>
+          <input id="occupation" placeholder="e.g. Heiress, Syndicate Fixer, Elite Hacker">
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <label>Personality Traits (Click suggestions or type custom separated by commas)</label>
+        <input id="traitsInput" placeholder="Charismatic, Witty, Fierce, Mysterious..." oninput="renderTraits()">
+        <div class="chips">
+          <span class="chip" onclick="addTrait('Charismatic')">+ Charismatic</span>
+          <span class="chip" onclick="addTrait('Seductive')">+ Seductive</span>
+          <span class="chip" onclick="addTrait('Fierce')">+ Fierce</span>
+          <span class="chip" onclick="addTrait('Witty')">+ Witty</span>
+          <span class="chip" onclick="addTrait('Protective')">+ Protective</span>
+          <span class="chip" onclick="addTrait('Playful')">+ Playful</span>
+          <span class="chip" onclick="addTrait('Aristocratic')">+ Aristocratic</span>
+          <span class="chip" onclick="addTrait('Stoic')">+ Stoic</span>
+          <span class="chip" onclick="addTrait('Cunning')">+ Cunning</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top: 0; color: #ff99cc; font-size: 18px;">Voice & Aesthetic</h2>
+      <label>Speaking Style & Voice Cadence</label>
+      <textarea id="speakingStyle" placeholder="e.g. Velvety cadence, razor-sharp intellect, teasing tone, pauses before delivering devastating remarks..."></textarea>
+
+      <label>Physical Appearance & Outfit</label>
+      <textarea id="appearance" placeholder="e.g. Tailored midnight silk blazer, piercing eyes, platinum jewelry, scent of jasmine and vintage sandalwood..."></textarea>
+
+      <label>Persona Bio / Backstory</label>
+      <textarea id="description" placeholder="Who are you in this world? Secrets, motives, and connections..."></textarea>
+
+      <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="isDefault" style="width: 20px; height: 20px;" checked>
+        <label for="isDefault" style="margin: 0; cursor: pointer;">Set as Active / Default Persona across chats</label>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+      <button type="button" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);" onclick="location.href='persona-library.html'">Cancel</button>
+      <button type="button" onclick="savePersona()">Save Persona to Library</button>
+    </div>
+  </main>
+
+  <div id="toast" role="status"></div>
+
+  <script>
+    const KEY = 'colorpop_persona_library';
+    const DEFAULT = 'colorpop_default_persona';
+    let editId = new URLSearchParams(location.search).get('id');
+
+    function toast(t) {
+      let e = document.querySelector('#toast');
+      e.textContent = t;
+      e.style.display = 'block';
+      setTimeout(() => e.style.display = 'none', 2600);
+    }
+
+    function updateAvatar(url) {
+      if (!url) return;
+      document.querySelector('#preview').src = url;
+      document.querySelector('#avatarUrl').value = url;
+    }
+
+    function pickImage(file) {
+      if (!file) return;
+      let r = new FileReader();
+      r.onload = () => updateAvatar(r.result);
+      r.readAsDataURL(file);
+    }
+
+    function addTrait(t) {
+      let inp = document.querySelector('#traitsInput');
+      let current = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+      if (!current.includes(t)) {
+        current.push(t);
+        inp.value = current.join(', ');
+      }
+    }
+
+    // Load for edit if id exists
+    if (editId) {
+      try {
+        let items = JSON.parse(localStorage.getItem(KEY) || '[]');
+        let item = items.find(x => x.id === editId);
+        if (item) {
+          document.querySelector('#name').value = item.name || item.full_name || '';
+          document.querySelector('#displayName').value = item.display_name || item.name || '';
+          document.querySelector('#nicknames').value = item.nicknames || '';
+          document.querySelector('#occupation').value = item.occupation || '';
+          document.querySelector('#traitsInput').value = Array.isArray(item.traits) ? item.traits.join(', ') : (item.tags || '');
+          document.querySelector('#speakingStyle').value = item.speaking_style || '';
+          document.querySelector('#appearance').value = item.appearance || item.physical_description || '';
+          document.querySelector('#description').value = item.description || item.personality_description || '';
+          let pic = item.avatar_url || item.avatar || '/colorpop_hero.jpg';
+          updateAvatar(pic);
+          document.querySelector('#isDefault').checked = localStorage.getItem(DEFAULT) === editId || item.is_default;
+        }
+      } catch(e) {}
+    }
+
+    function savePersona() {
+      let name = document.querySelector('#name').value.trim();
+      if (!name) {
+        toast('Please enter a Persona Name');
+        return;
+      }
+
+      let displayName = document.querySelector('#displayName').value.trim() || name;
+      let nicknames = document.querySelector('#nicknames').value.trim();
+      let occupation = document.querySelector('#occupation').value.trim();
+      let avatar = document.querySelector('#preview').src;
+      let traits = document.querySelector('#traitsInput').value.split(',').map(s => s.trim()).filter(Boolean);
+      let speakingStyle = document.querySelector('#speakingStyle').value.trim();
+      let appearance = document.querySelector('#appearance').value.trim();
+      let description = document.querySelector('#description').value.trim();
+      let isDef = document.querySelector('#isDefault').checked;
+
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e) {}
+
+      let id = editId || ('p_' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+      let record = {
+        id,
+        name,
+        full_name: name,
+        display_name: displayName,
+        nicknames,
+        occupation,
+        avatar_url: avatar,
+        avatar: avatar,
+        traits,
+        speaking_style: speakingStyle,
+        appearance,
+        physical_description: appearance,
+        description,
+        personality_description: description,
+        is_default: isDef,
+        updated: Date.now()
+      };
+
+      let existingIndex = items.findIndex(x => x.id === id);
+      if (existingIndex >= 0) {
+        items[existingIndex] = { ...items[existingIndex], ...record };
+      } else {
+        items.unshift(record);
+      }
+
+      localStorage.setItem(KEY, JSON.stringify(items));
+      if (isDef) {
+        localStorage.setItem(DEFAULT, id);
+      }
+
+      toast('Persona saved to library!');
+      setTimeout(() => {
+        location.href = 'persona-library.html';
+      }, 700);
+    }
+  </script>
+</body>
+</html>
