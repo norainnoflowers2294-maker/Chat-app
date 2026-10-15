@@ -1,0 +1,553 @@
+import React, { useState } from 'react';
+import {
+  X,
+  Wifi,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  KeyRound,
+  Sliders,
+  Database,
+  GitBranch,
+  ExternalLink,
+  ShieldCheck,
+  Sparkles,
+  RefreshCw,
+  LogOut,
+} from 'lucide-react';
+import { OpenRouterConfig, ConnectionDiagnostic, SupabaseConfig } from '../types/roleplay';
+import { signInWithGoogle, logOutFirebase } from '../lib/firebase';
+import { User } from 'firebase/auth';
+
+interface OpenRouterSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  config: OpenRouterConfig;
+  onSaveConfig: (cfg: OpenRouterConfig) => void;
+  diagnostic: ConnectionDiagnostic;
+  onTestConnection: (key?: string) => Promise<void>;
+  supabaseConfig: SupabaseConfig;
+  onSaveSupabaseConfig: (cfg: SupabaseConfig) => void;
+  firebaseUser: User | null;
+}
+
+export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  config,
+  onSaveConfig,
+  diagnostic,
+  onTestConnection,
+  supabaseConfig,
+  onSaveSupabaseConfig,
+  firebaseUser,
+}) => {
+  const [apiKey, setApiKey] = useState(config.apiKey);
+  const [model, setModel] = useState(config.model);
+  const [temperature, setTemperature] = useState(config.temperature);
+  const [maxTokens, setMaxTokens] = useState(config.maxTokens);
+  const [topP, setTopP] = useState(config.topP);
+
+  const [supaUrl, setSupaUrl] = useState(supabaseConfig.url);
+  const [supaKey, setSupaKey] = useState(supabaseConfig.anonKey);
+
+  const [activeTab, setActiveTab] = useState<'openrouter' | 'firebase' | 'supabase' | 'github'>('openrouter');
+  const [testing, setTesting] = useState(false);
+
+  const [pushingGit, setPushingGit] = useState(false);
+  const [gitPushResult, setGitPushResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleTest = async () => {
+    setTesting(true);
+    await onTestConnection(apiKey);
+    setTesting(false);
+  };
+
+  const handleSave = () => {
+    onSaveConfig({
+      ...config,
+      apiKey,
+      model,
+      temperature,
+      maxTokens,
+      topP,
+    });
+    onSaveSupabaseConfig({
+      url: supaUrl,
+      anonKey: supaKey,
+      connected: Boolean(supaUrl && supaKey),
+    });
+    onClose();
+  };
+
+  const handleGitPush = async () => {
+    setPushingGit(true);
+    setGitPushResult(null);
+    try {
+      const res = await fetch('/api/git/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoUrl: 'https://github.com/norainnoflowers2294-maker/Chat-app.git',
+          commitMsg: `Update ColorPop Roleplay Hub & OpenRouter - ${new Date().toLocaleTimeString()}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to push to GitHub');
+
+      setGitPushResult({
+        success: true,
+        message: 'All applet code and roleplay systems successfully pushed to norainnoflowers2294-maker/Chat-app!',
+        output: data.output,
+      });
+    } catch (err: any) {
+      setGitPushResult({
+        success: false,
+        message: err.message || 'Push failed. Please verify your token permissions.',
+      });
+    } finally {
+      setPushingGit(false);
+    }
+  };
+
+  const popularModels = [
+    { id: 'gryphe/mythomax-l2-13b', label: 'Mythomax L2 13B (Recommended for Roleplay)', badge: 'Gold Standard' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct', badge: 'High Intelligence' },
+    { id: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet', badge: 'Ultra Vivid Prose' },
+    { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', badge: 'Fast & Rich' },
+    { id: 'mistralai/mistral-large-2411', label: 'Mistral Large 2411', badge: 'Complex Dialogues' },
+    { id: 'nousresearch/hermes-3-llama-3.1-405b', label: 'Hermes 3 Llama 3.1 405B', badge: 'Masterclass' },
+    { id: 'gryphe/mythomax-l2-13b:free', label: 'Mythomax L2 13B (Free Tier)', badge: 'Free' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#ff3399]/30 bg-[#0d020b]">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#ff007f] to-[#ff3399] flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,0,128,0.6)]">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                Settings &amp; OpenRouter Diagnostics
+              </h2>
+              <p className="text-xs text-[#ffd6eb]/70">
+                Connect OpenRouter AI, Firebase storage, and sync to GitHub
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-[#ffd6eb]/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex border-b border-[#ff3399]/30 bg-[#1a0515]/60 px-6 pt-2">
+          <button
+            onClick={() => setActiveTab('openrouter')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'openrouter'
+                ? 'border-[#ff007f] text-[#ff3399]'
+                : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
+            }`}
+          >
+            <Wifi className="w-3.5 h-3.5" />
+            <span>OpenRouter AI</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${diagnostic.status === 'connected' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-300'}`}>
+              {diagnostic.status === 'connected' ? 'Connected' : 'Problem'}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('firebase')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'firebase'
+                ? 'border-[#ff007f] text-[#ff3399]'
+                : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Firebase Cloud</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-400 font-mono">
+              Auto-Save
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('supabase')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'supabase'
+                ? 'border-[#ff007f] text-[#ff3399]'
+                : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Supabase</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('github')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'github'
+                ? 'border-[#ff007f] text-[#ff3399]'
+                : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-purple-400" />
+            <span>GitHub Push</span>
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs text-[#ffd6eb]">
+          {activeTab === 'openrouter' && (
+            <div className="space-y-5">
+              <div
+                className={`p-4 rounded-2xl border ${
+                  diagnostic.status === 'connected'
+                    ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                    : diagnostic.status === 'error'
+                    ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                    : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+                } space-y-2`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-2">
+                    {diagnostic.status === 'connected' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                    )}
+                    <div>
+                      <h4 className="font-bold text-sm text-white">
+                        {diagnostic.status === 'connected'
+                          ? 'OpenRouter Connected Successfully'
+                          : diagnostic.status === 'error'
+                          ? 'OpenRouter Connection Problem Detected'
+                          : 'OpenRouter Not Yet Verified'}
+                      </h4>
+                      {diagnostic.latencyMs && (
+                        <p className="text-[11px] opacity-80 font-mono">
+                          API Latency: {diagnostic.latencyMs}ms
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition-all flex items-center space-x-1 border border-white/20 disabled:opacity-50"
+                  >
+                    {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    <span>Test Connection</span>
+                  </button>
+                </div>
+
+                {diagnostic.status === 'error' && (
+                  <div className="pt-2 border-t border-rose-500/30 space-y-1">
+                    <p className="font-semibold text-rose-300">
+                      Problem: {diagnostic.errorMessage}
+                    </p>
+                    {diagnostic.suggestedFix && (
+                      <p className="text-[11px] text-white/90">
+                        Suggested Fix: {diagnostic.suggestedFix}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-white flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-[#ff3399]" />
+                    <span>OpenRouter API Key</span>
+                  </label>
+                  <a
+                    href="https://openrouter.ai/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-[#ff66b2] hover:underline flex items-center gap-1"
+                  >
+                    <span>Get OpenRouter Key</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="password"
+                  placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2.5 text-xs text-white placeholder-white/30 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-bold text-white flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-[#ff3399]" />
+                  <span>Roleplay AI Model</span>
+                </label>
+                <div className="space-y-1.5">
+                  {popularModels.map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={() => setModel(m.id)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                        model === m.id
+                          ? 'bg-[#ff007f]/20 border-[#ff007f] shadow-[0_0_12px_rgba(255,0,128,0.4)]'
+                          : 'bg-[#1a0515] border-[#ff3399]/20 hover:border-[#ff3399]/50'
+                      }`}
+                    >
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-white">{m.label}</div>
+                        <div className="font-mono text-[10px] text-[#ffb3d9]/70">{m.id}</div>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-[#ffd6eb] border border-white/20">
+                        {m.badge}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <input
+                    type="text"
+                    placeholder="Or enter custom model ID (e.g. anthropic/claude-3-haiku)"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white placeholder-white/30 font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#ff3399]/20">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between font-bold text-white">
+                    <span>Creativity (Temperature)</span>
+                    <span className="font-mono text-[#ff66b2]">{temperature}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="1.5"
+                    step="0.05"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="w-full accent-[#ff007f]"
+                  />
+                  <p className="text-[10px] text-[#ffd6eb]/60">Higher = more poetic & daring prose</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between font-bold text-white">
+                    <span>Response Length (Tokens)</span>
+                    <span className="font-mono text-[#ff66b2]">{maxTokens}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="256"
+                    max="4096"
+                    step="128"
+                    value={maxTokens}
+                    onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
+                    className="w-full accent-[#ff007f]"
+                  />
+                  <p className="text-[10px] text-[#ffd6eb]/60">Maximum length per generated reply</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'firebase' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-sm">Firebase Cloud Persistence</h4>
+                    <p className="text-[11px] text-[#ffd6eb]/70">
+                      Firestore &amp; Firebase Authentication auto-sync
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-[#ff3399]/20 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#ffd6eb]/80">Firestore Database ID:</span>
+                    <code className="text-blue-300 font-mono text-[11px]">ai-studio-githubconnecthub-2454e99a-1a95-4b9f-9cd4-6a2965f634bd</code>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#ffd6eb]/80">Security Rules:</span>
+                    <span className="text-emerald-400 font-bold">Deployed & Active</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-3">
+                <h4 className="font-bold text-white">Firebase Authentication</h4>
+                {firebaseUser ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img
+                        src={firebaseUser.photoURL || '/colorpop_hero.jpg'}
+                        alt={firebaseUser.displayName || 'User'}
+                        className="w-9 h-9 rounded-full ring-1 ring-white/30"
+                      />
+                      <div>
+                        <div className="font-bold text-white">{firebaseUser.displayName || 'Signed In'}</div>
+                        <div className="text-[11px] text-[#ffd6eb]/70 font-mono">{firebaseUser.email}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => logOutFirebase()}
+                      className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl font-bold flex items-center space-x-1"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-[#ffd6eb]/70">
+                      Sign in with Google to automatically back up all your roleplays, characters, lorebooks, and memories to your private Firebase cloud.
+                    </p>
+                    <button
+                      onClick={() => signInWithGoogle()}
+                      className="w-full py-2.5 bg-white text-black hover:bg-white/90 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-lg"
+                    >
+                      <span>Sign in with Google</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'supabase' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-2">
+                <h4 className="font-bold text-white">Supabase Cloud Storage</h4>
+                <p className="text-[11px] text-[#ffd6eb]/70">
+                  Optionally configure Supabase credentials to sync alongside Firebase.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-white">Supabase Project URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://xyzcompany.supabase.co"
+                    value={supaUrl}
+                    onChange={(e) => setSupaUrl(e.target.value)}
+                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-white">Supabase Anon Key</label>
+                  <input
+                    type="password"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                    value={supaKey}
+                    onChange={(e) => setSupaKey(e.target.value)}
+                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'github' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                    <GitBranch className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-sm">GitHub Push Integration</h4>
+                    <p className="text-[11px] text-[#ffd6eb]/70">
+                      Destination: <code className="text-purple-300 font-mono">norainnoflowers2294-maker/Chat-app.git</code>
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[#ffd6eb]/80 leading-relaxed">
+                  Click below to automatically commit and push the entire ColorPop roleplay application, OpenRouter backend, and Firebase blueprints to your target repository.
+                </p>
+
+                <button
+                  onClick={handleGitPush}
+                  disabled={pushingGit}
+                  className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {pushingGit ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Pushing code to GitHub...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GitBranch className="w-4 h-4" />
+                      <span>Push All to norainnoflowers2294-maker/Chat-app</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {gitPushResult && (
+                <div
+                  className={`p-4 rounded-2xl border ${
+                    gitPushResult.success
+                      ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                      : 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                  } space-y-2`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    {gitPushResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-rose-400" />}
+                    <span>{gitPushResult.message}</span>
+                  </div>
+                  {gitPushResult.output && (
+                    <pre className="p-2 bg-black/50 rounded-lg text-[10px] font-mono text-white/80 overflow-x-auto max-h-32">
+                      {gitPushResult.output}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[#ff3399]/30 bg-[#0d020b]">
+          <div className="text-[11px] text-[#ffd6eb]/60">
+            OpenRouter AI &bull; Firebase &bull; Supabase &bull; ColorPop
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-[#ffd6eb] font-bold text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white font-bold text-xs shadow-[0_0_15px_rgba(255,0,128,0.7)] transition-all"
+            >
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
