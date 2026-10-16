@@ -26,6 +26,7 @@ import { OpenRouterSettingsModal } from './components/OpenRouterSettingsModal';
 import { StoryNotesModal } from './components/StoryNotesModal';
 import { SavedMessagesModal } from './components/SavedMessagesModal';
 import { SceneGeneratorModal } from './components/SceneGeneratorModal';
+import { FileKeeperView } from './components/FileKeeperView';
 import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
@@ -561,7 +562,7 @@ export default function App() {
               setActiveTab(t);
               if (t === 'chats') {
                 if (activeChat) setInChatMode(true);
-              } else if (t === 'characters' || t === 'gallery') {
+              } else if (t === 'characters' || t === 'gallery' || t === 'files') {
                 setIsCreateCharacterOpen(false);
               } else if (t === 'lorebooks') {
                 setIsLoreModalOpen(true);
@@ -608,6 +609,8 @@ export default function App() {
             activeChatId={activeChat?.id}
             onApplySceneBackground={handleApplySceneBackground}
           />
+        ) : activeTab === 'files' ? (
+          <FileKeeperView />
         ) : activeTab === 'perchance' ? (
           <PerchanceView />
         ) : activeTab === 'personas' ? (
