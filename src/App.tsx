@@ -402,7 +402,7 @@ export default function App() {
         onOpenGallery={() => {
           setIsCreateCharacterOpen(false);
           setCharacterToEdit(null);
-          setIsSceneGeneratorOpen(true);
+          setActiveTab('gallery');
         }}
         onOpenHome={() => {
           setIsCreateCharacterOpen(false);
