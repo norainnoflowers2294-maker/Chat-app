@@ -806,14 +806,16 @@ app.post('/api/git/push', async (req: Request, res: Response) => {
     }
 
     // Set authenticated remote
-    const authedUrl = repoUrl.replace('https://', `https://norainnoflowers2294-maker:${token}@`);
-    await execAsync(`git remote set-url origin "${authedUrl}" 2>/dev/null || git remote add origin "${authedUrl}"`);
+    await execAsync(`git remote set-url origin "${repoUrl}" 2>/dev/null || git remote add origin "${repoUrl}"`);
 
     // Ensure branch is main
     await execAsync('git branch -M main');
 
     // Push with force if needed or standard push
-    const { stdout, stderr } = await execAsync('git push -u origin main');
+    const { stdout, stderr } = await execAsync(
+      'git -c credential.helper=\'!f() { echo username=norainnoflowers2294-maker; echo "password=$GITHUB_TOKEN_FOR_PUSH"; }; f\' push -u origin main',
+      { env: { ...process.env, GITHUB_TOKEN_FOR_PUSH: token } }
+    );
 
     res.json({
       success: true,
