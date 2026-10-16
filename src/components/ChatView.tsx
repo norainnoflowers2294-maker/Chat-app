@@ -35,6 +35,8 @@ import {
   Plugin,
   ChatMessage,
   OpenRouterConfig,
+  GeminiConfig,
+  AIProvider,
   ConnectionDiagnostic,
 } from '../types/roleplay';
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
@@ -47,7 +49,9 @@ interface ChatViewProps {
   personas: Persona[];
   lorebooks: Lorebook[];
   plugins: Plugin[];
+  activeProvider: AIProvider;
   openRouterConfig: OpenRouterConfig;
+  geminiConfig: GeminiConfig;
   diagnostic: ConnectionDiagnostic;
   onUpdateChat: (updatedChat: Chat) => void;
   onSelectChat: (chatId: string) => void;
@@ -72,7 +76,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   personas,
   lorebooks,
   plugins,
+  activeProvider,
   openRouterConfig,
+  geminiConfig,
   diagnostic,
   onUpdateChat,
   onSelectChat,
@@ -166,33 +172,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat: updatedChat,
       });
 
-      const response = await fetch('/api/openrouter/chat', {
+      const providerToUse = activeProvider || 'openrouter';
+      const currentConfig = providerToUse === 'gemini' ? geminiConfig : openRouterConfig;
+
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          apiKey: openRouterConfig.apiKey,
-          model: openRouterConfig.model,
+          provider: providerToUse,
+          apiKey: currentConfig.apiKey,
+          model: currentConfig.model,
           messages: apiMessages,
-          temperature: openRouterConfig.temperature,
-          maxTokens: openRouterConfig.maxTokens,
-          topP: openRouterConfig.topP,
+          temperature: currentConfig.temperature,
+          maxTokens: currentConfig.maxTokens,
+          topP: currentConfig.topP,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        let suggestedFix = 'Check your OpenRouter Settings to configure your API key.';
+        let suggestedFix = `Check your ${providerToUse.toUpperCase()} Settings to configure your API key.`;
         if (response.status === 401) {
-          suggestedFix = 'Your OpenRouter API Key is invalid or expired. Please update it in Settings.';
+          suggestedFix = `Your ${providerToUse.toUpperCase()} API Key is invalid or expired. Please update it in Settings.`;
         } else if (response.status === 402) {
-          suggestedFix = 'Your OpenRouter account has zero credits. Please add funds at openrouter.ai/credits or pick a free model like gryphe/mythomax-l2-13b:free.';
+          suggestedFix = 'Account out of credits. Add funds or select a free model tier in Settings.';
         } else if (response.status === 429) {
-          suggestedFix = 'Rate limit reached on OpenRouter. Please wait 10 seconds before replying.';
+          suggestedFix = 'Rate limit reached. Please wait 10 seconds before replying.';
+        } else if (data.suggestedFix) {
+          suggestedFix = data.suggestedFix;
         }
 
         setErrorDetails({
-          message: data.error || `OpenRouter returned HTTP ${response.status}`,
+          message: data.error || `${providerToUse.toUpperCase()} returned HTTP ${response.status}`,
           suggestedFix,
         });
         setLoading(false);
@@ -304,8 +316,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <h2 className="text-sm font-bold text-white tracking-wide truncate max-w-[120px] sm:max-w-xs">
                   {chat.title}
                 </h2>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 uppercase">
+                  {activeProvider || 'openrouter'}
+                </span>
                 <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  {openRouterConfig.model.split('/').pop()}
+                  {(activeProvider === 'gemini' ? geminiConfig.model : openRouterConfig.model).split('/').pop()}
                 </span>
               </div>
               <p className="text-[10px] text-[#ffd6eb]/70 truncate max-w-xs">
