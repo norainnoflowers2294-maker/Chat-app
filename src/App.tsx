@@ -33,6 +33,7 @@ import {
   Chat,
   ChatMessage,
   OpenRouterConfig,
+  GeminiConfig,
   ConnectionDiagnostic,
   SupabaseConfig,
   StoryMemory,
@@ -75,7 +76,7 @@ export default function App() {
   // Firebase user
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
 
-  // OpenRouter Connection Diagnostics
+  // AI Connection Diagnostics
   const [diagnostic, setDiagnostic] = useState<ConnectionDiagnostic>({
     status: 'untested',
     lastChecked: null,
@@ -88,45 +89,78 @@ export default function App() {
     syncToFirebase(newData);
   };
 
-  // Test OpenRouter Connection
-  const testOpenRouter = async (customKey?: string) => {
-    const key = customKey ?? data.openRouterConfig.apiKey;
-    setDiagnostic((prev) => ({ ...prev, status: 'testing' }));
+  // Test AI Connection (OpenRouter or Google Gemini)
+  const testAiConnection = async (
+    targetProvider?: 'openrouter' | 'gemini',
+    customKey?: string,
+    customModel?: string
+  ) => {
+    const prov = targetProvider || data.activeProvider || 'openrouter';
+    const key = customKey ?? (prov === 'gemini' ? data.geminiConfig.apiKey : data.openRouterConfig.apiKey);
+    const model = customModel ?? (prov === 'gemini' ? data.geminiConfig.model : data.openRouterConfig.model);
+
+    setDiagnostic((prev) => ({
+      ...prev,
+      provider: prov,
+      status: 'testing',
+      stages: {
+        apiKeyCheck: 'running',
+        modelCheck: 'pending',
+        textGenCheck: 'pending',
+        streamCheck: 'pending',
+      },
+    }));
 
     try {
-      const res = await fetch('/api/openrouter/test', {
+      const res = await fetch('/api/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key }),
+        body: JSON.stringify({
+          provider: prov,
+          apiKey: key,
+          model,
+        }),
       });
 
       const resData = await res.json();
 
       if (resData.status === 'connected') {
         setDiagnostic({
+          provider: prov,
           status: 'connected',
           lastChecked: Date.now(),
           latencyMs: resData.latencyMs,
           statusCode: 200,
+          stages: resData.stages || {
+            apiKeyCheck: 'success',
+            modelCheck: 'success',
+            textGenCheck: 'success',
+            streamCheck: 'success',
+          },
+          diagnosticReport: resData.diagnosticReport,
         });
       } else {
         setDiagnostic({
+          provider: prov,
           status: 'error',
           lastChecked: Date.now(),
           statusCode: resData.statusCode,
           errorCategory: resData.errorCategory,
-          errorMessage: resData.errorMessage || 'Failed to connect to OpenRouter',
+          errorMessage: resData.errorMessage || `Failed to connect to ${prov.toUpperCase()}`,
           suggestedFix: resData.suggestedFix,
           latencyMs: resData.latencyMs,
+          stages: resData.stages,
+          diagnosticReport: resData.diagnosticReport,
         });
       }
     } catch (err: any) {
       setDiagnostic({
+        provider: prov,
         status: 'error',
         lastChecked: Date.now(),
         errorCategory: 'network_error',
         errorMessage: err.message || 'Network error reaching backend proxy',
-        suggestedFix: 'Verify your network connection and server status.',
+        suggestedFix: 'Verify your network connection and backend server status.',
       });
     }
   };
@@ -160,16 +194,19 @@ export default function App() {
       }
     });
 
-    // Test OpenRouter if key exists
-    if (data.openRouterConfig.apiKey) {
-      testOpenRouter(data.openRouterConfig.apiKey);
+    // Test Active AI Connection on Startup
+    const currentProv = data.activeProvider || 'openrouter';
+    const activeKey = currentProv === 'gemini' ? data.geminiConfig.apiKey : data.openRouterConfig.apiKey;
+    if (activeKey) {
+      testAiConnection(currentProv, activeKey);
     } else {
       setDiagnostic({
+        provider: currentProv,
         status: 'error',
         lastChecked: Date.now(),
         errorCategory: 'missing_key',
-        errorMessage: 'OpenRouter API Key is not set.',
-        suggestedFix: 'Click "Setup OpenRouter" or open Settings to enter your API key from openrouter.ai/keys.',
+        errorMessage: `${currentProv.toUpperCase()} API Key is not configured.`,
+        suggestedFix: 'Open Settings to enter your API key or switch AI providers.',
       });
     }
 
@@ -292,7 +329,19 @@ export default function App() {
 
   const handleSaveOpenRouterConfig = (cfg: OpenRouterConfig) => {
     updateData({ ...data, openRouterConfig: cfg });
-    testOpenRouter(cfg.apiKey);
+    testAiConnection('openrouter', cfg.apiKey, cfg.model);
+  };
+
+  const handleSaveGeminiConfig = (cfg: GeminiConfig) => {
+    updateData({ ...data, geminiConfig: cfg });
+    testAiConnection('gemini', cfg.apiKey, cfg.model);
+  };
+
+  const handleChangeProvider = (p: 'openrouter' | 'gemini') => {
+    updateData({ ...data, activeProvider: p });
+    const key = p === 'gemini' ? data.geminiConfig.apiKey : data.openRouterConfig.apiKey;
+    const model = p === 'gemini' ? data.geminiConfig.model : data.openRouterConfig.model;
+    testAiConnection(p, key, model);
   };
 
   const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
@@ -349,7 +398,9 @@ export default function App() {
           personas={data.personas}
           lorebooks={data.lorebooks}
           plugins={data.plugins}
+          activeProvider={data.activeProvider || 'openrouter'}
           openRouterConfig={data.openRouterConfig}
+          geminiConfig={data.geminiConfig}
           diagnostic={diagnostic}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
@@ -401,10 +452,14 @@ export default function App() {
         <OpenRouterSettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          config={data.openRouterConfig}
-          onSaveConfig={handleSaveOpenRouterConfig}
+          activeProvider={data.activeProvider || 'openrouter'}
+          onChangeProvider={handleChangeProvider}
+          openRouterConfig={data.openRouterConfig}
+          onSaveOpenRouterConfig={handleSaveOpenRouterConfig}
+          geminiConfig={data.geminiConfig}
+          onSaveGeminiConfig={handleSaveGeminiConfig}
           diagnostic={diagnostic}
-          onTestConnection={testOpenRouter}
+          onTestConnection={testAiConnection}
           supabaseConfig={data.supabaseConfig}
           onSaveSupabaseConfig={handleSaveSupabaseConfig}
           firebaseUser={firebaseUser}
@@ -680,10 +735,14 @@ export default function App() {
       <OpenRouterSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        config={data.openRouterConfig}
-        onSaveConfig={handleSaveOpenRouterConfig}
+        activeProvider={data.activeProvider || 'openrouter'}
+        onChangeProvider={handleChangeProvider}
+        openRouterConfig={data.openRouterConfig}
+        onSaveOpenRouterConfig={handleSaveOpenRouterConfig}
+        geminiConfig={data.geminiConfig}
+        onSaveGeminiConfig={handleSaveGeminiConfig}
         diagnostic={diagnostic}
-        onTestConnection={testOpenRouter}
+        onTestConnection={testAiConnection}
         supabaseConfig={data.supabaseConfig}
         onSaveSupabaseConfig={handleSaveSupabaseConfig}
         firebaseUser={firebaseUser}

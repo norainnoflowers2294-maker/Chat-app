@@ -624,153 +624,692 @@ app.delete('/api/github/user/starred/:owner/:repo', async (req: Request, res: Re
   }
 });
 
-// ---------------- OpenRouter Proxy & Diagnostics Endpoints ---------------- //
+// ---------------- Universal AI Connection Doctor & Chat Proxy Endpoints ---------------- //
 
-// POST /api/openrouter/test: Test connection & fetch diagnostics
-app.post('/api/openrouter/test', async (req: Request, res: Response) => {
-  const apiKey = (req.body.apiKey || process.env.OPENROUTER_API_KEY || '').trim();
+function maskKey(key: string): string {
+  if (!key) return 'NOT_PROVIDED';
+  if (key.length <= 8) return `${key.substring(0, 2)}***${key.substring(key.length - 2)}`;
+  return `${key.substring(0, 6)}...${key.substring(key.length - 4)}`;
+}
+
+function classifyError(status: number | null, rawMsg: string): { category: string; suggestedFix: string } {
+  const lower = (rawMsg || '').toLowerCase();
+  if (status === 400 || lower.includes('bad request') || lower.includes('invalid argument')) {
+    return {
+      category: 'bad_request',
+      suggestedFix: 'Check request payload formatting, model parameters, or unsupported temperature/token range.',
+    };
+  }
+  if (status === 401 || lower.includes('unauthorized') || lower.includes('invalid api key') || lower.includes('key invalid')) {
+    return {
+      category: 'auth_failed',
+      suggestedFix: 'Verify your API key format and ensure it is active without revoked permissions.',
+    };
+  }
+  if (status === 402 || lower.includes('payment required') || lower.includes('insufficient_quota') || lower.includes('out of credits')) {
+    return {
+      category: 'no_credits',
+      suggestedFix: 'Your API key account has run out of credits. Add funds or select a free model tier.',
+    };
+  }
+  if (status === 403 || lower.includes('forbidden') || lower.includes('permission denied') || lower.includes('location not supported')) {
+    return {
+      category: 'forbidden',
+      suggestedFix: 'Access forbidden. Check key scopes, geographic/region restrictions, or billing permissions.',
+    };
+  }
+  if (status === 404 || lower.includes('not found') || lower.includes('model not found')) {
+    return {
+      category: 'not_found',
+      suggestedFix: 'The selected model ID or endpoint was not found. Choose a known valid model from the list.',
+    };
+  }
+  if (status === 429 || lower.includes('rate limit') || lower.includes('too many requests')) {
+    return {
+      category: 'rate_limited',
+      suggestedFix: 'Rate limit hit. Wait a few seconds before retrying or upgrade your account rate limits.',
+    };
+  }
+  if (lower.includes('timeout') || lower.includes('aborted') || lower.includes('etimeout')) {
+    return {
+      category: 'timeout',
+      suggestedFix: 'Request timed out after waiting for response. Verify network latency and provider status.',
+    };
+  }
+  if (lower.includes('cors') || lower.includes('failed to fetch') || lower.includes('networkerror')) {
+    return {
+      category: 'cors_error',
+      suggestedFix: 'Network or CORS policy blocked request. Ensure backend proxy is handling AI requests.',
+    };
+  }
+  if (lower.includes('json') || lower.includes('syntaxerror') || lower.includes('unexpected token')) {
+    return {
+      category: 'parse_error',
+      suggestedFix: 'Failed to parse AI provider response. The API may be returning HTML error pages or malformed streams.',
+    };
+  }
+  return {
+    category: 'network_error',
+    suggestedFix: 'General network failure reaching AI provider. Check internet connectivity.',
+  };
+}
+
+// POST /api/ai/test - Authenticated 4-stage test suite for OpenRouter & Google Gemini
+app.post('/api/ai/test', async (req: Request, res: Response) => {
+  const provider = (req.body.provider || 'openrouter') as 'openrouter' | 'gemini';
+  const apiKey = (req.body.apiKey || (provider === 'gemini' ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY) || '').trim();
+  const model = (req.body.model || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gryphe/mythomax-l2-13b')).trim();
 
   if (!apiKey) {
+    const errorMsg = `Missing API Key for ${provider === 'gemini' ? 'Google Gemini' : 'OpenRouter'}.`;
     res.json({
       status: 'error',
+      provider,
       errorCategory: 'missing_key',
-      errorMessage: 'Missing API Key. Please enter your OpenRouter API Key in Settings.',
-      suggestedFix: 'Get an API key from https://openrouter.ai/keys and paste it into OpenRouter Settings.',
+      errorMessage: errorMsg,
+      suggestedFix: provider === 'gemini'
+        ? 'Get a Gemini API key from https://aistudio.google.com/app/apikey and enter it in Settings.'
+        : 'Get an OpenRouter API key from https://openrouter.ai/keys and enter it in Settings.',
+      stages: {
+        apiKeyCheck: 'failed',
+        modelCheck: 'skipped',
+        textGenCheck: 'skipped',
+        streamCheck: 'skipped',
+      },
+      diagnosticReport: `=== COLORPOP AI CONNECTION DIAGNOSTIC REPORT ===\nTimestamp: ${new Date().toISOString()}\nProvider: ${provider}\nStatus: FAILED\nReason: ${errorMsg}\nAPI Key: [NOT SET]\n`,
     });
     return;
   }
 
   const startTime = Date.now();
+  const stages = {
+    apiKeyCheck: 'pending' as any,
+    modelCheck: 'pending' as any,
+    textGenCheck: 'pending' as any,
+    streamCheck: 'pending' as any,
+  };
+
+  const reportLogs: string[] = [
+    `=== COLORPOP AI CONNECTION DIAGNOSTIC REPORT ===`,
+    `Timestamp: ${new Date().toISOString()}`,
+    `Provider: ${provider.toUpperCase()}`,
+    `Model: ${model}`,
+    `API Key Masked: ${maskKey(apiKey)}`,
+    `App Origin: ${getAppUrl(req)}`,
+    `--------------------------------------------------`,
+  ];
+
   try {
-    const keyRes = await fetch('https://openrouter.ai/api/v1/auth/key', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': getAppUrl(req),
-        'X-Title': 'ColorPop Roleplay Hub',
-      },
-    });
+    if (provider === 'openrouter') {
+      // Stage 1: Auth Key Check
+      stages.apiKeyCheck = 'running';
+      const keyRes = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': getAppUrl(req),
+          'X-Title': 'ColorPop Connection Doctor',
+        },
+      });
 
-    const latencyMs = Date.now() - startTime;
+      if (!keyRes.ok) {
+        stages.apiKeyCheck = 'failed';
+        stages.modelCheck = 'skipped';
+        stages.textGenCheck = 'skipped';
+        stages.streamCheck = 'skipped';
+        const errJson = await keyRes.json().catch(() => ({}));
+        const rawErr = errJson?.error?.message || `HTTP ${keyRes.status} on auth check`;
+        const classified = classifyError(keyRes.status, rawErr);
+        reportLogs.push(`[STAGE 1: Auth Check] FAILED (HTTP ${keyRes.status}): ${rawErr}`);
 
-    if (!keyRes.ok) {
-      const errJson = await keyRes.json().catch(() => ({}));
-      const statusCode = keyRes.status;
-
-      let errorCategory: string = 'network_error';
-      let errorMessage = errJson?.error?.message || `OpenRouter returned HTTP ${statusCode}`;
-      let suggestedFix = 'Check your OpenRouter account status and API keys.';
-
-      if (statusCode === 401) {
-        errorCategory = 'auth_failed';
-        errorMessage = 'Invalid OpenRouter API Key (401 Unauthorized).';
-        suggestedFix = 'Double check that your key begins with "sk-or-v1-" and has not been revoked at openrouter.ai/keys.';
-      } else if (statusCode === 402) {
-        errorCategory = 'no_credits';
-        errorMessage = 'Insufficient Credits (402 Payment Required).';
-        suggestedFix = 'Add credit balance to your account at https://openrouter.ai/credits or choose a free model.';
-      } else if (statusCode === 429) {
-        errorCategory = 'rate_limited';
-        errorMessage = 'Rate limit exceeded on OpenRouter (429 Too Many Requests).';
-        suggestedFix = 'Wait a few seconds before testing again, or upgrade your OpenRouter account tier.';
+        res.json({
+          status: 'error',
+          provider,
+          statusCode: keyRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 1 Auth Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
       }
+      stages.apiKeyCheck = 'success';
+      reportLogs.push(`[STAGE 1: Auth Check] SUCCESS (HTTP 200 OK)`);
+
+      // Stage 2: Model Existence Check
+      stages.modelCheck = 'running';
+      const modelsRes = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      });
+      if (modelsRes.ok) {
+        const modelsData = await modelsRes.json().catch(() => ({}));
+        const found = Array.isArray(modelsData?.data)
+          ? modelsData.data.some((m: any) => m.id === model)
+          : true;
+        if (!found) {
+          reportLogs.push(`[STAGE 2: Model Check] WARNING: Model '${model}' not listed in default catalog, attempting test generation anyway.`);
+        } else {
+          reportLogs.push(`[STAGE 2: Model Check] SUCCESS: Model '${model}' found in OpenRouter registry.`);
+        }
+      }
+      stages.modelCheck = 'success';
+
+      // Stage 3: Text Generation Test
+      stages.textGenCheck = 'running';
+      const textGenRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': getAppUrl(req),
+          'X-Title': 'ColorPop Connection Doctor',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'Ping test' }],
+          max_tokens: 5,
+        }),
+      });
+
+      if (!textGenRes.ok) {
+        stages.textGenCheck = 'failed';
+        stages.streamCheck = 'skipped';
+        const textErrJson = await textGenRes.json().catch(() => ({}));
+        const rawErr = textErrJson?.error?.message || `HTTP ${textGenRes.status} on text gen`;
+        const classified = classifyError(textGenRes.status, rawErr);
+        reportLogs.push(`[STAGE 3: Text Generation] FAILED (HTTP ${textGenRes.status}): ${rawErr}`);
+
+        res.json({
+          status: 'error',
+          provider,
+          statusCode: textGenRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 3 Text Generation Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
+      }
+      stages.textGenCheck = 'success';
+      reportLogs.push(`[STAGE 3: Text Generation] SUCCESS (HTTP 200 OK)`);
+
+      // Stage 4: Streaming Response Test
+      stages.streamCheck = 'running';
+      const streamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': getAppUrl(req),
+          'X-Title': 'ColorPop Connection Doctor',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'Ping stream' }],
+          max_tokens: 5,
+          stream: true,
+        }),
+      });
+
+      if (!streamRes.ok) {
+        stages.streamCheck = 'failed';
+        const streamErrJson = await streamRes.json().catch(() => ({}));
+        const rawErr = streamErrJson?.error?.message || `HTTP ${streamRes.status} on streaming test`;
+        const classified = classifyError(streamRes.status, rawErr);
+        reportLogs.push(`[STAGE 4: Streaming Test] FAILED (HTTP ${streamRes.status}): ${rawErr}`);
+
+        res.json({
+          status: 'error',
+          provider,
+          statusCode: streamRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 4 Streaming Test Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
+      }
+      stages.streamCheck = 'success';
+      reportLogs.push(`[STAGE 4: Streaming Test] SUCCESS (HTTP 200 OK)`);
+
+      const latencyMs = Date.now() - startTime;
+      reportLogs.push(`--------------------------------------------------`);
+      reportLogs.push(`SUMMARY: ALL 4 DIAGNOSTIC CHECKS PASSED (Total Latency: ${latencyMs}ms)`);
 
       res.json({
-        status: 'error',
-        statusCode,
-        errorCategory,
-        errorMessage,
-        suggestedFix,
+        status: 'connected',
+        provider: 'openrouter',
         latencyMs,
+        statusCode: 200,
+        stages,
+        diagnosticReport: reportLogs.join('\n'),
       });
-      return;
+    } else {
+      // GOOGLE GEMINI AUTHENTICATED 4-STAGE DIAGNOSTIC
+      // Stage 1: Auth API Key Check via Models Listing
+      stages.apiKeyCheck = 'running';
+      const listModelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+      const modelsRes = await fetch(listModelsUrl);
+
+      if (!modelsRes.ok) {
+        stages.apiKeyCheck = 'failed';
+        stages.modelCheck = 'skipped';
+        stages.textGenCheck = 'skipped';
+        stages.streamCheck = 'skipped';
+        const errJson = await modelsRes.json().catch(() => ({}));
+        const rawErr = errJson?.error?.message || `HTTP ${modelsRes.status} on Gemini Key Check`;
+        const classified = classifyError(modelsRes.status, rawErr);
+        reportLogs.push(`[STAGE 1: Auth Check] FAILED (HTTP ${modelsRes.status}): ${rawErr}`);
+
+        res.json({
+          status: 'error',
+          provider: 'gemini',
+          statusCode: modelsRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 1 Gemini Key Check Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
+      }
+      stages.apiKeyCheck = 'success';
+      reportLogs.push(`[STAGE 1: Auth Check] SUCCESS (HTTP 200 OK)`);
+
+      // Stage 2: Model Check
+      stages.modelCheck = 'running';
+      const modelsData = await modelsRes.json().catch(() => ({}));
+      const modelList = Array.isArray(modelsData?.models) ? modelsData.models : [];
+      const cleanModelName = model.startsWith('models/') ? model : `models/${model}`;
+      const found = modelList.some((m: any) => m.name === cleanModelName || m.name?.endsWith(model));
+      if (found) {
+        reportLogs.push(`[STAGE 2: Model Check] SUCCESS: Model '${model}' verified in Google Gemini API.`);
+      } else {
+        reportLogs.push(`[STAGE 2: Model Check] WARNING: Model '${model}' not listed in Gemini catalog; proceeding with test request.`);
+      }
+      stages.modelCheck = 'success';
+
+      // Stage 3: Text Generation Check
+      stages.textGenCheck = 'running';
+      const reqModel = model.replace(/^models\//, '');
+      const genUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(reqModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const textGenRes = await fetch(genUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Ping test' }] }],
+          generationConfig: { maxOutputTokens: 5 },
+        }),
+      });
+
+      if (!textGenRes.ok) {
+        stages.textGenCheck = 'failed';
+        stages.streamCheck = 'skipped';
+        const textErrJson = await textGenRes.json().catch(() => ({}));
+        const rawErr = textErrJson?.error?.message || `HTTP ${textGenRes.status} on Gemini generateContent`;
+        const classified = classifyError(textGenRes.status, rawErr);
+        reportLogs.push(`[STAGE 3: Text Generation] FAILED (HTTP ${textGenRes.status}): ${rawErr}`);
+
+        res.json({
+          status: 'error',
+          provider: 'gemini',
+          statusCode: textGenRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 3 Gemini Text Generation Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
+      }
+      stages.textGenCheck = 'success';
+      reportLogs.push(`[STAGE 3: Text Generation] SUCCESS (HTTP 200 OK)`);
+
+      // Stage 4: Streaming Check
+      stages.streamCheck = 'running';
+      const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(reqModel)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}&alt=sse`;
+      const streamRes = await fetch(streamUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Ping stream' }] }],
+          generationConfig: { maxOutputTokens: 5 },
+        }),
+      });
+
+      if (!streamRes.ok) {
+        stages.streamCheck = 'failed';
+        const streamErrJson = await streamRes.json().catch(() => ({}));
+        const rawErr = streamErrJson?.error?.message || `HTTP ${streamRes.status} on Gemini streamGenerateContent`;
+        const classified = classifyError(streamRes.status, rawErr);
+        reportLogs.push(`[STAGE 4: Streaming Test] FAILED (HTTP ${streamRes.status}): ${rawErr}`);
+
+        res.json({
+          status: 'error',
+          provider: 'gemini',
+          statusCode: streamRes.status,
+          errorCategory: classified.category,
+          errorMessage: `Stage 4 Gemini Streaming Test Failed: ${rawErr}`,
+          suggestedFix: classified.suggestedFix,
+          latencyMs: Date.now() - startTime,
+          stages,
+          diagnosticReport: reportLogs.join('\n'),
+        });
+        return;
+      }
+      stages.streamCheck = 'success';
+      reportLogs.push(`[STAGE 4: Streaming Test] SUCCESS (HTTP 200 OK)`);
+
+      const latencyMs = Date.now() - startTime;
+      reportLogs.push(`--------------------------------------------------`);
+      reportLogs.push(`SUMMARY: ALL 4 DIAGNOSTIC CHECKS PASSED (Total Latency: ${latencyMs}ms)`);
+
+      res.json({
+        status: 'connected',
+        provider: 'gemini',
+        latencyMs,
+        statusCode: 200,
+        stages,
+        diagnosticReport: reportLogs.join('\n'),
+      });
     }
-
-    const keyData = await keyRes.json();
-    const data = keyData?.data || {};
-
-    res.json({
-      status: 'connected',
-      latencyMs,
-      label: data.label || 'Default Key',
-      limit: data.limit,
-      usage: data.usage,
-      isFreeTier: data.is_free_tier,
-      rateLimit: data.rate_limit,
-    });
   } catch (err: any) {
+    const rawErr = err.message || 'Network exception during test';
+    const classified = classifyError(null, rawErr);
+    reportLogs.push(`[NETWORK EXCEPTION]: ${rawErr}`);
+
     res.json({
       status: 'error',
-      errorCategory: 'network_error',
-      errorMessage: err.message || 'Failed to reach OpenRouter API servers.',
-      suggestedFix: 'Check your internet connection and verify openrouter.ai is operational.',
+      provider,
+      errorCategory: classified.category,
+      errorMessage: rawErr,
+      suggestedFix: classified.suggestedFix,
       latencyMs: Date.now() - startTime,
+      stages,
+      diagnosticReport: reportLogs.join('\n'),
     });
   }
 });
 
-// POST /api/openrouter/chat: Proxies completions with prompt assembly
-app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
-  const apiKey = (req.body.apiKey || process.env.OPENROUTER_API_KEY || '').trim();
+// Backward compatibility for legacy frontend calls
+app.post('/api/openrouter/test', async (req: Request, res: Response) => {
+  req.body.provider = 'openrouter';
+  return app._router.handle(req, res, () => {});
+});
+
+// POST /api/ai/chat - Universal Roleplay Chat Proxy for OpenRouter & Google Gemini
+app.post('/api/ai/chat', async (req: Request, res: Response) => {
+  const provider = (req.body.provider || 'openrouter') as 'openrouter' | 'gemini';
+  const apiKey = (
+    req.body.apiKey ||
+    (provider === 'gemini' ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY) ||
+    ''
+  ).trim();
+
   const { model, messages, temperature, maxTokens, topP } = req.body;
 
   if (!apiKey) {
     res.status(401).json({
-      error: 'Missing OpenRouter API Key',
+      error: `Missing ${provider === 'gemini' ? 'Google Gemini' : 'OpenRouter'} API Key`,
       errorCategory: 'missing_key',
-      message: 'Please provide an OpenRouter API key in Settings.',
+      message: 'Please enter a valid API key in Settings.',
     });
     return;
   }
 
-  const chosenModel = model || 'gryphe/mythomax-l2-13b';
+  try {
+    if (provider === 'openrouter') {
+      const chosenModel = model || 'gryphe/mythomax-l2-13b';
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': getAppUrl(req),
+          'X-Title': 'ColorPop Roleplay Hub',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: chosenModel,
+          messages,
+          temperature: temperature ?? 0.85,
+          max_tokens: maxTokens ?? 1024,
+          top_p: topP ?? 0.95,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const err = data.error || {};
+        const classified = classifyError(response.status, err.message || `HTTP ${response.status}`);
+        res.status(response.status).json({
+          error: err.message || `OpenRouter returned status ${response.status}`,
+          statusCode: response.status,
+          errorCategory: classified.category,
+          suggestedFix: classified.suggestedFix,
+          details: err,
+        });
+        return;
+      }
+
+      const reply = data.choices?.[0]?.message?.content || '';
+      res.json({
+        content: reply,
+        model: data.model || chosenModel,
+        provider: 'openrouter',
+        usage: data.usage,
+      });
+    } else {
+      // GOOGLE GEMINI CHAT COMPLETION
+      const chosenModel = (model || 'gemini-2.5-flash').replace(/^models\//, '');
+
+      // Convert standard system + user/assistant messages to Gemini format
+      let systemInstruction: any = undefined;
+      const contents: any[] = [];
+
+      if (Array.isArray(messages)) {
+        messages.forEach((m: any) => {
+          if (m.role === 'system') {
+            systemInstruction = { parts: [{ text: m.content }] };
+          } else {
+            const geminiRole = m.role === 'assistant' ? 'model' : 'user';
+            contents.push({
+              role: geminiRole,
+              parts: [{ text: m.content || '' }],
+            });
+          }
+        });
+      }
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(chosenModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+      const geminiBody: any = {
+        contents,
+        generationConfig: {
+          temperature: temperature ?? 0.85,
+          maxOutputTokens: maxTokens ?? 1024,
+          topP: topP ?? 0.95,
+        },
+      };
+
+      if (systemInstruction) {
+        geminiBody.systemInstruction = systemInstruction;
+      }
+
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiBody),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const err = data.error || {};
+        const classified = classifyError(response.status, err.message || `HTTP ${response.status}`);
+        res.status(response.status).json({
+          error: err.message || `Google Gemini returned status ${response.status}`,
+          statusCode: response.status,
+          errorCategory: classified.category,
+          suggestedFix: classified.suggestedFix,
+          details: err,
+        });
+        return;
+      }
+
+      const candidateText = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
+
+      res.json({
+        content: candidateText,
+        model: chosenModel,
+        provider: 'gemini',
+        usage: data.usageMetadata,
+      });
+    }
+  } catch (err: any) {
+    const rawErr = err.message || 'Failed to communicate with AI provider';
+    const classified = classifyError(null, rawErr);
+    res.status(500).json({
+      error: rawErr,
+      errorCategory: classified.category,
+      suggestedFix: classified.suggestedFix,
+    });
+  }
+});
+
+// Backward compatibility for legacy /api/openrouter/chat
+app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
+  req.body.provider = 'openrouter';
+  return app._router.handle(req, res, () => {});
+});
+
+// POST /api/ai/chat/stream - Streaming SSE Endpoint for OpenRouter and Google Gemini
+app.post('/api/ai/chat/stream', async (req: Request, res: Response) => {
+  const provider = (req.body.provider || 'openrouter') as 'openrouter' | 'gemini';
+  const apiKey = (
+    req.body.apiKey ||
+    (provider === 'gemini' ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY) ||
+    ''
+  ).trim();
+
+  const { model, messages, temperature, maxTokens, topP } = req.body;
+
+  if (!apiKey) {
+    res.status(401).json({
+      error: `Missing ${provider === 'gemini' ? 'Google Gemini' : 'OpenRouter'} API Key`,
+      errorCategory: 'missing_key',
+    });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': getAppUrl(req),
-        'X-Title': 'ColorPop Roleplay Hub',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: chosenModel,
-        messages,
-        temperature: temperature ?? 0.85,
-        max_tokens: maxTokens ?? 1024,
-        top_p: topP ?? 0.95,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const err = data.error || {};
-      let errorCategory = 'model_unavailable';
-      if (response.status === 401) errorCategory = 'auth_failed';
-      if (response.status === 402) errorCategory = 'no_credits';
-      if (response.status === 429) errorCategory = 'rate_limited';
-
-      res.status(response.status).json({
-        error: err.message || `OpenRouter returned status ${response.status}`,
-        statusCode: response.status,
-        errorCategory,
-        details: err,
+    if (provider === 'openrouter') {
+      const chosenModel = model || 'gryphe/mythomax-l2-13b';
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': getAppUrl(req),
+          'X-Title': 'ColorPop Roleplay Hub',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: chosenModel,
+          messages,
+          temperature: temperature ?? 0.85,
+          max_tokens: maxTokens ?? 1024,
+          top_p: topP ?? 0.95,
+          stream: true,
+        }),
       });
-      return;
-    }
 
-    const reply = data.choices?.[0]?.message?.content || '';
-    res.json({
-      content: reply,
-      model: data.model || chosenModel,
-      usage: data.usage,
-    });
+      if (!response.ok || !response.body) {
+        const errJson = await response.json().catch(() => ({}));
+        res.write(`data: ${JSON.stringify({ error: errJson?.error?.message || `HTTP ${response.status}` })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const reader = (response.body as any).getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+      res.end();
+    } else {
+      // GEMINI STREAMING
+      const chosenModel = (model || 'gemini-2.5-flash').replace(/^models\//, '');
+      let systemInstruction: any = undefined;
+      const contents: any[] = [];
+
+      if (Array.isArray(messages)) {
+        messages.forEach((m: any) => {
+          if (m.role === 'system') {
+            systemInstruction = { parts: [{ text: m.content }] };
+          } else {
+            const geminiRole = m.role === 'assistant' ? 'model' : 'user';
+            contents.push({
+              role: geminiRole,
+              parts: [{ text: m.content || '' }],
+            });
+          }
+        });
+      }
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(chosenModel)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}&alt=sse`;
+
+      const geminiBody: any = {
+        contents,
+        generationConfig: {
+          temperature: temperature ?? 0.85,
+          maxOutputTokens: maxTokens ?? 1024,
+          topP: topP ?? 0.95,
+        },
+      };
+      if (systemInstruction) geminiBody.systemInstruction = systemInstruction;
+
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiBody),
+      });
+
+      if (!response.ok || !response.body) {
+        const errJson = await response.json().catch(() => ({}));
+        res.write(`data: ${JSON.stringify({ error: errJson?.error?.message || `HTTP ${response.status}` })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const reader = (response.body as any).getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+      res.end();
+    }
   } catch (err: any) {
-    res.status(500).json({
-      error: err.message || 'Failed to communicate with OpenRouter',
-      errorCategory: 'network_error',
-    });
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
   }
 });
 

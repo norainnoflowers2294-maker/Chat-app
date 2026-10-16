@@ -1,4 +1,4 @@
-import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, SupabaseConfig, StoryMemory } from '../types/roleplay';
+import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, GeminiConfig, AIProvider, SupabaseConfig, StoryMemory } from '../types/roleplay';
 import { INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -10,7 +10,9 @@ export interface StorageData {
   plugins: Plugin[];
   chats: Chat[];
   activeChatId?: string;
+  activeProvider: AIProvider;
   openRouterConfig: OpenRouterConfig;
+  geminiConfig: GeminiConfig;
   supabaseConfig: SupabaseConfig;
   storyMemories: StoryMemory[];
   savedMessages: Array<{
@@ -35,6 +37,14 @@ export const DEFAULT_OPENROUTER_CONFIG: OpenRouterConfig = {
   presencePenalty: 0.2,
   siteUrl: 'https://ais-dev-ohlfym6cwp4w2lwha7oenj-597148229967.us-east1.run.app',
   siteName: 'ColorPop Roleplay Hub',
+};
+
+export const DEFAULT_GEMINI_CONFIG: GeminiConfig = {
+  apiKey: '',
+  model: 'gemini-2.5-flash',
+  temperature: 0.85,
+  maxTokens: 1024,
+  topP: 0.95,
 };
 
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfig = {
@@ -85,7 +95,9 @@ export function loadLocalData(): StorageData {
         plugins: parsed.plugins?.length ? parsed.plugins : INITIAL_PLUGINS,
         chats: parsed.chats?.length ? parsed.chats : INITIAL_CHATS,
         activeChatId: parsed.activeChatId || (parsed.chats?.[0]?.id ?? INITIAL_CHATS[0]?.id),
+        activeProvider: parsed.activeProvider || 'openrouter',
         openRouterConfig: { ...DEFAULT_OPENROUTER_CONFIG, ...(parsed.openRouterConfig || {}) },
+        geminiConfig: { ...DEFAULT_GEMINI_CONFIG, ...(parsed.geminiConfig || {}) },
         supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
         storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
         savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
@@ -102,7 +114,9 @@ export function loadLocalData(): StorageData {
     plugins: INITIAL_PLUGINS,
     chats: INITIAL_CHATS,
     activeChatId: INITIAL_CHATS[0]?.id,
+    activeProvider: 'openrouter',
     openRouterConfig: DEFAULT_OPENROUTER_CONFIG,
+    geminiConfig: DEFAULT_GEMINI_CONFIG,
     supabaseConfig: DEFAULT_SUPABASE_CONFIG,
     storyMemories: DEFAULT_MEMORIES,
     savedMessages: DEFAULT_SAVED_MSGS,

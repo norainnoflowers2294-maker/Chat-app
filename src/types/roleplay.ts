@@ -107,15 +107,41 @@ export interface Chat {
   updatedAt: string;
 }
 
+export type AIProvider = 'openrouter' | 'gemini';
+
+export type DiagnosticCheckStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+
+export interface TestStageDetails {
+  apiKeyCheck: DiagnosticCheckStatus;
+  modelCheck: DiagnosticCheckStatus;
+  textGenCheck: DiagnosticCheckStatus;
+  streamCheck: DiagnosticCheckStatus;
+}
+
 export interface ConnectionDiagnostic {
+  provider?: AIProvider;
   status: 'connected' | 'error' | 'untested' | 'testing';
   lastChecked: number | null;
   statusCode?: number;
   errorMessage?: string;
-  errorCategory?: 'missing_key' | 'auth_failed' | 'no_credits' | 'rate_limited' | 'model_unavailable' | 'network_error';
+  errorCategory?:
+    | 'missing_key'
+    | 'auth_failed'
+    | 'no_credits'
+    | 'forbidden'
+    | 'not_found'
+    | 'rate_limited'
+    | 'model_unavailable'
+    | 'network_error'
+    | 'timeout'
+    | 'cors_error'
+    | 'parse_error'
+    | 'bad_request';
   suggestedFix?: string;
   latencyMs?: number;
   availableModels?: string[];
+  stages?: TestStageDetails;
+  diagnosticReport?: string;
 }
 
 export interface OpenRouterConfig {
@@ -128,6 +154,14 @@ export interface OpenRouterConfig {
   presencePenalty: number;
   siteUrl: string;
   siteName: string;
+}
+
+export interface GeminiConfig {
+  apiKey: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  topP: number;
 }
 
 export interface SupabaseConfig {
