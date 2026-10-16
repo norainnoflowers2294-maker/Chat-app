@@ -12,6 +12,7 @@ import { CategoryPills, CategoryFilter } from './components/CategoryPills';
 import { RecentChatsSection } from './components/RecentChatsSection';
 import { ChatView } from './components/ChatView';
 import { CharacterModal } from './components/CharacterModal';
+import { CreateCharacterView } from './components/CreateCharacterView';
 import { LorebookModal } from './components/LorebookModal';
 import { PersonaModal } from './components/PersonaModal';
 import { PersonaCreatorView } from './components/PersonaCreatorView';
@@ -23,7 +24,7 @@ import { SavedMessagesModal } from './components/SavedMessagesModal';
 import { SceneGeneratorModal } from './components/SceneGeneratorModal';
 import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
-import { Columns, Sparkles } from 'lucide-react';
+import { Columns } from 'lucide-react';
 
 import {
   Character,
@@ -53,6 +54,10 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [inChatMode, setInChatMode] = useState(false);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
+
+  // Dedicated Create Character Page State
+  const [isCreateCharacterOpen, setIsCreateCharacterOpen] = useState(false);
+  const [characterToEdit, setCharacterToEdit] = useState<Character | null>(null);
 
   // Modals
   const [isCharModalOpen, setIsCharModalOpen] = useState(false);
@@ -258,7 +263,6 @@ export default function App() {
 
   const handleDeletePersona = (personaId: string) => {
     const updated = data.personas.filter((p) => p.id !== personaId);
-    // If the deleted persona was default, ensure there's at least one default
     const hasDefault = updated.some((p) => p.is_default);
     const ensured = updated.map((p, idx) => ({
       ...p,
@@ -338,7 +342,60 @@ export default function App() {
     updateData({ ...data, chats: updatedChats });
   };
 
-  // If in Chat Mode, render full-scale Roleplay Chat with dual track integration
+  const handleOpenCreateCharacterPage = (charToEdit?: Character | null) => {
+    setCharacterToEdit(charToEdit || null);
+    setIsCreateCharacterOpen(true);
+  };
+
+  // 1. Dedicated Full-Page Create Character View
+  if (isCreateCharacterOpen) {
+    return (
+      <CreateCharacterView
+        existingCharacter={characterToEdit}
+        existingCharactersList={data.characters}
+        onSaveCharacter={(savedChar) => {
+          handleSaveCharacter(savedChar);
+        }}
+        onBack={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+        }}
+        onStartChat={(char) => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          handleStartChatWithCharacter(char);
+        }}
+        onOpenLibrary={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          setIsCharModalOpen(true);
+        }}
+        onOpenPersonaLibrary={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          setActiveTab('personas');
+          setIsPersonaCreatorOpen(false);
+        }}
+        onOpenLorebookLibrary={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          setIsLoreModalOpen(true);
+        }}
+        onOpenGallery={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          setIsSceneGeneratorOpen(true);
+        }}
+        onOpenHome={() => {
+          setIsCreateCharacterOpen(false);
+          setCharacterToEdit(null);
+          setActiveTab('home');
+        }}
+      />
+    );
+  }
+
+  // 2. Full-scale Roleplay Chat View
   if (inChatMode && activeChat) {
     return (
       <>
@@ -374,6 +431,7 @@ export default function App() {
           characters={data.characters}
           onSaveCharacter={handleSaveCharacter}
           onStartChatWithCharacter={handleStartChatWithCharacter}
+          onOpenCreateCharacter={handleOpenCreateCharacterPage}
         />
         <LorebookModal
           isOpen={isLoreModalOpen}
@@ -468,7 +526,7 @@ export default function App() {
               if (t === 'chats') {
                 if (activeChat) setInChatMode(true);
               } else if (t === 'characters') {
-                setIsCharModalOpen(true);
+                handleOpenCreateCharacterPage(null);
               } else if (t === 'lorebooks') {
                 setIsLoreModalOpen(true);
               } else if (t === 'personas') {
@@ -526,14 +584,14 @@ export default function App() {
             {/* 3. Luxury Hero Banner + Quick Links 12-Jewel Grid */}
             <ColorPopHero
               onQuickAction={(id) => {
-                if (id === 'characters') setIsCharModalOpen(true);
+                if (id === 'characters') handleOpenCreateCharacterPage(null);
                 else if (id === 'lorebooks') setIsLoreModalOpen(true);
                 else if (id === 'plugins') setIsPluginModalOpen(true);
                 else if (id === 'settings') setIsSettingsOpen(true);
                 else if (id === 'gallery') setIsSceneGeneratorOpen(true);
-                else if (id === 'templates' || id === 'loreberry') setIsCharModalOpen(true);
+                else if (id === 'templates' || id === 'loreberry') handleOpenCreateCharacterPage(null);
               }}
-              onOpenCharacterModal={() => setIsCharModalOpen(true)}
+              onOpenCharacterModal={() => handleOpenCreateCharacterPage(null)}
               onOpenLorebookModal={() => setIsLoreModalOpen(true)}
               onOpenPersonaModal={() => {
                 setActiveTab('personas');
@@ -549,7 +607,7 @@ export default function App() {
 
             {/* 4. Glowing 4 Action Cards */}
             <ActionCards
-              onCreateCharacter={() => setIsCharModalOpen(true)}
+              onCreateCharacter={() => handleOpenCreateCharacterPage(null)}
               onCreateLorebook={() => setIsLoreModalOpen(true)}
               onCreatePersona={() => {
                 setActiveTab('personas');
@@ -566,7 +624,7 @@ export default function App() {
               activeCategory={activeCategory}
               onSelectCategory={(cat) => {
                 setActiveCategory(cat);
-                if (cat === 'characters') setIsCharModalOpen(true);
+                if (cat === 'characters') handleOpenCreateCharacterPage(null);
                 if (cat === 'personas') {
                   setActiveTab('personas');
                   setIsPersonaCreatorOpen(false);
@@ -619,7 +677,10 @@ export default function App() {
           if (activeChat) setInChatMode(true);
         }}
         onOpenHome={() => setIsDualTrackOpen(false)}
-        onOpenCharacterModal={() => setIsCharModalOpen(true)}
+        onOpenCharacterModal={() => {
+          setIsDualTrackOpen(false);
+          handleOpenCreateCharacterPage(null);
+        }}
         onOpenLorebookModal={() => setIsLoreModalOpen(true)}
         onOpenPersonaModal={() => {
           setIsDualTrackOpen(false);
@@ -649,6 +710,7 @@ export default function App() {
         characters={data.characters}
         onSaveCharacter={handleSaveCharacter}
         onStartChatWithCharacter={handleStartChatWithCharacter}
+        onOpenCreateCharacter={handleOpenCreateCharacterPage}
       />
 
       <LorebookModal
