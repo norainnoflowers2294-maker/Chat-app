@@ -65,6 +65,13 @@ export default function App() {
     root.style.setProperty('--cp-heading-font', preferences.headerFont === 'serif' ? 'Georgia, serif' : preferences.headerFont === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
   }, [preferences.theme, preferences.accent, preferences.fontSize, preferences.headerFont, preferences.reducedMotion]);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [homeImage, setHomeImage] = useState<string>(() => {
+    try { return localStorage.getItem('colorpop_home_picture_v1') || '/colorpop_hero.jpg'; } catch { return '/colorpop_hero.jpg'; }
+  });
+  const handleSetHomeImage = (image: string) => {
+    setHomeImage(image);
+    try { localStorage.setItem('colorpop_home_picture_v1', image); } catch { window.alert('Could not save the home picture in this browser.'); }
+  };
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [inChatMode, setInChatMode] = useState(false);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -379,7 +386,7 @@ export default function App() {
         onOpenLibrary={() => {
           setIsCreateCharacterOpen(false);
           setCharacterToEdit(null);
-          setIsCharModalOpen(true);
+          setActiveTab('characters');
         }}
         onOpenPersonaLibrary={() => {
           setIsCreateCharacterOpen(false);
@@ -553,8 +560,8 @@ export default function App() {
               setActiveTab(t);
               if (t === 'chats') {
                 if (activeChat) setInChatMode(true);
-              } else if (t === 'characters') {
-                handleOpenCreateCharacterPage(null);
+              } else if (t === 'characters' || t === 'gallery') {
+                setIsCreateCharacterOpen(false);
               } else if (t === 'lorebooks') {
                 setIsLoreModalOpen(true);
               } else if (t === 'personas') {
@@ -579,7 +586,28 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
-        {activeTab === 'personas' ? (
+        {activeTab === 'characters' ? (
+          <CharacterModal
+            isOpen={true}
+            fullPage
+            onClose={() => setActiveTab('home')}
+            characters={data.characters}
+            onSaveCharacter={handleSaveCharacter}
+            onStartChatWithCharacter={handleStartChatWithCharacter}
+            onOpenCreateCharacter={(character) => handleOpenCreateCharacterPage(character)}
+          />
+        ) : activeTab === 'gallery' ? (
+          <SceneGeneratorModal
+            isOpen={true}
+            fullPage
+            homeImage={homeImage}
+            onSetHomeImage={(image) => { handleSetHomeImage(image); setActiveTab('home'); }}
+            onClose={() => setActiveTab('home')}
+            chats={data.chats}
+            activeChatId={activeChat?.id}
+            onApplySceneBackground={handleApplySceneBackground}
+          />
+        ) : activeTab === 'personas' ? (
           isPersonaCreatorOpen ? (
             <PersonaCreatorView
               initialPersona={personaToEdit}
@@ -611,12 +639,14 @@ export default function App() {
           <>
             {/* 3. Luxury Hero Banner + Quick Links 12-Jewel Grid */}
             <ColorPopHero
+              heroImage={homeImage}
+              onOpenGallery={() => setActiveTab('gallery')}
               onQuickAction={(id) => {
-                if (id === 'characters') handleOpenCreateCharacterPage(null);
+                if (id === 'characters') setActiveTab('characters');
                 else if (id === 'lorebooks') setIsLoreModalOpen(true);
                 else if (id === 'plugins') setIsPluginModalOpen(true);
                 else if (id === 'settings') setIsSettingsOpen(true);
-                else if (id === 'gallery') setIsSceneGeneratorOpen(true);
+                else if (id === 'gallery') setActiveTab('gallery');
                 else if (id === 'templates' || id === 'loreberry') handleOpenCreateCharacterPage(null);
               }}
               onOpenCharacterModal={() => handleOpenCreateCharacterPage(null)}
@@ -652,7 +682,7 @@ export default function App() {
               activeCategory={activeCategory}
               onSelectCategory={(cat) => {
                 setActiveCategory(cat);
-                if (cat === 'characters') handleOpenCreateCharacterPage(null);
+                if (cat === 'characters') setActiveTab('characters');
                 if (cat === 'personas') {
                   setActiveTab('personas');
                   setIsPersonaCreatorOpen(false);
@@ -660,7 +690,7 @@ export default function App() {
                 }
                 if (cat === 'lorebooks' || cat === 'locations') setIsLoreModalOpen(true);
                 if (cat === 'plugins') setIsPluginModalOpen(true);
-                if (cat === 'images') setIsSceneGeneratorOpen(true);
+                if (cat === 'images') setActiveTab('gallery');
                 if (cat === 'favorites') setIsSavedMessagesOpen(true);
                 if (cat === 'recent') {
                   if (activeChat) setInChatMode(true);
