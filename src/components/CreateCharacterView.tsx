@@ -527,9 +527,9 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
       populateFromCharacter(parsed);
       markUnsaved();
       showToast(`Successfully imported card: ${parsed.name || 'Character'}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Import error:', err);
-      showToast(`⚠ Failed to import character: ${err.message || 'Invalid format'}`);
+      showToast(`⚠ Failed to import character: ${(err instanceof Error ? err.message : String(err)) || 'Invalid format'}`);
     }
   };
 

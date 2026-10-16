@@ -218,9 +218,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         messages: [...updatedMessages, replyMessage],
         updatedAt: new Date().toISOString(),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorDetails({
-        message: err.message || 'Network connection failed while reaching OpenRouter.',
+        message: (err instanceof Error ? err.message : String(err)) || 'Network connection failed while reaching OpenRouter.',
         suggestedFix: 'Verify your internet connection and openrouter.ai server status.',
       });
     } finally {

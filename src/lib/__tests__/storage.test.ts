@@ -130,6 +130,7 @@ describe('loadFromFirebase', () => {
     // Reset mocks
     (doc as any).mockClear();
     (getDoc as any).mockClear();
+    // @ts-expect-error
     auth.currentUser = null;
     consoleWarnMock = spyOn(console, 'warn').mockImplementation(() => {});
   });
@@ -139,6 +140,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null if user is not logged in', async () => {
+    // @ts-expect-error
     auth.currentUser = null;
 
     const result = await loadFromFirebase();
@@ -149,6 +151,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return data if document exists', async () => {
+    // @ts-expect-error
     auth.currentUser = { uid: 'test-user-id' } as any;
 
     const mockDocRef = { id: 'mock-doc-ref' };
@@ -169,6 +172,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null if document does not exist', async () => {
+    // @ts-expect-error
     auth.currentUser = { uid: 'test-user-id' } as any;
 
     const mockDocRef = { id: 'mock-doc-ref' };
@@ -188,6 +192,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null and log warning if error occurs during fetch', async () => {
+    // @ts-expect-error
     auth.currentUser = { uid: 'test-user-id' } as any;
 
     const mockDocRef = { id: 'mock-doc-ref' };

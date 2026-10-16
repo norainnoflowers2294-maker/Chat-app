@@ -99,8 +99,8 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       };
 
       window.addEventListener('message', handleMessage);
-    } catch (err: any) {
-      setError(err.message || 'Failed to initiate GitHub authorization');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to initiate GitHub authorization');
       setLoading(false);
     }
   };
@@ -128,8 +128,8 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       setLoading(false);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
   };

@@ -254,8 +254,8 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         </body>
       </html>
     `);
-  } catch (err: any) {
-    res.status(500).send(`Authentication failed: ${err.message}`);
+  } catch (err: unknown) {
+    res.status(500).send(`Authentication failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 };
 
@@ -316,8 +316,8 @@ app.get('/api/auth/status', async (req: Request, res: Response) => {
       configured: Boolean(clientId),
       redirectUri: `${appUrl}/auth/callback`,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message, authenticated: false });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err), authenticated: false });
   }
 });
 
@@ -362,8 +362,8 @@ app.post('/api/auth/token', async (req: Request, res: Response) => {
       user,
       token: cleanToken,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -421,8 +421,8 @@ app.get('/api/github/user', async (req: Request, res: Response) => {
       return;
     }
     res.json({ user: data, rateLimit });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -450,8 +450,8 @@ app.get('/api/github/repos', async (req: Request, res: Response) => {
       return;
     }
     res.json({ repos: Array.isArray(data) ? data : [], rateLimit });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -485,8 +485,8 @@ app.get('/api/github/events', async (req: Request, res: Response) => {
       return;
     }
     res.json({ events: Array.isArray(data) ? data : [], rateLimit });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -509,8 +509,8 @@ app.get('/api/github/issues', async (req: Request, res: Response) => {
       return;
     }
     res.json({ issues: Array.isArray(data) ? data : [], rateLimit });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -531,8 +531,8 @@ app.get('/api/github/pulls', async (req: Request, res: Response) => {
       return;
     }
     res.json({ pulls: data.items || [], rateLimit });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -555,8 +555,8 @@ app.get('/api/github/repo/:owner/:repo/readme', async (req: Request, res: Respon
 
     const htmlContent = await response.text();
     res.json({ html: htmlContent });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -589,8 +589,8 @@ app.post('/api/github/repo/:owner/:repo/issues', async (req: Request, res: Respo
       return;
     }
     res.json({ issue: data });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -605,8 +605,8 @@ app.put('/api/github/user/starred/:owner/:repo', async (req: Request, res: Respo
       headers: { 'Content-Length': '0' },
     });
     res.json({ starred: response.status === 204 });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -619,8 +619,8 @@ app.delete('/api/github/user/starred/:owner/:repo', async (req: Request, res: Re
       method: 'DELETE',
     });
     res.json({ starred: false, success: response.status === 204 });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -697,11 +697,11 @@ app.post('/api/openrouter/test', async (req: Request, res: Response) => {
       isFreeTier: data.is_free_tier,
       rateLimit: data.rate_limit,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     res.json({
       status: 'error',
       errorCategory: 'network_error',
-      errorMessage: err.message || 'Failed to reach OpenRouter API servers.',
+      errorMessage: (err instanceof Error ? err.message : String(err)) || 'Failed to reach OpenRouter API servers.',
       suggestedFix: 'Check your internet connection and verify openrouter.ai is operational.',
       latencyMs: Date.now() - startTime,
     });
@@ -752,7 +752,7 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
       if (response.status === 429) errorCategory = 'rate_limited';
 
       res.status(response.status).json({
-        error: err.message || `OpenRouter returned status ${response.status}`,
+        error: (err instanceof Error ? err.message : String(err)) || `OpenRouter returned status ${response.status}`,
         statusCode: response.status,
         errorCategory,
         details: err,
@@ -766,9 +766,9 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
       model: data.model || chosenModel,
       usage: data.usage,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     res.status(500).json({
-      error: err.message || 'Failed to communicate with OpenRouter',
+      error: (err instanceof Error ? err.message : String(err)) || 'Failed to communicate with OpenRouter',
       errorCategory: 'network_error',
     });
   }
@@ -825,12 +825,12 @@ app.post('/api/git/push', async (req: Request, res: Response) => {
       repo: repoUrl,
       output: stdout || stderr,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Git push error:', err);
     res.status(500).json({
-      error: err.message,
-      stdout: err.stdout,
-      stderr: err.stderr,
+      error: err instanceof Error ? err.message : String(err),
+      stdout: (err as any).stdout,
+      stderr: (err as any).stderr,
     });
   }
 });
