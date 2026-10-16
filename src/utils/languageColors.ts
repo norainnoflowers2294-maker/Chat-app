@@ -28,7 +28,7 @@ export const LANGUAGE_COLORS: Record<string, string> = {
 
 export function getLanguageColor(language: string | null): string {
   if (!language) return '#8b949e';
-  return LANGUAGE_COLORS[language] || '#58a6ff';
+  return LANGUAGE_COLORS[language] || '#8b949e';
 }
 
 export function formatRelativeTime(dateString: string): string {
