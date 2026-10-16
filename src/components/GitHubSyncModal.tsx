@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, GitBranch, Github, Upload, CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { DEFAULT_GITHUB_REPO_URL } from '../config/github';
 
 interface GitHubSyncModalProps {
   isOpen: boolean;
@@ -7,7 +8,7 @@ interface GitHubSyncModalProps {
 }
 
 export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ isOpen, onClose }) => {
-  const [repoUrl, setRepoUrl] = useState('https://github.com/norainnoflowers2294-maker/Chat-app.git');
+  const [repoUrl, setRepoUrl] = useState(DEFAULT_GITHUB_REPO_URL);
   const [commitMsg, setCommitMsg] = useState('Update ColorPop Roleplay Hub with Dual Track Screen and Interconnected Links');
   const [pushing, setPushing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
