@@ -28,6 +28,8 @@ import { SceneGeneratorModal } from './components/SceneGeneratorModal';
 import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
+import { WalletModal } from './components/WalletModal';
+import { getWalletForScope, type StoryWallet } from './lib/wallet';
 
 import {
   Character,
@@ -81,6 +83,8 @@ export default function App() {
   const [isSavedMessagesOpen, setIsSavedMessagesOpen] = useState(false);
   const [isSceneGeneratorOpen, setIsSceneGeneratorOpen] = useState(false);
   const [isGitSyncOpen, setIsGitSyncOpen] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [walletView, setWalletView] = useState<'dashboard' | 'activity'>('dashboard');
 
   // Persona Page & Creator Mode
   const [isPersonaCreatorOpen, setIsPersonaCreatorOpen] = useState(false);
@@ -140,6 +144,7 @@ export default function App() {
             savedMessages: remote.savedMessages || prev.savedMessages,
             openRouterConfig: remote.openRouterConfig || prev.openRouterConfig,
             supabaseConfig: remote.supabaseConfig || prev.supabaseConfig,
+            wallets: remote.wallets || prev.wallets,
           }));
         }
       }
@@ -282,6 +287,20 @@ export default function App() {
   const handleSavePreferences = (value: AppPreferences) => {
     updateData({ ...data, appPreferences: normalizePreferences(value) });
   };
+  const handleOpenWallet = (view: 'dashboard' | 'activity') => {
+    if (!activeChat) return;
+    const persona = data.personas.find((item) => item.id === activeChat.personaId) || data.personas[0];
+    const wallet = getWalletForScope(data.wallets, activeChat.id, persona?.id || 'persona_default');
+    if (!data.wallets.some((item) => item.id === wallet.id)) updateData({ ...data, wallets: [...data.wallets, wallet] });
+    setWalletView(view);
+    setIsWalletOpen(true);
+  };
+  const handleSaveWallet = (wallet: StoryWallet) => {
+    const wallets = data.wallets.some((item) => item.id === wallet.id)
+      ? data.wallets.map((item) => item.id === wallet.id ? wallet : item)
+      : [...data.wallets, wallet];
+    updateData({ ...data, wallets });
+  };
   const handleExportData = () => {
     const { openRouterConfig, supabaseConfig, ...backup } = data;
     downloadJson('ColorPop_Backup.json', { version: 1, exportedAt: new Date().toISOString(), ...backup });
@@ -334,6 +353,10 @@ export default function App() {
     setCharacterToEdit(charToEdit || null);
     setIsCreateCharacterOpen(true);
   };
+
+  const activeWalletPersona = activeChat ? (data.personas.find((item) => item.id === activeChat.personaId) || data.personas[0]) : undefined;
+  const activeWallet = activeChat && activeWalletPersona ? getWalletForScope(data.wallets, activeChat.id, activeWalletPersona.id) : null;
+  const walletSenderName = activeChat ? (data.characters.find((item) => activeChat.characterIds.includes(item.id))?.name || 'Story character') : 'Story character';
 
   // 1. Dedicated Full-Page Create Character View
   if (isCreateCharacterOpen) {
@@ -410,6 +433,8 @@ export default function App() {
           onOpenSavedMessagesModal={() => setIsSavedMessagesOpen(true)}
           onOpenSceneGeneratorModal={() => setIsSceneGeneratorOpen(true)}
           onOpenGitHubSyncModal={() => setIsGitSyncOpen(true)}
+          onOpenWallet={handleOpenWallet}
+          onUpdatePreferences={handleSavePreferences}
           onTogglePlugin={handleTogglePlugin}
           onBookmarkMessage={handleBookmarkMessage}
         />
@@ -486,6 +511,16 @@ export default function App() {
           onApplySceneBackground={handleApplySceneBackground}
         />
         <GitHubSyncModal isOpen={isGitSyncOpen} onClose={() => setIsGitSyncOpen(false)} />
+        {activeWallet && activeWalletPersona && <WalletModal
+          isOpen={isWalletOpen}
+          onClose={() => setIsWalletOpen(false)}
+          view={walletView}
+          onChangeView={setWalletView}
+          wallet={activeWallet}
+          personaName={activeWalletPersona.name}
+          characterName={walletSenderName}
+          onSaveWallet={handleSaveWallet}
+        />}
       </>
     );
   }

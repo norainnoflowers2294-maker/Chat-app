@@ -41,6 +41,7 @@ import {
   ConnectionDiagnostic,
 } from '../types/roleplay';
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
+import { parseSlashCommand } from '../lib/slashCommands';
 import { DualTrackOverlay } from './DualTrackOverlay';
 
 interface ChatViewProps {
@@ -66,6 +67,8 @@ interface ChatViewProps {
   onOpenSavedMessagesModal: () => void;
   onOpenSceneGeneratorModal: () => void;
   onOpenGitHubSyncModal: () => void;
+  onOpenWallet: (view: 'dashboard' | 'activity') => void;
+  onUpdatePreferences: (value: AppPreferences) => void;
   onTogglePlugin: (pluginId: string) => void;
   onBookmarkMessage: (msg: ChatMessage) => void;
 }
@@ -92,6 +95,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenSavedMessagesModal,
   onOpenSceneGeneratorModal,
   onOpenGitHubSyncModal,
+  onOpenWallet,
+  onUpdatePreferences,
   onTogglePlugin,
   onBookmarkMessage,
 }) => {
@@ -102,6 +107,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [editContent, setEditContent] = useState('');
   const [diceResult, setDiceResult] = useState<string | null>(null);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
+  const [commandNotice, setCommandNotice] = useState<string | null>(null);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
@@ -128,18 +134,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!inputText.trim() || loading) return;
 
     setErrorDetails(null);
-
-    // If dice roll command
-    if (inputText.trim().startsWith('/roll')) {
-      const roll = Math.floor(Math.random() * 20) + 1;
-      const statMsg =
-        roll >= 18
-          ? 'Critical Success! (Natural ' + roll + ')'
-          : roll >= 10
-          ? 'Success (Rolled ' + roll + ')'
-          : 'Failure (Rolled ' + roll + ')';
-      setDiceResult(statMsg);
-      setTimeout(() => setDiceResult(null), 4000);
+    const command = parseSlashCommand(inputText.trim());
+    if (command) {
+      setInputText('');
+      if (command.type === 'wallet') {
+        onOpenWallet(command.view);
+        return;
+      }
+      if (command.type === 'narrator') {
+        const enabled = command.enabled ?? !preferences.narratorEnabled;
+        const nextPreferences = { ...preferences, narratorEnabled: enabled, ...(command.frequency ? { narratorFrequency: command.frequency } : {}) };
+        onUpdatePreferences(nextPreferences);
+        const detail = command.frequency ? ' Narration detail: ' + command.frequency + '.' : '';
+        setCommandNotice('Narrator ' + (enabled ? 'enabled.' : 'disabled.') + detail);
+        setTimeout(() => setCommandNotice(null), 3500);
+        return;
+      }
+      if (command.type === 'roll') {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const result = roll >= 18 ? 'Critical Success! (Natural ' + roll + ')' : roll >= 10 ? 'Success (Rolled ' + roll + ')' : 'Failure (Rolled ' + roll + ')';
+        setDiceResult(result);
+        setTimeout(() => setDiceResult(null), 4000);
+        return;
+      }
     }
 
     const userMessage: ChatMessage = {
@@ -524,6 +541,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         )}
 
+        {commandNotice && <div role="status" className="mx-auto mb-2 rounded-xl border border-[#ff66b2]/40 bg-[#310d28]/95 px-4 py-2 text-sm text-[#ffd6eb] shadow-lg">{commandNotice}</div>}
         {diceResult && (
           <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl text-emerald-300 text-xs font-bold flex items-center space-x-2 animate-bounce">
             <Dices className="w-4 h-4" />
