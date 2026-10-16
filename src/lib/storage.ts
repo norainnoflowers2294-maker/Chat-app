@@ -38,7 +38,7 @@ export const DEFAULT_OPENROUTER_CONFIG: OpenRouterConfig = {
   frequencyPenalty: 0.2,
   presencePenalty: 0.2,
   siteUrl: 'https://ais-dev-ohlfym6cwp4w2lwha7oenj-597148229967.us-east1.run.app',
-  siteName: 'ColorPop Roleplay Hub',
+  siteName: 'Pretty Little Fantasies',
 };
 
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfig = {
