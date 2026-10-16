@@ -1,5 +1,5 @@
 {
-  "name": "ColorPop Roleplay Hub",
+  "name": "Pretty Little Fantasies",
   "description": "Full-scale romantic luxury roleplay chat application connected to OpenRouter AI, with character cards, lorebooks, personas, 5 active plugins, and Firebase auto-save.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
