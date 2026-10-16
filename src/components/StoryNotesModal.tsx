@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, FileText, Plus, Trash2, Bookmark, Sparkles, BookOpen } from 'lucide-react';
 import { StoryMemory, Chat } from '../types/roleplay';
 
@@ -53,6 +53,13 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
     if (filterType === 'all') return true;
     return m.type === filterType;
   });
+
+  const chatsById = useMemo(() => {
+    return chats.reduce((acc, chat) => {
+      acc[chat.id] = chat;
+      return acc;
+    }, {} as Record<string, Chat>);
+  }, [chats]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
@@ -168,7 +175,7 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
           {/* List of Notes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filtered.map((mem) => {
-              const chat = chats.find((c) => c.id === mem.chatId);
+              const chat = mem.chatId ? chatsById[mem.chatId] : undefined;
               return (
                 <div
                   key={mem.id}
