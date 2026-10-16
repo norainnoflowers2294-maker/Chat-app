@@ -20,6 +20,7 @@ import { LorebookModal } from './components/LorebookModal';
 import { PersonaModal } from './components/PersonaModal';
 import { PersonaCreatorView } from './components/PersonaCreatorView';
 import { PersonaLibraryView } from './components/PersonaLibraryView';
+import { PerchanceView } from './components/PerchanceView';
 import { PluginModal } from './components/PluginModal';
 import { OpenRouterSettingsModal } from './components/OpenRouterSettingsModal';
 import { StoryNotesModal } from './components/StoryNotesModal';
@@ -607,6 +608,8 @@ export default function App() {
             activeChatId={activeChat?.id}
             onApplySceneBackground={handleApplySceneBackground}
           />
+        ) : activeTab === 'perchance' ? (
+          <PerchanceView />
         ) : activeTab === 'personas' ? (
           isPersonaCreatorOpen ? (
             <PersonaCreatorView
