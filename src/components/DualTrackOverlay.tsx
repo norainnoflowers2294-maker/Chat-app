@@ -198,7 +198,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
               >
                 Left Track: Navigation
               </h3>
-              <p className="text-[10px] text-[#ff99cc]">ColorPop Roleplay Hub</p>
+              <p className="text-[10px] text-[#ff99cc]">Pretty Little Fantasies</p>
             </div>
           </div>
 
