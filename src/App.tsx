@@ -125,12 +125,12 @@ export default function App() {
           latencyMs: resData.latencyMs,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setDiagnostic({
         status: 'error',
         lastChecked: Date.now(),
         errorCategory: 'network_error',
-        errorMessage: err.message || 'Network error reaching backend proxy',
+        errorMessage: (err instanceof Error ? err.message : String(err)) || 'Network error reaching backend proxy',
         suggestedFix: 'Verify your network connection and server status.',
       });
     }

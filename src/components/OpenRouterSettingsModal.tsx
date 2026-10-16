@@ -105,10 +105,10 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
         message: 'All applet code and roleplay systems successfully pushed to norainnoflowers2294-maker/Chat-app!',
         output: data.output,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setGitPushResult({
         success: false,
-        message: err.message || 'Push failed. Please verify your token permissions.',
+        message: (err instanceof Error ? err.message : String(err)) || 'Push failed. Please verify your token permissions.',
       });
     } finally {
       setPushingGit(false);

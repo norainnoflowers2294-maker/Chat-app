@@ -41,10 +41,10 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ isOpen, onClos
           output: data.stderr || data.stdout,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setResult({
         success: false,
-        message: err.message || 'Network error communicating with Git push service.',
+        message: (err instanceof Error ? err.message : String(err)) || 'Network error communicating with Git push service.',
       });
     } finally {
       setPushing(false);

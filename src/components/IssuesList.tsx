@@ -72,8 +72,8 @@ export const IssuesList: React.FC<IssuesListProps> = ({
       setIsCreateModalOpen(false);
       setSubmitting(false);
       onRefresh();
-    } catch (err: any) {
-      setSubmitError(err.message);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
     }
   };
