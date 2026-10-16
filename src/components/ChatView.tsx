@@ -303,7 +303,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-[#ffd6eb]/70 truncate max-w-xs">
-                Playing as <strong className="text-white">{activePersona?.name}</strong> &bull; {activeLorebooks.length} Lorebooks &bull; {activePlugins.length} Plugins
+                Playing as <select aria-label="Choose persona for this chat" value={chat.personaId || activePersona?.id || ''} onChange={(e) => onUpdateChat({ ...chat, personaId: e.target.value, updatedAt: new Date().toISOString() })} className="max-w-[130px] bg-[#1e0818] border border-[#ff66b2]/50 rounded-md px-1 py-0.5 text-white focus:outline-none focus:border-[#ff007f]">{personas.map((persona) => <option key={persona.id} value={persona.id}>{persona.display_name || persona.name}</option>)}</select> &bull; {activeLorebooks.length} Lorebooks &bull; {activePlugins.length} Plugins
               </p>
             </div>
           </div>
@@ -421,6 +421,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       >
         {chat.messages.map((msg) => {
           const isUser = msg.senderId === 'user';
+          const messageCharacter = characters.find((character) => character.id === msg.senderId);
+          const messageAvatar = messageCharacter?.avatar || msg.avatar || (isUser ? activePersona?.avatar : undefined) || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg');
+          const messageName = messageCharacter?.name || msg.senderName;
 
           return (
             <div
@@ -431,8 +434,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               {/* Avatar */}
               <img
-                src={resolveImageUrl(msg.avatar || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg'))}
-                alt={msg.senderName}
+                src={resolveImageUrl(messageAvatar)}
+                alt={messageName}
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#ff3399]/50 shadow-md shrink-0"
               />
 
@@ -446,7 +449,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               >
                 {/* Sender Name + Quick Save Action */}
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10 text-[10px] font-bold">
-                  <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{msg.senderName}</span>
+                  <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{messageName}</span>
 
                   <div className="flex items-center space-x-2">
                     {preferences.showTimestamps && <span className="opacity-60 font-mono">
