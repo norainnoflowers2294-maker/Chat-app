@@ -67,7 +67,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white tracking-wide">
-                {fullPage ? "Character Library" : "Character Studio &amp; Library"}
+                {fullPage ? "Character Library" : "Character Studio & Library"}
               </h2>
               <p className="text-xs text-[#ffd6eb]/70">
                 Import PNG or JSON cards, create bespoke characters, and start roleplays
