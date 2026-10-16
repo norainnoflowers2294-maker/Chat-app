@@ -59,7 +59,7 @@ export const PerchanceView: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white sm:text-2xl">Perchance AI</h1>
-              <p className="text-xs text-[#ffd6eb]/70">Open your Perchance project from inside ColorPop.</p>
+              <p className="text-xs text-[#ffd6eb]/70">Open your Perchance project from inside Pretty Little Fantasies.</p>
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export const PerchanceView: React.FC = () => {
               </div>
               <h2 className="text-base font-bold text-white">Your Perchance page is ready to connect</h2>
               <p className="mt-2 max-w-md text-xs leading-relaxed text-[#ffd6eb]/70">
-                When your Perchance AI project is finished, paste its link above. The page will save it here and try to display it inside ColorPop.
+                When your Perchance AI project is finished, paste its link above. The page will save it here and try to display it inside Pretty Little Fantasies.
               </p>
             </div>
           )}
