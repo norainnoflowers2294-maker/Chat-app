@@ -71,14 +71,18 @@ export const PersonaLibraryView: React.FC<PersonaLibraryViewProps> = ({
       if (filterType === 'active' && !p.is_default) return false;
       return true;
     })
+    .map((p) => ({
+      persona: p,
+      time: sortBy !== 'name' ? new Date(p.updatedAt || p.createdAt || 0).getTime() : 0,
+      name: sortBy === 'name' ? (p.display_name || p.name) : ''
+    }))
     .sort((a, b) => {
       if (sortBy === 'name') {
-        return (a.display_name || a.name).localeCompare(b.display_name || b.name);
+        return a.name.localeCompare(b.name);
       }
-      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-      return timeB - timeA;
-    });
+      return b.time - a.time;
+    })
+    .map((item) => item.persona);
 
   const handleToggleFavorite = (persona: Persona) => {
     const updated = { ...persona, favorite: !persona.favorite, updatedAt: new Date().toISOString() };
