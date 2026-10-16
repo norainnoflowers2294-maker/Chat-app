@@ -20,6 +20,7 @@ interface CharacterModalProps {
   onSaveCharacter: (char: Character) => void;
   onStartChatWithCharacter: (char: Character) => void;
   onOpenCreateCharacter?: (characterToEdit?: Character | null) => void;
+  fullPage?: boolean;
 }
 
 export const CharacterModal: React.FC<CharacterModalProps> = ({
@@ -29,6 +30,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   onSaveCharacter,
   onStartChatWithCharacter,
   onOpenCreateCharacter,
+  fullPage = false,
 }) => {
   const [search, setSearch] = useState('');
 
@@ -55,8 +57,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div className={fullPage ? "w-full max-w-7xl mx-auto px-4 py-6" : "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"}>
+      <div className={`relative w-full ${fullPage ? "max-w-7xl min-h-[70vh]" : "max-w-4xl max-h-[90vh]"} bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ff3399]/30 bg-[#0d020b]">
           <div className="flex items-center space-x-3">
@@ -65,7 +67,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white tracking-wide">
-                Character Studio &amp; Library
+                {fullPage ? "Character Library" : "Character Studio &amp; Library"}
               </h2>
               <p className="text-xs text-[#ffd6eb]/70">
                 Import PNG or JSON cards, create bespoke characters, and start roleplays
