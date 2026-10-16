@@ -125,7 +125,7 @@ export async function parseCharacterFile(file: File): Promise<Partial<Character>
         tags: Array.isArray(data.tags) ? data.tags : ['imported'],
       };
     } catch (e) {
-      console.warn('Failed to parse embedded chara JSON:', e);
+      console.error('Failed to parse embedded chara JSON:', e);
     }
   }
 
