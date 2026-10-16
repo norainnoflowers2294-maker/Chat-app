@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import {
   X,
@@ -397,7 +398,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <img
-                        src={firebaseUser.photoURL || '/colorpop_hero.jpg'}
+                        src={resolveImageUrl(firebaseUser.photoURL || '/colorpop_hero.jpg')}
                         alt={firebaseUser.displayName || 'User'}
                         className="w-9 h-9 rounded-full ring-1 ring-white/30"
                       />

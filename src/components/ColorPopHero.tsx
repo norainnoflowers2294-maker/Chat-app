@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React from 'react';
 import {
   Heart,
@@ -56,7 +57,7 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
       <div className="lg:col-span-8 relative group">
         <div className="relative rounded-3xl overflow-hidden border-2 border-[#ff3399]/60 shadow-[0_0_35px_rgba(255,51,153,0.45)] bg-[#12040e] aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] lg:aspect-auto lg:h-[460px]">
           <img
-            src="/colorpop_hero.jpg"
+            src={resolveImageUrl("/colorpop_hero.jpg")}
             alt="ColorPop Luxury Couple"
             className="w-full h-full object-cover object-center group-hover:scale-[1.02] transition-transform duration-700"
           />

@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React from 'react';
 import {
   Github,
@@ -80,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center space-x-2 p-1.5 rounded-xl hover:bg-[#21262d] border border-transparent hover:border-[#30363d] transition-all group"
               >
                 <img
-                  src={user.avatar_url}
+                  src={resolveImageUrl(user.avatar_url)}
                   alt={user.login}
                   className="w-7 h-7 rounded-full ring-1 ring-[#30363d]"
                 />

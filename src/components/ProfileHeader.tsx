@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React from 'react';
 import {
   MapPin,
@@ -61,7 +62,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         <div className="flex items-start sm:items-center space-x-5">
           <div className="relative">
             <img
-              src={user.avatar_url}
+              src={resolveImageUrl(user.avatar_url)}
               alt={user.login}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ring-2 ring-[#30363d] object-cover shadow-lg"
             />

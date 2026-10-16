@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
@@ -254,7 +255,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Background Ambience with chat.bgImage */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-15 pointer-events-none filter blur-sm transition-all duration-700"
-        style={{ backgroundImage: `url(${chat.bgImage || '/penthouse.jpg'})` }}
+        style={{ backgroundImage: `url(${resolveImageUrl(chat.bgImage || '/penthouse.jpg')})` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0d020b]/95 via-[#0d020b]/80 to-[#0d020b]/95 pointer-events-none" />
 
@@ -291,7 +292,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {activeCharacters.map((c) => (
                 <img
                   key={c.id}
-                  src={c.avatar}
+                  src={resolveImageUrl(c.avatar)}
                   alt={c.name}
                   className="inline-block h-8 w-8 rounded-full ring-2 ring-[#ff007f] object-cover"
                 />
@@ -436,7 +437,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               {/* Avatar */}
               <img
-                src={msg.avatar || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg')}
+                src={resolveImageUrl(msg.avatar || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg'))}
                 alt={msg.senderName}
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#ff3399]/50 shadow-md shrink-0"
               />
@@ -489,7 +490,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {/* Active Character Avatar with Pulsing Ring */}
             <div className="relative shrink-0">
               <img
-                src={activeCharacters[0]?.avatar || '/lucious.jpg'}
+                src={resolveImageUrl(activeCharacters[0]?.avatar || '/lucious.jpg')}
                 alt={activeCharacters[0]?.name || 'Character'}
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#ff007f] shadow-[0_0_15px_rgba(255,0,128,0.5)] animate-pulse"
               />

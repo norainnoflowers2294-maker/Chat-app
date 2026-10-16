@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React from 'react';
 import {
   Bell,
@@ -128,7 +129,7 @@ export const ColorPopHeader: React.FC<ColorPopHeaderProps> = ({
         >
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 bg-gradient-to-tr from-[#ff007f] via-[#ffb3d9] to-[#ffffff] shadow-[0_0_20px_rgba(255,77,148,0.6)] group-hover:shadow-[0_0_25px_rgba(255,77,148,0.9)] transition-all">
             <img
-              src={userAvatar}
+              src={resolveImageUrl(userAvatar)}
               alt={userName}
               className="w-full h-full rounded-full object-cover ring-1 ring-black"
             />

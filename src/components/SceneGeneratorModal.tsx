@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import { X, Sparkles, Image as ImageIcon, Download, Check, RefreshCw } from 'lucide-react';
 import { Chat } from '../types/roleplay';
@@ -173,7 +174,7 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
                     }`}
                   >
                     <img
-                      src={preset.url}
+                      src={resolveImageUrl(preset.url)}
                       alt={preset.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

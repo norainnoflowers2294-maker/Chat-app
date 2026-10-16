@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -428,7 +429,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
                   >
                     <div className="flex items-center space-x-2.5 truncate">
                       <img
-                        src={c.bgImage || '/penthouse.jpg'}
+                        src={resolveImageUrl(c.bgImage || '/penthouse.jpg')}
                         alt={c.title}
                         className="w-8 h-8 rounded-lg object-cover ring-1 ring-[#ff007f]"
                       />
@@ -451,7 +452,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
         <div className="p-3 border-t border-[#ff3399]/30 bg-[#160412] flex items-center justify-between text-[11px]">
           <div className="flex items-center space-x-2 truncate">
             <img
-              src={activePersona?.avatar || '/colorpop_hero.jpg'}
+              src={resolveImageUrl(activePersona?.avatar || '/colorpop_hero.jpg')}
               alt={activePersona?.name}
               className="w-6 h-6 rounded-full object-cover ring-1 ring-[#ff007f]"
             />
@@ -511,7 +512,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
           <div className="p-3.5 bg-[#1c0617] border border-[#ff3399]/40 rounded-2xl space-y-3 shadow-md">
             <div className="flex items-center space-x-3">
               <img
-                src={activeChar?.avatar || '/lucious.jpg'}
+                src={resolveImageUrl(activeChar?.avatar || '/lucious.jpg')}
                 alt={activeChar?.name}
                 className="w-12 h-12 rounded-2xl object-cover ring-2 ring-[#ff007f] shadow-lg"
               />

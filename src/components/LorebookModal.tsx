@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import {
   X,
@@ -182,7 +183,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
                 }`}
               >
                 <img
-                  src={lb.avatar || '/mansion.jpg'}
+                  src={resolveImageUrl(lb.avatar || '/mansion.jpg')}
                   alt={lb.name}
                   className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/20 shrink-0"
                 />

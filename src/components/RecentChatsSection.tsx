@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React from 'react';
 import {
   MessageSquare,
@@ -76,7 +77,7 @@ export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
                   className="group relative rounded-2xl overflow-hidden border border-[#ff3399]/40 hover:border-[#ff3399] bg-[#1a0515] shadow-lg hover:shadow-[0_0_20px_rgba(255,51,153,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between aspect-[3/4]"
                 >
                   <img
-                    src={bgImg}
+                    src={resolveImageUrl(bgImg)}
                     alt={chat.title}
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />

@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import { X, Bookmark, Trash2, ArrowRight, MessageSquare, Copy, Check } from 'lucide-react';
 import { Chat } from '../types/roleplay';
@@ -92,7 +93,7 @@ export const SavedMessagesModal: React.FC<SavedMessagesModalProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">
                       <img
-                        src={msg.avatar || '/lucious.jpg'}
+                        src={resolveImageUrl(msg.avatar || '/lucious.jpg')}
                         alt={msg.senderName}
                         className="w-7 h-7 rounded-full object-cover ring-1 ring-[#ff007f]"
                       />

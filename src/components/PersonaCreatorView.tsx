@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
@@ -328,7 +329,7 @@ export const PersonaCreatorView: React.FC<PersonaCreatorViewProps> = ({
             <div className="relative group shrink-0">
               <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden ring-4 ring-[#ff007f] shadow-[0_0_25px_rgba(255,0,128,0.6)] bg-[#0d020b]">
                 <img
-                  src={avatar || '/colorpop_hero.jpg'}
+                  src={resolveImageUrl(avatar || '/colorpop_hero.jpg')}
                   alt="Persona avatar"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -426,7 +427,7 @@ export const PersonaCreatorView: React.FC<PersonaCreatorViewProps> = ({
                       }`}
                       title={preset.name}
                     >
-                      <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                      <img src={resolveImageUrl(preset.url)} alt={preset.name} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>

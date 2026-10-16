@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import {
   X,
@@ -97,7 +98,7 @@ export const PersonaModal: React.FC<PersonaModalProps> = ({
                 <div className="space-y-2">
                   <label className="font-bold text-white block">Persona Avatar</label>
                   <div className="relative w-full aspect-square rounded-2xl overflow-hidden border-2 border-[#ff3399]/40 bg-[#1e0818] group">
-                    <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={resolveImageUrl(avatar)} alt="Avatar" className="w-full h-full object-cover" />
                     <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white text-xs font-bold">
                       <Upload className="w-5 h-5 mb-1" />
                       <span>Upload Avatar</span>
@@ -217,7 +218,7 @@ export const PersonaModal: React.FC<PersonaModalProps> = ({
                 >
                   <div className="flex items-start space-x-3.5">
                     <img
-                      src={p.avatar}
+                      src={resolveImageUrl(p.avatar)}
                       alt={p.name}
                       className="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#ff3399]/40 shrink-0"
                     />

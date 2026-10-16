@@ -1,3 +1,4 @@
+import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import {
   UserCheck,
@@ -230,7 +231,7 @@ export const PersonaLibraryView: React.FC<PersonaLibraryViewProps> = ({
           <div className="flex items-center space-x-4">
             <div className="relative shrink-0">
               <img
-                src={activePersona.avatar || '/colorpop_hero.jpg'}
+                src={resolveImageUrl(activePersona.avatar || '/colorpop_hero.jpg')}
                 alt={activePersona.name}
                 className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.5)]"
               />
@@ -359,7 +360,7 @@ export const PersonaLibraryView: React.FC<PersonaLibraryViewProps> = ({
               <div>
                 <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-[#0d020b] border border-white/10 group-hover:border-white/30 transition-all">
                   <img
-                    src={persona.avatar || '/colorpop_hero.jpg'}
+                    src={resolveImageUrl(persona.avatar || '/colorpop_hero.jpg')}
                     alt={persona.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
