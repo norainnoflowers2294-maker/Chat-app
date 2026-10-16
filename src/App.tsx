@@ -138,6 +138,8 @@ export default function App() {
             personas: remote.personas || prev.personas,
             storyMemories: remote.storyMemories || prev.storyMemories,
             savedMessages: remote.savedMessages || prev.savedMessages,
+            openRouterConfig: remote.openRouterConfig || prev.openRouterConfig,
+            supabaseConfig: remote.supabaseConfig || prev.supabaseConfig,
           }));
         }
       }

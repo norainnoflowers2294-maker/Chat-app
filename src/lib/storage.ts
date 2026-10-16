@@ -139,6 +139,8 @@ export async function syncToFirebase(data: StorageData): Promise<void> {
         activeChatId: data.activeChatId || '',
         storyMemories: data.storyMemories || [],
         savedMessages: data.savedMessages || [],
+        openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
+        supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
         updatedAt: new Date().toISOString(),
       },
       { merge: true }
