@@ -19,6 +19,7 @@ import {
 import { OpenRouterConfig, ConnectionDiagnostic, SupabaseConfig } from '../types/roleplay';
 import { signInWithGoogle, logOutFirebase } from '../lib/firebase';
 import { User } from 'firebase/auth';
+import { DEFAULT_GITHUB_REPO_URL } from '../config/github';
 
 interface OpenRouterSettingsModalProps {
   isOpen: boolean;
@@ -91,7 +92,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          repoUrl: 'https://github.com/norainnoflowers2294-maker/Chat-app.git',
+          repoUrl: DEFAULT_GITHUB_REPO_URL,
           commitMsg: `Update ColorPop Roleplay Hub & OpenRouter - ${new Date().toLocaleTimeString()}`,
         }),
       });
