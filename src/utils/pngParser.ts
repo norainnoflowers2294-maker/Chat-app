@@ -214,7 +214,7 @@ export function exportCharacterJson(character: Character) {
       scenario: character.scenario,
       first_mes: character.first_mes,
       mes_example: character.mes_example,
-      creator_notes: character.creator_notes || 'Created with ColorPop Roleplay Hub',
+      creator_notes: character.creator_notes || 'Created with Pretty Little Fantasies',
       system_prompt: character.system_prompt || '',
       tags: character.tags,
       alternate_greetings: character.alternate_greetings || [],
