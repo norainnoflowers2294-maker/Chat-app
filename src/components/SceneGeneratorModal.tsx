@@ -1,6 +1,6 @@
 import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
-import { X, Sparkles, Image as ImageIcon, Download, Check, RefreshCw } from 'lucide-react';
+import { X, Sparkles, Check, Upload, Trash2, Home } from 'lucide-react';
 import { Chat } from '../types/roleplay';
 
 interface SceneGeneratorModalProps {
@@ -9,6 +9,9 @@ interface SceneGeneratorModalProps {
   chats: Chat[];
   activeChatId?: string;
   onApplySceneBackground: (chatId: string, bgUrl: string) => void;
+  fullPage?: boolean;
+  homeImage?: string;
+  onSetHomeImage?: (image: string) => void;
 }
 
 export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
@@ -17,12 +20,51 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
   chats,
   activeChatId,
   onApplySceneBackground,
+  fullPage = false,
+  homeImage,
+  onSetHomeImage,
 }) => {
   const [prompt, setPrompt] = useState('Opulent multi-level glass penthouse overlooking futuristic neon skyline at 2 AM, violet and magenta rim lights, luxury marble terrace');
   const [style, setStyle] = useState('Photorealistic Luxury');
   const [aspect, setAspect] = useState('16:9');
   const [selectedChatId, setSelectedChatId] = useState<string>(activeChatId || chats[0]?.id || '');
-  const [selectedImage, setSelectedImage] = useState<string>('/penthouse.jpg');
+  const [selectedImage, setSelectedImage] = useState<string>(homeImage || '/penthouse.jpg');
+  const [uploaded, setUploaded] = useState<Array<{ title: string; url: string; category: string; desc: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem('colorpop_gallery_items_v1') || '[]'); } catch { return []; }
+  });
+  const saveUploaded = (items: typeof uploaded) => {
+    setUploaded(items);
+    try { localStorage.setItem('colorpop_gallery_items_v1', JSON.stringify(items)); } catch { window.alert('Gallery storage is full. Remove a few pictures and try again.'); }
+  };
+  const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const picture = await new Promise<string>((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(1, 1400 / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        image.onerror = () => resolve(dataUrl);
+        image.src = dataUrl;
+      });
+      const title = file.name.replace(/\\.[^.]+$/, '');
+      const existing = JSON.parse(localStorage.getItem('colorpop_gallery_items_v1') || '[]') as typeof uploaded;
+      saveUploaded([...existing, { title, url: picture, category: 'My Pictures', desc: 'Added from this device' }]);
+    }
+    event.target.value = '';
+  };
 
   // Curated scene collection presets
   const scenePresets = [
@@ -57,6 +99,7 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
       desc: 'Smoky ambient amber glow with private balcony lounge.',
     },
   ];
+  const allPictures = [...scenePresets, ...uploaded];
 
   if (!isOpen) return null;
 
@@ -68,8 +111,8 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-3xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl p-6 shadow-[0_0_40px_rgba(255,51,153,0.4)] flex flex-col max-h-[90vh] overflow-hidden text-[#ffd6eb]">
+    <div className={fullPage ? "w-full max-w-7xl mx-auto px-4 py-6" : "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in"}>
+      <div className={`relative w-full ${fullPage ? "max-w-7xl min-h-[70vh]" : "max-w-3xl max-h-[90vh]"} bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl p-6 shadow-[0_0_40px_rgba(255,51,153,0.4)] flex flex-col overflow-hidden text-[#ffd6eb]`}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#ff3399]/30 pb-4 mb-4">
           <div className="flex items-center space-x-3">
@@ -81,10 +124,10 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
                 className="text-xl font-bold text-white tracking-wide"
                 style={{ fontFamily: "'Playfair Display', serif" }}
               >
-                Scene Image Visualizer
+                Picture Library
               </h2>
               <p className="text-xs text-[#ffd6eb]/70">
-                Generate high-fashion backgrounds and set dynamic backdrops for your roleplay chats
+                Upload and keep your pictures, choose a home banner, or use one as a chat backdrop.
               </p>
             </div>
           </div>
@@ -100,6 +143,13 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="cursor-pointer px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] text-white text-xs font-bold flex items-center gap-2">
+              <Upload className="w-4 h-4" /> Add pictures
+              <input type="file" accept="image/*" multiple onChange={handlePictureUpload} className="hidden" />
+            </label>
+            <span className="text-[11px] text-[#ffd6eb]/70">Saved in this browser. Select a picture to set it as the home banner or chat backdrop.</span>
+          </div>
           {/* Prompt Box */}
           <div className="p-4 bg-[#1e071a] border border-[#ff3399]/30 rounded-2xl space-y-3">
             <label className="text-xs font-bold text-[#ff99cc] block">
@@ -157,11 +207,11 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
           {/* Preset Scene Gallery */}
           <div>
             <h3 className="text-xs font-bold text-[#ff99cc] uppercase tracking-wider mb-2.5">
-              Available Scene &amp; Atmosphere Presets
+              Saved Pictures
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {scenePresets.map((preset) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {allPictures.map((preset) => {
                 const isSelected = selectedImage === preset.url;
                 return (
                   <div
@@ -181,10 +231,9 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
 
                     {isSelected && (
-                      <div className="absolute top-2 right-2 p-1 rounded-full bg-[#00b4db] text-white shadow">
-                        <Check className="w-3.5 h-3.5" />
-                      </div>
+                      <div className="absolute top-2 right-2 p-1 rounded-full bg-[#00b4db] text-white shadow"><Check className="w-3.5 h-3.5" /></div>
                     )}
+                    {uploaded.some((item) => item.url === preset.url) && <button onClick={(event) => { event.stopPropagation(); saveUploaded(uploaded.filter((item) => item.url !== preset.url)); if (selectedImage === preset.url) setSelectedImage('/penthouse.jpg'); }} className="absolute top-2 left-2 p-1.5 rounded-full bg-black/70 text-white" title="Remove picture"><Trash2 className="w-3.5 h-3.5" /></button>}
 
                     <div className="absolute bottom-2 left-2 right-2 text-left">
                       <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/60 text-cyan-300 border border-white/20">
@@ -203,10 +252,11 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
         {/* Footer */}
         <div className="pt-4 mt-2 border-t border-[#ff3399]/30 flex items-center justify-between">
           <p className="text-xs text-[#ffd6eb]/70">
-            Selected: <strong className="text-white">{scenePresets.find((p) => p.url === selectedImage)?.title || 'Custom Scene'}</strong>
+            Selected: <strong className="text-white">{allPictures.find((p) => p.url === selectedImage)?.title || 'Picture'}</strong>
           </p>
 
           <div className="flex items-center space-x-2">
+            {onSetHomeImage && <button onClick={() => onSetHomeImage(selectedImage)} className="px-4 py-2 bg-[#ff007f]/20 hover:bg-[#ff007f]/40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5"><Home className="w-4 h-4" /> Set Home Picture</button>}
             <button
               onClick={onClose}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 text-[#ffd6eb] rounded-xl text-xs font-semibold"
