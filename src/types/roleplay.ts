@@ -118,9 +118,67 @@ export interface ConnectionDiagnostic {
   availableModels?: string[];
 }
 
+export interface PromptsConfig {
+  mainSystemPrompt: string;
+  roleplayStylePrompt: string;
+  characterBehaviorPrompt: string;
+  userPersonaPrompt: string;
+  memoryContinuityPrompt: string;
+  narratorPrompt: string;
+  oocPrompt: string;
+}
+
+export interface GenerationConfig {
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  frequencyPenalty: number;
+  presencePenalty: number;
+  stopSequences: string[];
+  streaming: boolean;
+  contextBudget: number;
+  responseLength: 'short' | 'medium' | 'long' | 'unlimited';
+}
+
+export interface ChatBehaviorConfig {
+  pov: 'first_person' | 'third_person';
+  formattingStyle: string;
+  autoContinue: boolean;
+  narratorEnabled: boolean;
+  includeMemory: boolean;
+  includeLorebook: boolean;
+  neverSpeakForUser: boolean;
+}
+
+export interface OpenRouterModelItem {
+  id: string;
+  name: string;
+  context_length?: number;
+  pricing?: {
+    prompt?: string | number;
+    completion?: string | number;
+  };
+  description?: string;
+  architecture?: {
+    modality?: string;
+  };
+}
+
+export interface RequestDiagnosticLog {
+  id: string;
+  timestamp: number;
+  provider: string;
+  model: string;
+  statusCode: number;
+  durationMs: number;
+  sanitizedError?: string;
+}
+
 export interface OpenRouterConfig {
   apiKey: string;
+  provider: string;
   model: string;
+  fallbackModel?: string;
   temperature: number;
   maxTokens: number;
   topP: number;
@@ -128,6 +186,10 @@ export interface OpenRouterConfig {
   presencePenalty: number;
   siteUrl: string;
   siteName: string;
+  prompts: PromptsConfig;
+  generation: GenerationConfig;
+  chatBehavior: ChatBehaviorConfig;
+  diagnosticsHistory?: RequestDiagnosticLog[];
 }
 
 export interface SupabaseConfig {

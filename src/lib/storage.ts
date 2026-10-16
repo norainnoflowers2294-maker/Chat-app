@@ -25,9 +25,50 @@ export interface StorageData {
 
 const STORAGE_KEY = 'colorpop_roleplay_app_data_v2';
 
+export const DEFAULT_PROMPTS = {
+  mainSystemPrompt:
+    `[ROLEPLAY INSTRUCTIONS]\nYou are participating in a rich, multi-layered, uncensored creative roleplay session. Write evocative, descriptive, and emotionally engaging prose. Capture atmospheric nuances, physical gestures, subtle eye contact, tension, sensory details, and deep psychological subtext. Never speak for {{user}} or dictate their actions.`,
+  roleplayStylePrompt:
+    `Write in third-person descriptive narrative style with rich sensory detail and authentic character voices. Balance inner monologue with dynamic interaction.`,
+  characterBehaviorPrompt:
+    `Stay strictly in character as {{char}}. Express character traits, speech habits, motivations, and emotional depth consistently.`,
+  userPersonaPrompt:
+    `The user is playing as {{user}}. Persona details:\n{{persona}}`,
+  memoryContinuityPrompt:
+    `Relevant long-term memories and world context:\n{{memory}}\n\nActive Lorebooks:\n{{lorebooks}}`,
+  narratorPrompt:
+    `Describe scenic atmospheric updates, environmental details, and sensory cues when appropriate.`,
+  oocPrompt:
+    `If Out-Of-Character communication is requested, prepend comments with [OOC: ...].`,
+};
+
+export const DEFAULT_GENERATION = {
+  temperature: 0.85,
+  maxTokens: 1024,
+  topP: 0.95,
+  frequencyPenalty: 0.2,
+  presencePenalty: 0.2,
+  stopSequences: [] as string[],
+  streaming: true,
+  contextBudget: 4096,
+  responseLength: 'medium' as const,
+};
+
+export const DEFAULT_CHAT_BEHAVIOR = {
+  pov: 'third_person' as const,
+  formattingStyle: 'Asterisks for actions (*smiles*), quotes for speech ("Hello").',
+  autoContinue: false,
+  narratorEnabled: true,
+  includeMemory: true,
+  includeLorebook: true,
+  neverSpeakForUser: true,
+};
+
 export const DEFAULT_OPENROUTER_CONFIG: OpenRouterConfig = {
   apiKey: '',
+  provider: 'openrouter',
   model: 'gryphe/mythomax-l2-13b',
+  fallbackModel: 'meta-llama/llama-3.3-70b-instruct',
   temperature: 0.85,
   maxTokens: 1024,
   topP: 0.95,
@@ -35,6 +76,10 @@ export const DEFAULT_OPENROUTER_CONFIG: OpenRouterConfig = {
   presencePenalty: 0.2,
   siteUrl: 'https://ais-dev-ohlfym6cwp4w2lwha7oenj-597148229967.us-east1.run.app',
   siteName: 'ColorPop Roleplay Hub',
+  prompts: DEFAULT_PROMPTS,
+  generation: DEFAULT_GENERATION,
+  chatBehavior: DEFAULT_CHAT_BEHAVIOR,
+  diagnosticsHistory: [],
 };
 
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfig = {
@@ -73,6 +118,15 @@ export const DEFAULT_SAVED_MSGS = [
   },
 ];
 
+export function mergeOpenRouterConfig(parsedConfig?: Partial<OpenRouterConfig>): OpenRouterConfig {
+  const merged = { ...DEFAULT_OPENROUTER_CONFIG, ...(parsedConfig || {}) };
+  merged.prompts = { ...DEFAULT_PROMPTS, ...(parsedConfig?.prompts || {}) };
+  merged.generation = { ...DEFAULT_GENERATION, ...(parsedConfig?.generation || {}) };
+  merged.chatBehavior = { ...DEFAULT_CHAT_BEHAVIOR, ...(parsedConfig?.chatBehavior || {}) };
+  merged.diagnosticsHistory = parsedConfig?.diagnosticsHistory || [];
+  return merged;
+}
+
 export function loadLocalData(): StorageData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -85,7 +139,7 @@ export function loadLocalData(): StorageData {
         plugins: parsed.plugins?.length ? parsed.plugins : INITIAL_PLUGINS,
         chats: parsed.chats?.length ? parsed.chats : INITIAL_CHATS,
         activeChatId: parsed.activeChatId || (parsed.chats?.[0]?.id ?? INITIAL_CHATS[0]?.id),
-        openRouterConfig: { ...DEFAULT_OPENROUTER_CONFIG, ...(parsed.openRouterConfig || {}) },
+        openRouterConfig: mergeOpenRouterConfig(parsed.openRouterConfig),
         supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
         storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
         savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
@@ -107,6 +161,37 @@ export function loadLocalData(): StorageData {
     storyMemories: DEFAULT_MEMORIES,
     savedMessages: DEFAULT_SAVED_MSGS,
   };
+}
+
+export function exportSettingsJSON(config: OpenRouterConfig, includeApiKey: boolean = false): string {
+  const exportPayload: Partial<OpenRouterConfig> = { ...config };
+  if (!includeApiKey) {
+    exportPayload.apiKey = '';
+  }
+  return JSON.stringify(
+    {
+      version: '1.0',
+      type: 'colorpop_settings',
+      exportedAt: new Date().toISOString(),
+      config: exportPayload,
+    },
+    null,
+    2
+  );
+}
+
+export function importSettingsJSON(jsonString: string): { success: boolean; config?: OpenRouterConfig; error?: string } {
+  try {
+    const parsed = JSON.parse(jsonString);
+    const targetConfig = parsed.config || parsed;
+    if (!targetConfig || typeof targetConfig !== 'object') {
+      return { success: false, error: 'Invalid settings file format' };
+    }
+    const merged = mergeOpenRouterConfig(targetConfig);
+    return { success: true, config: merged };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Invalid JSON syntax' };
+  }
 }
 
 export function saveLocalData(data: StorageData): void {

@@ -626,22 +626,92 @@ app.delete('/api/github/user/starred/:owner/:repo', async (req: Request, res: Re
 
 // ---------------- OpenRouter Proxy & Diagnostics Endpoints ---------------- //
 
-// POST /api/openrouter/test: Test connection & fetch diagnostics
+// Helper to format error details for OpenRouter HTTP status codes
+function categorizeOpenRouterError(statusCode: number, errJson: any) {
+  const rawMessage = errJson?.error?.message || errJson?.message || `HTTP ${statusCode}`;
+  let category = 'network_error';
+  let friendlyMessage = rawMessage;
+  let suggestedFix = 'Check your OpenRouter key and account status.';
+
+  if (statusCode === 400) {
+    category = 'invalid_parameters';
+    friendlyMessage = `Bad Request (400): ${rawMessage}`;
+    suggestedFix = 'Verify model ID, message structure, or parameter compatibility (e.g. frequency penalty).';
+  } else if (statusCode === 401) {
+    category = 'auth_failed';
+    friendlyMessage = 'Invalid or expired OpenRouter API Key (401 Unauthorized).';
+    suggestedFix = 'Ensure your key starts with "sk-or-v1-" and is active at openrouter.ai/keys.';
+  } else if (statusCode === 402) {
+    category = 'no_credits';
+    friendlyMessage = 'Insufficient Account Balance / Credits (402 Payment Required).';
+    suggestedFix = 'Add credits at openrouter.ai/credits or select a free tier model.';
+  } else if (statusCode === 403) {
+    category = 'auth_failed';
+    friendlyMessage = `Forbidden Access (403): ${rawMessage}`;
+    suggestedFix = 'Your key or account tier does not have permission to access this model.';
+  } else if (statusCode === 404) {
+    category = 'model_unavailable';
+    friendlyMessage = `Model Not Found (404): ${rawMessage}`;
+    suggestedFix = 'The requested model ID may be deprecated, misspelled, or currently offline.';
+  } else if (statusCode === 408) {
+    category = 'network_error';
+    friendlyMessage = 'Request Timed Out (408).';
+    suggestedFix = 'The model took too long to respond. Try reducing context length or trying again.';
+  } else if (statusCode === 429) {
+    category = 'rate_limited';
+    friendlyMessage = 'Rate Limit Exceeded (429 Too Many Requests).';
+    suggestedFix = 'Wait a few seconds before sending another request, or upgrade your account tier.';
+  } else if (statusCode >= 500) {
+    category = 'provider_outage';
+    friendlyMessage = `OpenRouter / Upstream Provider Error (${statusCode}): ${rawMessage}`;
+    suggestedFix = 'The model provider is experiencing temporary downtime. Try switching models.';
+  }
+
+  return { category, friendlyMessage, suggestedFix };
+}
+
+// GET /api/openrouter/models: Fetch dynamic models list from OpenRouter
+app.get('/api/openrouter/models', async (req: Request, res: Response) => {
+  const apiKey = (req.headers.authorization?.replace('Bearer ', '') || process.env.OPENROUTER_API_KEY || '').trim();
+  const headers: Record<string, string> = {
+    'HTTP-Referer': getAppUrl(req),
+    'X-Title': 'ColorPop Roleplay Hub',
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/models', { headers });
+    if (!response.ok) {
+      res.status(response.status).json({ error: 'Failed to fetch OpenRouter models list' });
+      return;
+    }
+    const data = await response.json();
+    res.json({ models: data.data || [] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Error fetching models' });
+  }
+});
+
+// POST /api/openrouter/test: Test connection with key verification + real test completion request
 app.post('/api/openrouter/test', async (req: Request, res: Response) => {
   const apiKey = (req.body.apiKey || process.env.OPENROUTER_API_KEY || '').trim();
+  const targetModel = req.body.model || 'gryphe/mythomax-l2-13b';
 
   if (!apiKey) {
     res.json({
       status: 'error',
       errorCategory: 'missing_key',
-      errorMessage: 'Missing API Key. Please enter your OpenRouter API Key in Settings.',
-      suggestedFix: 'Get an API key from https://openrouter.ai/keys and paste it into OpenRouter Settings.',
+      errorMessage: 'Missing OpenRouter API Key.',
+      suggestedFix: 'Enter your OpenRouter API Key from openrouter.ai/keys in Settings.',
     });
     return;
   }
 
   const startTime = Date.now();
   try {
+    // 1. Key Auth Check
     const keyRes = await fetch('https://openrouter.ai/api/v1/auth/key', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -650,52 +720,69 @@ app.post('/api/openrouter/test', async (req: Request, res: Response) => {
       },
     });
 
-    const latencyMs = Date.now() - startTime;
-
     if (!keyRes.ok) {
       const errJson = await keyRes.json().catch(() => ({}));
-      const statusCode = keyRes.status;
-
-      let errorCategory: string = 'network_error';
-      let errorMessage = errJson?.error?.message || `OpenRouter returned HTTP ${statusCode}`;
-      let suggestedFix = 'Check your OpenRouter account status and API keys.';
-
-      if (statusCode === 401) {
-        errorCategory = 'auth_failed';
-        errorMessage = 'Invalid OpenRouter API Key (401 Unauthorized).';
-        suggestedFix = 'Double check that your key begins with "sk-or-v1-" and has not been revoked at openrouter.ai/keys.';
-      } else if (statusCode === 402) {
-        errorCategory = 'no_credits';
-        errorMessage = 'Insufficient Credits (402 Payment Required).';
-        suggestedFix = 'Add credit balance to your account at https://openrouter.ai/credits or choose a free model.';
-      } else if (statusCode === 429) {
-        errorCategory = 'rate_limited';
-        errorMessage = 'Rate limit exceeded on OpenRouter (429 Too Many Requests).';
-        suggestedFix = 'Wait a few seconds before testing again, or upgrade your OpenRouter account tier.';
-      }
-
+      const { category, friendlyMessage, suggestedFix } = categorizeOpenRouterError(keyRes.status, errJson);
       res.json({
         status: 'error',
-        statusCode,
-        errorCategory,
-        errorMessage,
+        statusCode: keyRes.status,
+        errorCategory: category,
+        errorMessage: friendlyMessage,
         suggestedFix,
-        latencyMs,
+        latencyMs: Date.now() - startTime,
       });
       return;
     }
 
     const keyData = await keyRes.json();
-    const data = keyData?.data || {};
+    const keyDetails = keyData?.data || {};
+
+    // 2. REAL Authenticated Chat Completion Request
+    const testChatRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': getAppUrl(req),
+        'X-Title': 'ColorPop Roleplay Hub',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: targetModel,
+        messages: [{ role: 'user', content: 'Ping' }],
+        max_tokens: 5,
+        temperature: 0.1,
+      }),
+    });
+
+    const latencyMs = Date.now() - startTime;
+
+    if (!testChatRes.ok) {
+      const errJson = await testChatRes.json().catch(() => ({}));
+      const { category, friendlyMessage, suggestedFix } = categorizeOpenRouterError(testChatRes.status, errJson);
+      res.json({
+        status: 'error',
+        statusCode: testChatRes.status,
+        errorCategory: category,
+        errorMessage: `Key verified, but completion test failed: ${friendlyMessage}`,
+        suggestedFix,
+        latencyMs,
+        keyDetails: {
+          label: keyDetails.label,
+          usage: keyDetails.usage,
+          limit: keyDetails.limit,
+        },
+      });
+      return;
+    }
 
     res.json({
       status: 'connected',
       latencyMs,
-      label: data.label || 'Default Key',
-      limit: data.limit,
-      usage: data.usage,
-      isFreeTier: data.is_free_tier,
-      rateLimit: data.rate_limit,
+      label: keyDetails.label || 'Default Key',
+      limit: keyDetails.limit,
+      usage: keyDetails.usage,
+      isFreeTier: keyDetails.is_free_tier,
+      testedModel: targetModel,
     });
   } catch (err: any) {
     res.json({
@@ -708,10 +795,10 @@ app.post('/api/openrouter/test', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/openrouter/chat: Proxies completions with prompt assembly
+// POST /api/openrouter/chat: Proxies completions with prompt assembly & Gemini payload sanitization
 app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
   const apiKey = (req.body.apiKey || process.env.OPENROUTER_API_KEY || '').trim();
-  const { model, messages, temperature, maxTokens, topP } = req.body;
+  const { model, messages, temperature, maxTokens, topP, frequencyPenalty, presencePenalty, stopSequences } = req.body;
 
   if (!apiKey) {
     res.status(401).json({
@@ -723,6 +810,32 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
   }
 
   const chosenModel = model || 'gryphe/mythomax-l2-13b';
+  const isGeminiModel = chosenModel.toLowerCase().includes('google/gemini');
+
+  // Build sanitized request body
+  const requestBody: Record<string, any> = {
+    model: chosenModel,
+    messages: Array.isArray(messages) ? messages : [],
+    temperature: typeof temperature === 'number' ? temperature : 0.85,
+    max_tokens: typeof maxTokens === 'number' ? maxTokens : 1024,
+    top_p: typeof topP === 'number' ? topP : 0.95,
+  };
+
+  // Gemini models on OpenRouter can fail if frequency_penalty / presence_penalty are passed
+  if (!isGeminiModel) {
+    if (typeof frequencyPenalty === 'number' && frequencyPenalty !== 0) {
+      requestBody.frequency_penalty = frequencyPenalty;
+    }
+    if (typeof presencePenalty === 'number' && presencePenalty !== 0) {
+      requestBody.presence_penalty = presencePenalty;
+    }
+  }
+
+  if (Array.isArray(stopSequences) && stopSequences.length > 0) {
+    requestBody.stop = stopSequences.filter(Boolean);
+  }
+
+  const startTime = Date.now();
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -733,29 +846,22 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
         'X-Title': 'ColorPop Roleplay Hub',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: chosenModel,
-        messages,
-        temperature: temperature ?? 0.85,
-        max_tokens: maxTokens ?? 1024,
-        top_p: topP ?? 0.95,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    const durationMs = Date.now() - startTime;
     const data = await response.json();
 
     if (!response.ok) {
-      const err = data.error || {};
-      let errorCategory = 'model_unavailable';
-      if (response.status === 401) errorCategory = 'auth_failed';
-      if (response.status === 402) errorCategory = 'no_credits';
-      if (response.status === 429) errorCategory = 'rate_limited';
+      const { category, friendlyMessage, suggestedFix } = categorizeOpenRouterError(response.status, data);
 
       res.status(response.status).json({
-        error: err.message || `OpenRouter returned status ${response.status}`,
+        error: friendlyMessage,
         statusCode: response.status,
-        errorCategory,
-        details: err,
+        errorCategory: category,
+        suggestedFix,
+        durationMs,
+        details: data.error || data,
       });
       return;
     }
@@ -765,11 +871,13 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
       content: reply,
       model: data.model || chosenModel,
       usage: data.usage,
+      durationMs,
     });
   } catch (err: any) {
     res.status(500).json({
       error: err.message || 'Failed to communicate with OpenRouter',
       errorCategory: 'network_error',
+      durationMs: Date.now() - startTime,
     });
   }
 });

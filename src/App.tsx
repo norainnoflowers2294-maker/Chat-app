@@ -89,15 +89,16 @@ export default function App() {
   };
 
   // Test OpenRouter Connection
-  const testOpenRouter = async (customKey?: string) => {
+  const testOpenRouter = async (customKey?: string, customModel?: string) => {
     const key = customKey ?? data.openRouterConfig.apiKey;
+    const modelToTest = customModel ?? data.openRouterConfig.model;
     setDiagnostic((prev) => ({ ...prev, status: 'testing' }));
 
     try {
       const res = await fetch('/api/openrouter/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key }),
+        body: JSON.stringify({ apiKey: key, model: modelToTest }),
       });
 
       const resData = await res.json();

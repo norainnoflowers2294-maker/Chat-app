@@ -164,6 +164,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         lorebooks: activeLorebooks,
         plugins: activePlugins,
         chat: updatedChat,
+        prompts: openRouterConfig.prompts,
+        chatBehavior: openRouterConfig.chatBehavior,
       });
 
       const response = await fetch('/api/openrouter/chat', {
@@ -173,9 +175,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
           apiKey: openRouterConfig.apiKey,
           model: openRouterConfig.model,
           messages: apiMessages,
-          temperature: openRouterConfig.temperature,
-          maxTokens: openRouterConfig.maxTokens,
-          topP: openRouterConfig.topP,
+          temperature: openRouterConfig.generation?.temperature ?? openRouterConfig.temperature ?? 0.85,
+          maxTokens: openRouterConfig.generation?.maxTokens ?? openRouterConfig.maxTokens ?? 1024,
+          topP: openRouterConfig.generation?.topP ?? openRouterConfig.topP ?? 0.95,
+          frequencyPenalty: openRouterConfig.generation?.frequencyPenalty ?? openRouterConfig.frequencyPenalty ?? 0.2,
+          presencePenalty: openRouterConfig.generation?.presencePenalty ?? openRouterConfig.presencePenalty ?? 0.2,
+          stopSequences: openRouterConfig.generation?.stopSequences || [],
         }),
       });
 
