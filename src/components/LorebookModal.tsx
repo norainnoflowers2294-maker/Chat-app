@@ -7,6 +7,7 @@ import {
   Upload,
   Trash2,
   Key,
+  ImagePlus,
 } from 'lucide-react';
 import { Lorebook, LoreEntry } from '../types/roleplay';
 import { parseLorebookFile } from '../utils/pngParser';
@@ -103,6 +104,19 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
     setSelectedLorebook(updated);
   };
 
+  const handleLorebookImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedLorebook) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const updated = { ...selectedLorebook, avatar: String(reader.result), updatedAt: new Date().toISOString() };
+      onSaveLorebook(updated);
+      setSelectedLorebook(updated);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
   const handleCreateNewBook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBookName.trim()) return;
@@ -197,9 +211,13 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
 
           {selectedLorebook ? (
             <div className="flex-1 space-y-4">
-              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-1">
-                <h3 className="text-base font-bold text-white">{selectedLorebook.name}</h3>
-                <p className="text-xs text-[#ffd6eb]/80">{selectedLorebook.description || 'No description provided.'}</p>
+              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl flex gap-4 items-center">
+                <img src={resolveImageUrl(selectedLorebook.avatar || '/mansion.jpg')} alt="" className="w-20 h-20 rounded-xl object-cover border border-[#ff3399]/40" />
+                <div className="flex-1 space-y-1"><h3 className="text-base font-bold text-white">{selectedLorebook.name}</h3><p className="text-xs text-[#ffd6eb]/80">{selectedLorebook.description || 'No description provided.'}</p></div>
+                <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#ff007f]/20 hover:bg-[#ff007f]/40 border border-[#ff66b2]/40 text-white text-xs font-semibold flex items-center gap-2">
+                  <ImagePlus className="w-4 h-4" /> Change picture
+                  <input type="file" accept="image/*" onChange={handleLorebookImage} className="hidden" />
+                </label>
               </div>
 
               <form onSubmit={handleAddEntry} className="p-4 bg-[#1e0818] border border-[#ff3399]/40 rounded-2xl space-y-3">
