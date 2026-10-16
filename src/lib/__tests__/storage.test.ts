@@ -94,11 +94,11 @@ describe('loadLocalData', () => {
 
   it('should return parsed data if valid JSON with custom data exists', () => {
     const customData = {
-      characters: [{ id: 'char1', name: 'Custom Char' }],
-      lorebooks: [{ id: 'lore1', name: 'Custom Lorebook' }],
-      personas: [{ id: 'pers1', name: 'Custom Persona' }],
-      plugins: [{ id: 'plug1', name: 'Custom Plugin' }],
-      chats: [{ id: 'chat1', name: 'Custom Chat' }],
+      characters: [{ id: 'char1', name: 'Custom Char' } as any],
+      lorebooks: [{ id: 'lore1', name: 'Custom Lorebook' } as any],
+      personas: [{ id: 'pers1', name: 'Custom Persona' } as any],
+      plugins: [{ id: 'plug1', name: 'Custom Plugin' } as any],
+      chats: [{ id: 'chat1', name: 'Custom Chat' } as any],
       activeChatId: 'chat1',
       openRouterConfig: { apiKey: 'test-key' },
       supabaseConfig: { url: 'test-url' },
@@ -110,11 +110,11 @@ describe('loadLocalData', () => {
 
     const result = loadLocalData();
 
-    expect(result.characters).toEqual(customData.characters);
-    expect(result.lorebooks).toEqual(customData.lorebooks);
-    expect(result.personas).toEqual(customData.personas);
-    expect(result.plugins).toEqual(customData.plugins);
-    expect(result.chats).toEqual(customData.chats);
+    expect(result.characters).toEqual(customData.characters as any);
+    expect(result.lorebooks).toEqual(customData.lorebooks as any);
+    expect(result.personas).toEqual(customData.personas as any);
+    expect(result.plugins).toEqual(customData.plugins as any);
+    expect(result.chats).toEqual(customData.chats as any);
     expect(result.activeChatId).toBe('chat1');
     expect(result.openRouterConfig.apiKey).toBe('test-key');
     expect(result.supabaseConfig.url).toBe('test-url');
@@ -130,7 +130,7 @@ describe('loadFromFirebase', () => {
     // Reset mocks
     (doc as any).mockClear();
     (getDoc as any).mockClear();
-    auth.currentUser = null;
+    Object.defineProperty(auth, 'currentUser', { value: null, writable: true });
     consoleWarnMock = spyOn(console, 'warn').mockImplementation(() => {});
   });
 
@@ -139,7 +139,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null if user is not logged in', async () => {
-    auth.currentUser = null;
+    Object.defineProperty(auth, 'currentUser', { value: null, writable: true });
 
     const result = await loadFromFirebase();
 
@@ -149,7 +149,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return data if document exists', async () => {
-    auth.currentUser = { uid: 'test-user-id' } as any;
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
@@ -169,7 +169,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null if document does not exist', async () => {
-    auth.currentUser = { uid: 'test-user-id' } as any;
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
@@ -188,7 +188,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null and log warning if error occurs during fetch', async () => {
-    auth.currentUser = { uid: 'test-user-id' } as any;
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
