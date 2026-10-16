@@ -459,15 +459,6 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
             <span className="truncate text-white font-medium">{activePersona?.name}</span>
           </div>
 
-          <button
-            onClick={() => {
-              window.open('https://chub.ai', '_blank');
-            }}
-            className="text-[10px] text-cyan-300 hover:text-white flex items-center gap-1 font-mono"
-          >
-            <span>Chub AI</span>
-            <ExternalLink className="w-2.5 h-2.5" />
-          </button>
         </div>
       </aside>
 

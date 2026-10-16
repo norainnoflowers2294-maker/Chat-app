@@ -41,7 +41,6 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
     { id: 'create_char', label: 'Create Character', icon: <UserPlus className="w-4 h-4 text-blue-300" />, glow: 'from-blue-600 to-cyan-500', action: onOpenCharacterModal },
     { id: 'create_lore', label: 'Create Lorebook', icon: <BookPlus className="w-4 h-4 text-rose-300" />, glow: 'from-rose-600 to-amber-500', action: onOpenLorebookModal },
     { id: 'create_persona', label: 'Create Persona', icon: <Contact className="w-4 h-4 text-purple-300" />, glow: 'from-purple-600 to-pink-500', action: onOpenPersonaModal },
-    { id: 'chub_ai', label: 'Chub AI', icon: <Link2 className="w-4 h-4 text-cyan-300" />, glow: 'from-cyan-600 to-blue-500', action: () => window.open('https://chub.ai', '_blank') },
     { id: 'characters', label: 'Characters', icon: <Users className="w-4 h-4 text-amber-300" />, glow: 'from-amber-600 to-orange-500', action: () => onQuickAction('characters') },
     { id: 'lorebooks', label: 'Lorebooks', icon: <BookOpen className="w-4 h-4 text-orange-300" />, glow: 'from-orange-600 to-rose-500', action: () => onQuickAction('lorebooks') },
     { id: 'my_chats', label: 'My Chats', icon: <MessageCircle className="w-4 h-4 text-pink-300" />, glow: 'from-pink-600 to-purple-500', action: onOpenChats },
