@@ -116,7 +116,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           repoUrl: DEFAULT_GITHUB_REPO_URL,
-          commitMsg: `Update ColorPop Roleplay Hub & OpenRouter - ${new Date().toLocaleTimeString()}`,
+          commitMsg: `Update Pretty Little Fantasies & OpenRouter - ${new Date().toLocaleTimeString()}`,
         }),
       });
 
