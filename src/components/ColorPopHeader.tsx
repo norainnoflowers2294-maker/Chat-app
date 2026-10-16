@@ -68,7 +68,7 @@ export const ColorPopHeader: React.FC<ColorPopHeaderProps> = ({
         </button>
       </div>
 
-      {/* Center Branding: "ColorPop" with Diamond Sparkles & Crown */}
+      {/* Center Branding: "Pretty Little Fantasies" with Diamond Sparkles & Crown */}
       <div className="flex flex-col items-center justify-center cursor-pointer select-none">
         <div className="relative flex items-center justify-center">
           <div className="absolute -top-3.5 flex items-center justify-center space-x-1 text-[#ff80bf]">
@@ -78,13 +78,13 @@ export const ColorPopHeader: React.FC<ColorPopHeaderProps> = ({
           </div>
 
           <h1
-            className="text-3xl sm:text-4xl md:text-5xl font-black italic tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#ffffff] via-[#ff99cc] to-[#ff1a8c] drop-shadow-[0_0_25px_rgba(255,51,153,0.85)] filter"
+            className="text-xl sm:text-2xl md:text-4xl font-black italic tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#ffffff] via-[#ff99cc] to-[#ff1a8c] drop-shadow-[0_0_25px_rgba(255,51,153,0.85)] filter"
             style={{
               fontFamily: "'Playfair Display', cursive, serif",
               textShadow: '0 0 20px rgba(255, 77, 148, 0.7), 0 0 40px rgba(255, 0, 128, 0.4)',
             }}
           >
-            Color<span className="text-[#ff3399]">Pop</span>
+            Pretty Little <span className="text-[#ff3399]">Fantasies</span>
           </h1>
 
           <Sparkles className="w-4 h-4 text-white absolute -top-1 -right-4 animate-spin text-[#ffd6eb]" style={{ animationDuration: '6s' }} />
