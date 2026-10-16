@@ -6,9 +6,10 @@ import {
   BookOpen,
   UserCheck,
   MoreHorizontal,
+  Image,
 } from 'lucide-react';
 
-export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'more';
+export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'gallery' | 'more';
 
 interface TopNavPillProps {
   activeTab: NavTab;
@@ -27,6 +28,7 @@ export const TopNavPill: React.FC<TopNavPillProps> = ({
     { id: 'characters', label: 'Characters', icon: <Users className="w-4 h-4" /> },
     { id: 'lorebooks', label: 'Lorebooks', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'personas', label: 'Personas', icon: <UserCheck className="w-4 h-4" /> },
+    { id: 'gallery', label: 'Gallery', icon: <Image className="w-4 h-4" /> },
   ];
 
   return (
