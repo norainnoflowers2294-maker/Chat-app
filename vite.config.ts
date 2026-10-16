@@ -6,6 +6,9 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    // GitHub Pages serves project sites under /Chat-app/.
+    // Keep root paths for local development and other hosting providers.
+    base: process.env.GITHUB_PAGES === 'true' ? '/Chat-app/' : '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
