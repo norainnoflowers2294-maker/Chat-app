@@ -777,9 +777,9 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
 // ---------------- GitHub Auto-Push Endpoint ---------------- //
 
 app.post('/api/git/push', async (req: Request, res: Response) => {
-  const { exec } = await import('child_process');
+  const { execFile } = await import('child_process');
   const { promisify } = await import('util');
-  const execAsync = promisify(exec);
+  const execFileAsync = promisify(execFile);
 
   const token = (process.env.GITHUB_CLIENT_ID || process.env.GITHUB_TOKEN || '').trim();
   const repoUrl = req.body.repoUrl || 'https://github.com/norainnoflowers2294-maker/Chat-app.git';
@@ -792,28 +792,33 @@ app.post('/api/git/push', async (req: Request, res: Response) => {
 
   try {
     // Configure git identity
-    await execAsync('git config user.name "norainnoflowers2294-maker"');
-    await execAsync('git config user.email "jasminew70@gmail.com"');
+    await execFileAsync('git', ['config', 'user.name', 'norainnoflowers2294-maker']);
+    await execFileAsync('git', ['config', 'user.email', 'jasminew70@gmail.com']);
 
     // Add all files
-    await execAsync('git add .');
+    await execFileAsync('git', ['add', '.']);
 
     // Commit
     try {
-      await execAsync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`);
+      await execFileAsync('git', ['commit', '-m', commitMsg]);
     } catch {
       // Nothing new to commit is fine
     }
 
     // Set authenticated remote
-    await execAsync(`git remote set-url origin "${repoUrl}" 2>/dev/null || git remote add origin "${repoUrl}"`);
+    try {
+      await execFileAsync('git', ['remote', 'set-url', 'origin', repoUrl]);
+    } catch {
+      await execFileAsync('git', ['remote', 'add', 'origin', repoUrl]);
+    }
 
     // Ensure branch is main
-    await execAsync('git branch -M main');
+    await execFileAsync('git', ['branch', '-M', 'main']);
 
     // Push with force if needed or standard push
-    const { stdout, stderr } = await execAsync(
-      'git -c credential.helper=\'!f() { echo username=norainnoflowers2294-maker; echo "password=$GITHUB_TOKEN_FOR_PUSH"; }; f\' push -u origin main',
+    const { stdout, stderr } = await execFileAsync(
+      'git',
+      ['-c', 'credential.helper=!f() { echo username=norainnoflowers2294-maker; echo "password=$GITHUB_TOKEN_FOR_PUSH"; }; f', 'push', '-u', 'origin', 'main'],
       { env: { ...process.env, GITHUB_TOKEN_FOR_PUSH: token } }
     );
 
