@@ -8,6 +8,7 @@ import {
   Sparkles,
   ArrowLeft,
   Settings,
+  SlidersHorizontal,
   Heart,
   CloudMoon,
   Dices,
@@ -43,6 +44,7 @@ import {
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
 import { parseSlashCommand } from '../lib/slashCommands';
 import { DualTrackOverlay } from './DualTrackOverlay';
+import { ChatSettingsPanel } from './ChatSettingsPanel';
 
 interface ChatViewProps {
   preferences: AppPreferences;
@@ -108,6 +110,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [diceResult, setDiceResult] = useState<string | null>(null);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
+  const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
@@ -116,7 +119,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // Active entities in this chat
   const activeCharacters = characters.filter((c) => chat.characterIds.includes(c.id));
-  const activePersona = personas.find((p) => p.id === chat.personaId) || personas[0] || null;
+  const activePersona = chat.personaId ? personas.find((p) => p.id === chat.personaId) || null : personas[0] || null;
   const activeLorebooks = lorebooks.filter((l) => chat.lorebookIds.includes(l.id)).slice(0, 3);
   const activePlugins = plugins.filter((p) => chat.pluginIds.includes(p.id)).slice(0, 5);
 
@@ -190,7 +193,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences, storyMemories,
       });
 
-      const botReply = await sendOpenRouterChat(openRouterConfig, apiMessages);
+      const replyLength = updatedChat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const botReply = await sendOpenRouterChat({ ...openRouterConfig, temperature: updatedChat.creativity ?? openRouterConfig.temperature, maxTokens }, apiMessages);
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
 
       const replyMessage: ChatMessage = {
@@ -351,6 +358,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Puzzle className="w-4 h-4 text-fuchsia-400" />
           </button>
 
+          <button type="button" onClick={() => setIsChatSettingsOpen(true)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-pink-200 transition-colors" title="Chat reply settings" aria-label="Chat reply settings">
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+
           {/* Settings / Diagnostic Button */}
           <button
             onClick={onOpenSettings}
@@ -361,6 +372,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </button>
         </div>
       </header>
+
+      {isChatSettingsOpen && <ChatSettingsPanel chat={chat} characters={characters} personas={personas} onClose={() => setIsChatSettingsOpen(false)} onSave={(updatedChat) => { onUpdateChat(updatedChat); setIsChatSettingsOpen(false); }} />}
 
       {/* Scenario / Lore / Atmosphere Bar */}
       <div className="relative z-20 px-4 py-1.5 bg-[#1b0516]/85 border-b border-[#ff3399]/20 flex items-center justify-between text-[11px] text-[#ffd6eb]/80">

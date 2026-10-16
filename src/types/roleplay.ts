@@ -159,6 +159,12 @@ export interface Chat {
   inventory?: string[];
   weather?: string;
   timeOfDay?: string;
+  promptInstructions?: string;
+  replyStyle?: 'immersive' | 'dialogue' | 'balanced' | 'screenplay';
+  replyLength?: 'short' | 'medium' | 'long';
+  replyPointOfView?: 'character' | 'first_person' | 'third_person';
+  replyMood?: 'story' | 'playful' | 'romantic' | 'dramatic' | 'cozy' | 'suspenseful' | 'comedic';
+  creativity?: number;
   createdAt: string;
   updatedAt: string;
 }
