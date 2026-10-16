@@ -1,13 +1,66 @@
+export interface FeatureMark {
+  id: string;
+  location: string;
+  description: string;
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  relationship: 'Mother' | 'Father' | 'Sister' | 'Brother' | 'Daughter' | 'Son' | 'Cousin' | 'Aunt' | 'Uncle' | 'Grandparent' | 'Guardian' | 'Other' | string;
+  age?: string;
+  description?: string;
+  status: 'Alive' | 'Deceased' | 'Unknown' | string;
+  characterId?: string;
+}
+
+export interface CharacterSpouse {
+  name: string;
+  relationshipStatus?: string;
+  characterId?: string;
+}
+
 export interface Character {
   id: string;
   userId?: string;
-  name: string;
+  name: string; // Full Name (required)
+  nicknames?: string[];
+  age?: string;
+  ethnicity?: string;
+  birthday?: string; // e.g. "10/24"
+  birthYear?: string; // e.g. "1998"
+  zodiacSign?: string; // Calculated Western Zodiac (e.g. "Scorpio ♏")
   avatar: string;
+
+  // Physical Appearance
+  height?: string; // e.g. "6'1\"" or "185 cm"
+  bodyType?: string; // Petite, Athletic, Curvy, Muscular, Slim, Broad, Plus Size, Other
+  scars?: FeatureMark[];
+  birthmarks?: FeatureMark[];
+  tattoos?: FeatureMark[];
+  hairColor?: string;
+  eyeColor?: string;
+  description: string; // Physical Description
+
+  // Speech & Voice
+  voiceDescription?: string;
+  voiceTags?: string[]; // Selected bubble chips
+
+  // Personality & History
+  personality: string; // Personality traits, temperament, habits, mannerisms, likes, dislikes (required)
+  backstory?: string;
+
+  // Relationships & Family
+  spouse?: CharacterSpouse;
+  familyMembers?: FamilyMember[];
+
+  // Story & Scenario
+  scenario: string; // Scenario text
+  first_mes: string; // Initial Message / Greeting
+  pov?: 'first_person' | 'third_person' | string; // First-Person or Third-Person POV
+
+  // Standard character card / meta fields
   summary: string;
-  description: string;
-  personality: string;
-  scenario: string;
-  first_mes: string;
   mes_example: string;
   system_prompt?: string;
   tags: string[];
@@ -15,6 +68,9 @@ export interface Character {
   creator_notes?: string;
   createdAt: string;
   updatedAt: string;
+
+  // Preserved raw / custom fields from JSON imports
+  customFields?: Record<string, any>;
 }
 
 export interface LoreEntry {
