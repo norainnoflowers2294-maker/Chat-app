@@ -1,3 +1,4 @@
+import { sendOpenRouterChat } from '../lib/openrouter';
 import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -166,40 +167,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat: updatedChat,
       });
 
-      const response = await fetch('/api/openrouter/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: openRouterConfig.apiKey,
-          model: openRouterConfig.model,
-          messages: apiMessages,
-          temperature: openRouterConfig.temperature,
-          maxTokens: openRouterConfig.maxTokens,
-          topP: openRouterConfig.topP,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        let suggestedFix = 'Check your OpenRouter Settings to configure your API key.';
-        if (response.status === 401) {
-          suggestedFix = 'Your OpenRouter API Key is invalid or expired. Please update it in Settings.';
-        } else if (response.status === 402) {
-          suggestedFix = 'Your OpenRouter account has zero credits. Please add funds at openrouter.ai/credits or pick a free model like gryphe/mythomax-l2-13b:free.';
-        } else if (response.status === 429) {
-          suggestedFix = 'Rate limit reached on OpenRouter. Please wait 10 seconds before replying.';
-        }
-
-        setErrorDetails({
-          message: data.error || `OpenRouter returned HTTP ${response.status}`,
-          suggestedFix,
-        });
-        setLoading(false);
-        return;
-      }
-
-      const botReply = data.content || '...';
+      const botReply = await sendOpenRouterChat(openRouterConfig, apiMessages);
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
 
       const replyMessage: ChatMessage = {
@@ -221,7 +189,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     } catch (err: any) {
       setErrorDetails({
         message: err.message || 'Network connection failed while reaching OpenRouter.',
-        suggestedFix: 'Verify your internet connection and openrouter.ai server status.',
+        suggestedFix: err.suggestedFix || 'Verify your internet connection and openrouter.ai server status.',
       });
     } finally {
       setLoading(false);
@@ -630,3 +598,4 @@ export const ChatView: React.FC<ChatViewProps> = ({
     </div>
   );
 };
+

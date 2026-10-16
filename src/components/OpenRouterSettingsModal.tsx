@@ -1,5 +1,5 @@
 import { resolveImageUrl } from '../utils/imageUrl';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Wifi,
@@ -25,7 +25,7 @@ interface OpenRouterSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   config: OpenRouterConfig;
-  onSaveConfig: (cfg: OpenRouterConfig) => void;
+  onSaveConfig: (cfg: OpenRouterConfig, supabaseCfg?: SupabaseConfig) => void;
   diagnostic: ConnectionDiagnostic;
   onTestConnection: (key?: string) => Promise<void>;
   supabaseConfig: SupabaseConfig;
@@ -59,24 +59,33 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   const [pushingGit, setPushingGit] = useState(false);
   const [gitPushResult, setGitPushResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setApiKey(config.apiKey);
+    setModel(config.model);
+    setTemperature(config.temperature);
+    setMaxTokens(config.maxTokens);
+    setTopP(config.topP);
+    setSupaUrl(supabaseConfig.url);
+    setSupaKey(supabaseConfig.anonKey);
+  }, [isOpen, config, supabaseConfig]);
+
   if (!isOpen) return null;
 
   const handleTest = async () => {
     setTesting(true);
-    await onTestConnection(apiKey);
-    setTesting(false);
+    try { await onTestConnection(apiKey.trim()); } finally { setTesting(false); }
   };
 
   const handleSave = () => {
     onSaveConfig({
       ...config,
-      apiKey,
-      model,
+      apiKey: apiKey.trim(),
+      model: model.trim(),
       temperature,
       maxTokens,
       topP,
-    });
-    onSaveSupabaseConfig({
+    }, {
       url: supaUrl,
       anonKey: supaKey,
       connected: Boolean(supaUrl && supaKey),
@@ -122,7 +131,6 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', badge: 'Fast & Rich' },
     { id: 'mistralai/mistral-large-2411', label: 'Mistral Large 2411', badge: 'Complex Dialogues' },
     { id: 'nousresearch/hermes-3-llama-3.1-405b', label: 'Hermes 3 Llama 3.1 405B', badge: 'Masterclass' },
-    { id: 'gryphe/mythomax-l2-13b:free', label: 'Mythomax L2 13B (Free Tier)', badge: 'Free' },
   ];
 
   return (
@@ -228,7 +236,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                     <div>
                       <h4 className="font-bold text-sm text-white">
                         {diagnostic.status === 'connected'
-                          ? 'OpenRouter Connected Successfully'
+                          ? 'OpenRouter API Key Verified'
                           : diagnostic.status === 'error'
                           ? 'OpenRouter Connection Problem Detected'
                           : 'OpenRouter Not Yet Verified'}
@@ -553,3 +561,4 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     </div>
   );
 };
+

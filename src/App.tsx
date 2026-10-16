@@ -1,3 +1,4 @@
+import { testOpenRouterConnection } from './lib/openrouter';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -98,42 +99,7 @@ export default function App() {
     const key = customKey ?? data.openRouterConfig.apiKey;
     setDiagnostic((prev) => ({ ...prev, status: 'testing' }));
 
-    try {
-      const res = await fetch('/api/openrouter/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key }),
-      });
-
-      const resData = await res.json();
-
-      if (resData.status === 'connected') {
-        setDiagnostic({
-          status: 'connected',
-          lastChecked: Date.now(),
-          latencyMs: resData.latencyMs,
-          statusCode: 200,
-        });
-      } else {
-        setDiagnostic({
-          status: 'error',
-          lastChecked: Date.now(),
-          statusCode: resData.statusCode,
-          errorCategory: resData.errorCategory,
-          errorMessage: resData.errorMessage || 'Failed to connect to OpenRouter',
-          suggestedFix: resData.suggestedFix,
-          latencyMs: resData.latencyMs,
-        });
-      }
-    } catch (err: any) {
-      setDiagnostic({
-        status: 'error',
-        lastChecked: Date.now(),
-        errorCategory: 'network_error',
-        errorMessage: err.message || 'Network error reaching backend proxy',
-        suggestedFix: 'Verify your network connection and server status.',
-      });
-    }
+    setDiagnostic(await testOpenRouterConnection(key));
   };
 
   // Initialize
@@ -294,8 +260,8 @@ export default function App() {
     updateData({ ...data, plugins: updated });
   };
 
-  const handleSaveOpenRouterConfig = (cfg: OpenRouterConfig) => {
-    updateData({ ...data, openRouterConfig: cfg });
+  const handleSaveOpenRouterConfig = (cfg: OpenRouterConfig, supabaseCfg?: SupabaseConfig) => {
+    updateData({ ...data, openRouterConfig: cfg, supabaseConfig: supabaseCfg ?? data.supabaseConfig });
     testOpenRouter(cfg.apiKey);
   };
 
@@ -783,3 +749,4 @@ export default function App() {
     </div>
   );
 }
+
