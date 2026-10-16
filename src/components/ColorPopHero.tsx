@@ -62,7 +62,7 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
         <div className="relative rounded-3xl overflow-hidden border-2 border-[#ff3399]/60 shadow-[0_0_35px_rgba(255,51,153,0.45)] bg-[#12040e] aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] lg:aspect-auto lg:h-[460px]">
           <img
             src={resolveImageUrl(heroImage || "/colorpop_hero.jpg")}
-            alt="ColorPop Luxury Couple"
+            alt="Pretty Little Fantasies homepage image"
             className="w-full h-full object-cover object-center group-hover:scale-[1.02] transition-transform duration-700"
           />
 
@@ -76,7 +76,7 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between z-10">
             <div className="space-y-1">
               <span className="px-3 py-1 rounded-full bg-[#ff007f]/40 backdrop-blur-md border border-[#ff80bf]/50 text-white font-mono text-[10px] tracking-wider uppercase font-bold flex items-center gap-1.5 w-fit shadow-[0_0_15px_rgba(255,0,128,0.5)]">
-                <Sparkles className="w-3 h-3 text-[#ffd6eb]" /> ColorPop Elite Universe
+                <Sparkles className="w-3 h-3 text-[#ffd6eb]" /> Pretty Little Fantasies
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                 The Sovereign Billionaires &bull; Chapter IV
