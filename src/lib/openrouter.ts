@@ -68,7 +68,8 @@ export async function sendOpenRouterChat(config: OpenRouterConfig, messages: { r
   if (!config.model.trim()) throw new OpenRouterError('Choose an OpenRouter model in Settings.', 404);
   const data = await request('/chat/completions', config.apiKey, {
     model: config.model.trim(), messages, temperature: config.temperature,
-    max_tokens: config.maxTokens, top_p: config.topP, stream: false,
+    max_tokens: config.maxTokens, top_p: config.topP,
+    frequency_penalty: config.frequencyPenalty ?? 0, presence_penalty: config.presencePenalty ?? 0, stream: false,
   });
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
@@ -76,3 +77,4 @@ export async function sendOpenRouterChat(config: OpenRouterConfig, messages: { r
   }
   return content;
 }
+

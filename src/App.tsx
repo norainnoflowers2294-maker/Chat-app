@@ -1,3 +1,5 @@
+import { normalizePreferences, downloadJson, type AppPreferences } from './lib/preferences';
+import './components/preferences.css';
 import { testOpenRouterConnection } from './lib/openrouter';
 /**
  * @license
@@ -51,6 +53,15 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function App() {
   const [data, setData] = useState<StorageData>(loadLocalData);
+  const preferences = normalizePreferences(data.appPreferences);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.cpTheme = preferences.theme;
+    root.dataset.cpMotion = preferences.reducedMotion ? 'reduce' : 'normal';
+    root.style.setProperty('--cp-accent', preferences.accent);
+    root.style.setProperty('--cp-chat-size', `${preferences.fontSize}px`);
+    root.style.setProperty('--cp-heading-font', preferences.headerFont === 'serif' ? 'Georgia, serif' : preferences.headerFont === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
+  }, [preferences.theme, preferences.accent, preferences.fontSize, preferences.headerFont, preferences.reducedMotion]);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [inChatMode, setInChatMode] = useState(false);
@@ -115,11 +126,12 @@ export default function App() {
     // Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setFirebaseUser(u);
-      if (u) {
+      if (u && data.appPreferences?.cloudSync !== false) {
         const remote = await loadFromFirebase();
         if (remote) {
           setData((prev) => ({
             ...prev,
+            appPreferences: normalizePreferences(remote.appPreferences || prev.appPreferences),
             characters: remote.characters || prev.characters,
             chats: remote.chats || prev.chats,
             lorebooks: remote.lorebooks || prev.lorebooks,
@@ -265,6 +277,14 @@ export default function App() {
     testOpenRouter(cfg.apiKey);
   };
 
+  const handleSavePreferences = (value: AppPreferences) => {
+    updateData({ ...data, appPreferences: normalizePreferences(value) });
+  };
+  const handleExportData = () => {
+    const { openRouterConfig, supabaseConfig, ...backup } = data;
+    downloadJson('ColorPop_Backup.json', { version: 1, exportedAt: new Date().toISOString(), ...backup });
+  };
+
   const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
     updateData({ ...data, supabaseConfig: cfg });
   };
@@ -374,6 +394,8 @@ export default function App() {
           plugins={data.plugins}
           openRouterConfig={data.openRouterConfig}
           diagnostic={diagnostic}
+          preferences={preferences}
+          storyMemories={data.storyMemories}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
           onBackToDashboard={() => setInChatMode(false)}
@@ -426,6 +448,9 @@ export default function App() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           config={data.openRouterConfig}
+        preferences={preferences}
+        onSavePreferences={handleSavePreferences}
+        onExportData={handleExportData}
           onSaveConfig={handleSaveOpenRouterConfig}
           diagnostic={diagnostic}
           onTestConnection={testOpenRouter}
@@ -709,6 +734,9 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         config={data.openRouterConfig}
+        preferences={preferences}
+        onSavePreferences={handleSavePreferences}
+        onExportData={handleExportData}
         onSaveConfig={handleSaveOpenRouterConfig}
         diagnostic={diagnostic}
         onTestConnection={testOpenRouter}
@@ -749,4 +777,5 @@ export default function App() {
     </div>
   );
 }
+
 

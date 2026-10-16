@@ -1,6 +1,10 @@
-import { Character, Persona, Lorebook, Plugin, Chat, ChatMessage } from '../types/roleplay';
+import type { AppPreferences } from '../lib/preferences';
+import type { StoryMemory } from '../types/roleplay';
+import type { Character, Persona, Lorebook, Plugin, Chat, ChatMessage } from '../types/roleplay';
 
 interface AssembleParams {
+  preferences?: AppPreferences;
+  storyMemories?: StoryMemory[];
   characters: Character[];
   persona: Persona | null;
   lorebooks: Lorebook[];
@@ -14,7 +18,7 @@ export interface OpenRouterApiMessage {
 }
 
 export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMessage[] {
-  const { characters, persona, lorebooks, plugins, chat } = params;
+  const { characters, persona, lorebooks, plugins, chat, preferences, storyMemories = [] } = params;
 
   const systemParts: string[] = [];
 
@@ -82,6 +86,21 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
     systemParts.push(`[ACTIVE PLUGINS (SLOTS 1-5)]\n${pluginDirectives}\n`);
   }
 
+  if (preferences) {
+    const rules = [
+      preferences.trackWardrobe ? 'Preserve established clothing and accessories until the story changes them.' : '',
+      preferences.trackLocations ? 'Preserve the current location and plausible travel between locations.' : '',
+      preferences.npcAutonomy ? 'NPCs may act independently within the scene; never control the user persona.' : 'Do not introduce new NPC actions or off-screen events unless the user requests them.',
+      preferences.narratorEnabled ? `Narration activity: ${preferences.narratorFrequency}. ${preferences.narratorFrequency === 'quiet' ? 'Keep narration brief and favor dialogue.' : preferences.narratorFrequency === 'active' ? 'Use detailed sensory scene narration alongside dialogue.' : 'Balance dialogue and scene description.'}` : 'Respond as the character; omit standalone narrator commentary and unsolicited scene narration.',
+    ].filter(Boolean);
+    systemParts.push('[USER STORY PREFERENCES]\n' + rules.join('\n'));
+    if (preferences.memoryEnabled) {
+      const limits = preferences.memoryDepth === 'light' ? [3, 500] : preferences.memoryDepth === 'deep' ? [15, 2000] : [8, 1000];
+      const notes = storyMemories.filter(m => !m.chatId || m.chatId === chat.id).slice(0, limits[0]);
+      if (notes.length) systemParts.push('[SAVED STORY NOTES]\n' + notes.map(m => `${m.title}: ${m.content.slice(0, limits[1])}`).join('\n'));
+    }
+  }
+
   const resultMessages: OpenRouterApiMessage[] = [
     {
       role: 'system',
@@ -90,7 +109,8 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   ];
 
   // 7. Conversation History
-  chat.messages.forEach((msg) => {
+  const history = preferences ? chat.messages.slice(-preferences.contextMessages) : chat.messages;
+  history.forEach((msg) => {
     if (msg.senderId === 'user') {
       resultMessages.push({
         role: 'user',
@@ -106,3 +126,4 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
 
   return resultMessages;
 }
+

@@ -1,9 +1,11 @@
+import { DEFAULT_PREFERENCES, normalizePreferences, type AppPreferences } from './preferences';
 import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, SupabaseConfig, StoryMemory } from '../types/roleplay';
 import { INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface StorageData {
+  appPreferences: AppPreferences;
   characters: Character[];
   lorebooks: Lorebook[];
   personas: Persona[];
@@ -79,6 +81,7 @@ export function loadLocalData(): StorageData {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
+        appPreferences: normalizePreferences(parsed.appPreferences),
         characters: parsed.characters?.length ? parsed.characters : INITIAL_CHARACTERS,
         lorebooks: parsed.lorebooks?.length ? parsed.lorebooks : INITIAL_LOREBOOKS,
         personas: parsed.personas?.length ? parsed.personas : INITIAL_PERSONAS,
@@ -96,6 +99,7 @@ export function loadLocalData(): StorageData {
   }
 
   return {
+    appPreferences: { ...DEFAULT_PREFERENCES },
     characters: INITIAL_CHARACTERS,
     lorebooks: INITIAL_LOREBOOKS,
     personas: INITIAL_PERSONAS,
@@ -119,13 +123,14 @@ export function saveLocalData(data: StorageData): void {
 
 export async function syncToFirebase(data: StorageData): Promise<void> {
   const user = auth.currentUser;
-  if (!user) return;
+  if (!user || data.appPreferences?.cloudSync === false) return;
 
   try {
     const userDocRef = doc(db, 'users', user.uid);
     await setDoc(
       userDocRef,
       {
+        appPreferences: data.appPreferences || DEFAULT_PREFERENCES,
         characters: data.characters,
         lorebooks: data.lorebooks,
         personas: data.personas,
@@ -158,3 +163,4 @@ export async function loadFromFirebase(): Promise<Partial<StorageData> | null> {
   }
   return null;
 }
+

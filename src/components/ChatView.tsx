@@ -1,3 +1,5 @@
+import type { AppPreferences } from '../lib/preferences';
+import type { StoryMemory } from '../types/roleplay';
 import { sendOpenRouterChat } from '../lib/openrouter';
 import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
@@ -42,6 +44,8 @@ import { buildOpenRouterMessages } from '../utils/promptAssembler';
 import { DualTrackOverlay } from './DualTrackOverlay';
 
 interface ChatViewProps {
+  preferences: AppPreferences;
+  storyMemories: StoryMemory[];
   chat: Chat;
   allChats: Chat[];
   characters: Character[];
@@ -67,6 +71,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
+  preferences, storyMemories,
   chat,
   allChats,
   characters,
@@ -110,12 +115,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const activePlugins = plugins.filter((p) => chat.pluginIds.includes(p.id)).slice(0, 5);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (preferences.autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: preferences.reducedMotion ? 'auto' : 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [chat.messages, loading]);
+  }, [chat.messages, loading, preferences.autoScroll, preferences.reducedMotion]);
 
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -165,6 +170,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         lorebooks: activeLorebooks,
         plugins: activePlugins,
         chat: updatedChat,
+        preferences, storyMemories,
       });
 
       const botReply = await sendOpenRouterChat(openRouterConfig, apiMessages);
@@ -181,6 +187,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         currentSwipeIndex: 0,
       };
 
+      if (preferences.notifyReplies && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        try { new Notification('ColorPop', { body: 'A reply is ready.' }); } catch { /* Unsupported notification constructor on some mobile browsers. */ }
+      }
       onUpdateChat({
         ...updatedChat,
         messages: [...updatedMessages, replyMessage],
@@ -219,7 +228,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="relative w-full h-screen max-h-screen flex flex-col bg-[#0d020b] text-[#ffd6eb] overflow-hidden select-none">
+    <div data-compact={preferences.compactMode} data-bubble-motion={preferences.messageAnimations && !preferences.reducedMotion} className="cp-chat relative w-full h-screen max-h-screen flex flex-col bg-[#0d020b] text-[#ffd6eb] overflow-hidden select-none">
       {/* Background Ambience with chat.bgImage */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-15 pointer-events-none filter blur-sm transition-all duration-700"
@@ -272,7 +281,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <h2 className="text-sm font-bold text-white tracking-wide truncate max-w-[120px] sm:max-w-xs">
                   {chat.title}
                 </h2>
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <span hidden={!preferences.showDiagnostics} className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   {openRouterConfig.model.split('/').pop()}
                 </span>
               </div>
@@ -391,7 +400,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         onClick={() => {
           if (isDualTrackOpen) setIsDualTrackOpen(false);
         }}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 relative z-10"
+        className="cp-messages flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 relative z-10"
       >
         {chat.messages.map((msg) => {
           const isUser = msg.senderId === 'user';
@@ -399,7 +408,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           return (
             <div
               key={msg.id}
-              className={`flex items-start space-x-3 max-w-3xl ${
+              className={`cp-message-row flex items-start space-x-3 max-w-3xl ${
                 isUser ? 'ml-auto flex-row-reverse space-x-reverse' : 'mr-auto'
               }`}
             >
@@ -412,23 +421,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
               {/* Message Bubble */}
               <div
-                className={`relative rounded-2xl p-4 shadow-xl text-xs sm:text-sm leading-relaxed group ${
+                className={`cp-message-bubble relative rounded-2xl p-4 shadow-xl text-xs sm:text-sm leading-relaxed group ${
                   isUser
-                    ? 'bg-gradient-to-br from-[#ff007f] to-[#ff3399] text-white rounded-tr-none shadow-[0_0_20px_rgba(255,0,128,0.4)]'
+                    ? 'cp-bubble-user bg-gradient-to-br from-[#ff007f] to-[#ff3399] text-white rounded-tr-none shadow-[0_0_20px_rgba(255,0,128,0.4)]'
                     : 'bg-[#1b0516]/95 border border-[#ff3399]/40 text-[#ffd6eb] rounded-tl-none shadow-[0_0_20px_rgba(255,51,153,0.25)] backdrop-blur-sm'
                 }`}
               >
                 {/* Sender Name + Quick Save Action */}
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10 text-[10px] font-bold">
-                  <span className={isUser ? 'text-white' : 'text-[#ff99cc]'}>{msg.senderName}</span>
+                  <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{msg.senderName}</span>
 
                   <div className="flex items-center space-x-2">
-                    <span className="opacity-60 font-mono">
+                    {preferences.showTimestamps && <span className="opacity-60 font-mono">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </span>
+                    </span>}
+                    <button disabled={loading} title="Edit message" onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); }}><Edit2 className="w-3 h-3" /></button>
+                    <button disabled={loading} title="Delete message" onClick={() => {
+                      if (preferences.confirmDelete && !window.confirm("Delete this message?")) return;
+                      onUpdateChat({ ...chat, messages: chat.messages.filter(m => m.id !== msg.id), updatedAt: new Date().toISOString() });
+                    }}><Trash2 className="w-3 h-3" /></button>
 
                     <button
                       onClick={(e) => {
@@ -444,7 +458,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="whitespace-pre-wrap font-sans select-text">{msg.content}</div>
+                {editingMsgId === msg.id ? <div className="space-y-2">
+                  <textarea aria-label="Edit message text" className="w-full text-black bg-white rounded-lg p-2" value={editContent} onChange={e => setEditContent(e.target.value)} />
+                  <button disabled={!editContent.trim() || loading} onClick={() => {
+                    onUpdateChat({ ...chat, messages: chat.messages.map(m => m.id === msg.id ? { ...m, content: editContent.trim() } : m), updatedAt: new Date().toISOString() });
+                    setEditingMsgId(null);
+                  }}>Save edit</button><button onClick={() => setEditingMsgId(null)}>Cancel</button>
+                </div> : <div className="cp-message-text whitespace-pre-wrap font-sans select-text">{msg.content}</div>}
               </div>
             </div>
           );
@@ -537,7 +557,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (preferences.enterToSend && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   handleSendMessage();
                 }
@@ -598,4 +618,5 @@ export const ChatView: React.FC<ChatViewProps> = ({
     </div>
   );
 };
+
 

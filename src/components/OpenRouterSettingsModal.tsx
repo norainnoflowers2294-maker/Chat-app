@@ -1,3 +1,5 @@
+import { PreferencesPanel } from './PreferencesPanel';
+import type { AppPreferences } from '../lib/preferences';
 import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useEffect } from 'react';
 import {
@@ -22,6 +24,9 @@ import { User } from 'firebase/auth';
 import { DEFAULT_GITHUB_REPO_URL } from '../config/github';
 
 interface OpenRouterSettingsModalProps {
+  preferences: AppPreferences;
+  onSavePreferences: (value: AppPreferences) => void;
+  onExportData: () => void;
   isOpen: boolean;
   onClose: () => void;
   config: OpenRouterConfig;
@@ -34,6 +39,7 @@ interface OpenRouterSettingsModalProps {
 }
 
 export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = ({
+  preferences, onSavePreferences, onExportData,
   isOpen,
   onClose,
   config,
@@ -44,6 +50,9 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   onSaveSupabaseConfig,
   firebaseUser,
 }) => {
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [frequencyPenalty, setFrequencyPenalty] = useState(config.frequencyPenalty);
+  const [presencePenalty, setPresencePenalty] = useState(config.presencePenalty);
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [model, setModel] = useState(config.model);
   const [temperature, setTemperature] = useState(config.temperature);
@@ -66,6 +75,9 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     setTemperature(config.temperature);
     setMaxTokens(config.maxTokens);
     setTopP(config.topP);
+    setFrequencyPenalty(config.frequencyPenalty);
+    setPresencePenalty(config.presencePenalty);
+    setShowPreferences(false);
     setSupaUrl(supabaseConfig.url);
     setSupaKey(supabaseConfig.anonKey);
   }, [isOpen, config, supabaseConfig]);
@@ -85,6 +97,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
       temperature,
       maxTokens,
       topP,
+      frequencyPenalty,
+      presencePenalty,
     }, {
       url: supaUrl,
       anonKey: supaKey,
@@ -133,6 +147,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     { id: 'nousresearch/hermes-3-llama-3.1-405b', label: 'Hermes 3 Llama 3.1 405B', badge: 'Masterclass' },
   ];
 
+  if (showPreferences) return <PreferencesPanel value={preferences} onSave={onSavePreferences} onClose={() => setShowPreferences(false)} onExportData={onExportData} />;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-2xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
@@ -158,7 +174,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           </button>
         </div>
 
-        <div className="flex border-b border-[#ff3399]/30 bg-[#1a0515]/60 px-6 pt-2">
+        <div className="flex overflow-x-auto shrink-0 border-b border-[#ff3399]/30 bg-[#1a0515]/60 px-6 pt-2">
+          <button type="button" onClick={() => setShowPreferences(true)} className="pb-3 px-3 text-xs font-bold whitespace-nowrap text-[#9be3d5]">App settings</button>
           <button
             onClick={() => setActiveTab('openrouter')}
             className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -336,6 +353,17 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                 </div>
               </div>
 
+              <div className="space-y-3 border-t border-[#ff3399]/20 pt-3">
+                <p className="font-bold text-white">Advanced generation</p>
+                {([
+                  ['Top P', topP, setTopP, 0.01, 1],
+                  ['Frequency penalty', frequencyPenalty, setFrequencyPenalty, -2, 2],
+                  ['Presence penalty', presencePenalty, setPresencePenalty, -2, 2],
+                ] as const).map(([label, value, setter, min, max]) => <label key={label} className="flex items-center justify-between gap-3">
+                  <span>{label}</span><input aria-label={label} type="range" min={min} max={max} step="0.05" value={value} onChange={e => setter(Number(e.target.value))} /><output>{value}</output>
+                </label>)}
+                <p className="text-[11px] opacity-70">Provider support varies. A higher penalty discourages repeated words or topics.</p>
+              </div>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#ff3399]/20">
                 <div className="space-y-1.5">
                   <div className="flex justify-between font-bold text-white">
@@ -344,8 +372,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   </div>
                   <input
                     type="range"
-                    min="0.2"
-                    max="1.5"
+                    min="0"
+                    max="2"
                     step="0.05"
                     value={temperature}
                     onChange={(e) => setTemperature(parseFloat(e.target.value))}
@@ -362,7 +390,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   <input
                     type="range"
                     min="256"
-                    max="4096"
+                    max="8192"
                     step="128"
                     value={maxTokens}
                     onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
@@ -561,4 +589,5 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     </div>
   );
 };
+
 

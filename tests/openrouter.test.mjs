@@ -10,7 +10,7 @@ test('chat reaches OpenRouter directly with normalized API fields and reads choi
   globalThis.fetch = async (url, init) => {
     assert.equal(url, 'https://openrouter.ai/api/v1/chat/completions');
     assert.equal(init.headers.Authorization, 'Bearer test-key');
-    assert.deepEqual(JSON.parse(init.body), { model: 'provider/model', messages, temperature: 0.8, max_tokens: 512, top_p: 0.9, stream: false });
+    assert.deepEqual(JSON.parse(init.body), { model: 'provider/model', messages, temperature: 0.8, max_tokens: 512, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, stream: false });
     return Response.json({ choices: [{ message: { content: 'Hello back' } }] });
   };
   assert.equal(await sendOpenRouterChat(config, messages), 'Hello back');
@@ -55,3 +55,4 @@ test('settings use one combined save so Supabase cannot overwrite the new key', 
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.ok(app.includes('supabaseConfig: supabaseCfg ?? data.supabaseConfig'));
 });
+
