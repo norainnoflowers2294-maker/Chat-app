@@ -16,9 +16,6 @@ import {
   Sparkles,
   RefreshCw,
   LogOut,
-  Search,
-  CircleDollarSign,
-  TestTube2,
 } from 'lucide-react';
 import { OpenRouterConfig, ConnectionDiagnostic, Chat } from '../types/roleplay';
 import { signInWithGoogle, logOutFirebase } from '../lib/firebase';
@@ -424,8 +421,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   if (!window.confirm('Send a short test prompt to this model? The provider may charge for this request.')) return;
                   setTestingModel(true); setModelTestResult('');
                   try {
-                    const result = await sendOpenRouterChatDetailed([{ role: 'user', content: 'Reply with the single word: connected' }], { ...config, apiKey: apiKey.trim(), model: model.trim(), temperature: 0, maxTokens: 16, supportedParameters });
-                    setModelTestResult(`Response received from ${result.model}${result.provider ? ` via ${result.provider}` : ''}: ${result.content}`);
+                    const result = await sendOpenRouterChatDetailed({ ...config, apiKey: apiKey.trim(), model: model.trim(), temperature: 0, maxTokens: 16, supportedParameters }, [{ role: 'user', content: 'Reply with the single word: connected' }]);
+                    setModelTestResult(`Response received from ${result.response.model}${result.response.provider ? ` via ${result.response.provider}` : ''}: ${result.content}`);
                   } catch (error) { setModelTestResult(error instanceof Error ? error.message : 'The test model request failed.'); }
                   finally { setTestingModel(false); }
                 }} disabled={testingModel} className="min-h-11 rounded-xl border border-[#37B6A5]/50 bg-[#00877E]/25 px-4 text-xs font-bold text-white disabled:opacity-50">{testingModel ? 'Testing model…' : 'Test model response (may incur cost)'}</button>
@@ -434,14 +431,10 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
 
               <div className="space-y-3 border-t border-[#ff3399]/20 pt-3">
                 <p className="font-bold text-white">Advanced generation</p>
-                {([
-                  ['Top P', topP, setTopP, 0.01, 1],
-                  ['Frequency penalty', frequencyPenalty, setFrequencyPenalty, -2, 2],
-                  ['Presence penalty', presencePenalty, setPresencePenalty, -2, 2],
-                ] as const).map(([label, value, setter, min, max]) => <label key={label} className="flex items-center justify-between gap-3">
-                  <span>{label}</span><input aria-label={label} type="range" min={min} max={max} step="0.05" value={value} onChange={e => setter(Number(e.target.value))} /><output>{value}</output>
-                </label>)}
-                <p className="text-[11px] opacity-70">Provider support varies. A higher penalty discourages repeated words or topics.</p>
+                <label className="flex items-center justify-between gap-3"><span>Top P</span><input aria-label="Top P" type="range" min="0.01" max="1" step="0.05" value={topP} onChange={e => setTopP(Number(e.target.value))} /><output>{topP}</output></label>
+                {supportedParameters?.includes('frequency_penalty') && <label className="flex items-center justify-between gap-3"><span>Frequency penalty</span><input aria-label="Frequency penalty" type="range" min="-2" max="2" step="0.05" value={frequencyPenalty} onChange={e => setFrequencyPenalty(Number(e.target.value))} /><output>{frequencyPenalty}</output></label>}
+                {supportedParameters?.includes('presence_penalty') && <label className="flex items-center justify-between gap-3"><span>Presence penalty</span><input aria-label="Presence penalty" type="range" min="-2" max="2" step="0.05" value={presencePenalty} onChange={e => setPresencePenalty(Number(e.target.value))} /><output>{presencePenalty}</output></label>}
+                <p className="text-[11px] opacity-70">Penalty controls appear only when the selected model lists support. The app omits unsupported penalty parameters.</p>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#ff3399]/20">
                 <div className="space-y-1.5">
