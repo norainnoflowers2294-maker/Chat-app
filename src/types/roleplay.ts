@@ -165,7 +165,16 @@ export interface Chat {
   oocMode?: boolean;
   socialMediaEnabled?: boolean;
   replyStyle?: 'immersive' | 'dialogue' | 'balanced' | 'screenplay';
-  replyLength?: 'short' | 'medium' | 'long';
+  replyLength?: 'short' | 'medium' | 'long' | 'custom';
+  customResponseWords?: number;
+  dialogueBalance?: number;
+  scenePacing?: 'slow_burn' | 'balanced' | 'fast';
+  npcActivity?: 'low' | 'balanced' | 'high';
+  knowledgeBoundaries?: boolean;
+  relationshipContinuity?: boolean;
+  naturalSpeech?: boolean;
+  reduceRepetition?: boolean;
+  realisticReactions?: boolean;
   replyPointOfView?: 'character' | 'first_person' | 'third_person';
   replyMood?: 'story' | 'playful' | 'romantic' | 'dramatic' | 'cozy' | 'suspenseful' | 'comedic';
   creativity?: number;
