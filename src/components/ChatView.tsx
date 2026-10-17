@@ -549,7 +549,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       senderId: 'user',
       senderName: activePersona ? activePersona.name : 'You',
       avatar: activePersona?.avatar || '/colorpop_hero.jpg',
-      content: chat.oocMode ? `[OOC] ${formattedUserText}` : formattedUserText,
+      content: textMode ? formattedUserText : chat.oocMode ? `[OOC] ${formattedUserText}` : formattedUserText,
       timestamp: messageTimestamp,
     };
 
