@@ -4,6 +4,7 @@ import { ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS, INITIAL_CHARACTERS, INITIAL_L
 import { db, auth } from './firebase';
 import { DEFAULT_WALLETS, type StoryWallet } from './wallet';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { DEFAULT_SOCIAL_WORLD, type SocialMediaWorld } from './socialMedia';
 
 export interface StorageData {
   appPreferences: AppPreferences;
@@ -17,6 +18,7 @@ export interface StorageData {
   supabaseConfig: SupabaseConfig;
   storyMemories: StoryMemory[];
   wallets: StoryWallet[];
+  socialWorld?: SocialMediaWorld;
   savedMessages: Array<{
     id: string;
     chatId: string;
@@ -113,6 +115,7 @@ export function loadLocalData(): StorageData {
         supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
         storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
         wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
+        socialWorld: parsed.socialWorld?.profiles ? parsed.socialWorld : DEFAULT_SOCIAL_WORLD,
         savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
       };
     }
@@ -132,6 +135,7 @@ export function loadLocalData(): StorageData {
     supabaseConfig: DEFAULT_SUPABASE_CONFIG,
     storyMemories: DEFAULT_MEMORIES,
     wallets: DEFAULT_WALLETS,
+    socialWorld: DEFAULT_SOCIAL_WORLD,
     savedMessages: DEFAULT_SAVED_MSGS,
   };
 }
@@ -163,6 +167,7 @@ export async function syncToFirebase(data: StorageData): Promise<void> {
         storyMemories: data.storyMemories || [],
         savedMessages: data.savedMessages || [],
         wallets: data.wallets || DEFAULT_WALLETS,
+        socialWorld: data.socialWorld || DEFAULT_SOCIAL_WORLD,
         openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
         supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
         updatedAt: new Date().toISOString(),
