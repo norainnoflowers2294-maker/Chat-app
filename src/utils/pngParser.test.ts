@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { parsePngMetadata } from './pngParser';
+import { parseCharacterFile, parsePngMetadata } from './pngParser';
 
 describe('parsePngMetadata', () => {
   beforeAll(() => {
@@ -120,5 +120,69 @@ describe('parsePngMetadata', () => {
     const result = await parsePngMetadata(file);
 
     expect(result.textChunks).toEqual({});
+  });
+});
+
+
+describe('parseCharacterFile', () => {
+  it('maps the full character card data object from JSON imports', async () => {
+    const card = {
+      spec: 'chara_card_v2',
+      spec_version: '2.0',
+      data: {
+        name: 'Mira Vale',
+        nicknames: ['Mira', 'Starling'],
+        age: '27',
+        ethnicity: 'Latina',
+        birthday: '10/24',
+        birthYear: '1999',
+        zodiacSign: 'Scorpio',
+        avatar: 'https://example.com/mira.png',
+        height: '5 ft 7 in',
+        bodyType: 'Athletic',
+        scars: [{ location: 'left hand', description: 'small mark' }],
+        birthmarks: [{ location: 'shoulder', description: 'crescent' }],
+        tattoos: [{ location: 'arm', description: 'flowers' }],
+        hairColor: 'black',
+        eyeColor: 'brown',
+        description: 'A sharp-eyed investigator.',
+        voiceDescription: 'Low and warm',
+        voiceTags: ['Raspy'],
+        personality: 'Curious and patient',
+        backstory: 'Raised by her grandmother.',
+        spouse: { name: 'Ren', relationshipStatus: 'Married' },
+        familyMembers: [{ name: 'Inez', relationship: 'Sister', status: 'Alive' }],
+        scenario: 'A late night at the station.',
+        first_mes: 'You are late.',
+        pov: 'first_person',
+        summary: 'An investigator with a secret.',
+        mes_example: '<START> Mira: Keep moving.',
+        system_prompt: 'Stay in character.',
+        tags: ['Mystery', 'Original'],
+        alternate_greetings: ['What took you so long?'],
+        creator_notes: 'Created for testing.',
+        extensions: { custom_setting: 'rainy city' },
+      },
+    };
+    const file = new File([JSON.stringify(card)], 'mira.json', { type: 'application/json' });
+    const result = await parseCharacterFile(file);
+
+    expect(result.name).toBe('Mira Vale');
+    expect(result.nicknames).toEqual(['Mira', 'Starling']);
+    expect(result.scars?.[0].description).toBe('small mark');
+    expect(result.spouse?.name).toBe('Ren');
+    expect(result.familyMembers?.[0].name).toBe('Inez');
+    expect(result.mes_example).toContain('Keep moving');
+    expect(result.alternate_greetings).toEqual(['What took you so long?']);
+    expect(result.creator_notes).toBe('Created for testing.');
+    expect(result.customFields?.custom_setting).toBe('rainy city');
+  });
+
+  it('marks PNGs without embedded card data as image-only imports', async () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
+    const result = await parseCharacterFile(file);
+
+    expect(result.name).toBe('avatar');
+    expect(result.customFields?.importWarning).toContain('Only its image was imported');
   });
 });
