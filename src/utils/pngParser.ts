@@ -12,6 +12,12 @@ function decodeUtf8(bytes: Uint8Array): string {
   }
 }
 
+async function inflatePngText(bytes: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream === 'undefined') throw new Error('PNG text decompression is unavailable');
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 export async function parsePngMetadata(file: File): Promise<{ textChunks: Record<string, string>; base64Image: string }> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
@@ -51,20 +57,38 @@ export async function parsePngMetadata(file: File): Promise<{ textChunks: Record
 
       if (dataEnd > bytes.length) break;
 
-      if (type === 'tEXt') {
+      if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
         const chunkData = bytes.slice(dataStart, dataEnd);
-        let nullIdx = -1;
-        for (let i = 0; i < chunkData.length; i++) {
-          if (chunkData[i] === 0) {
-            nullIdx = i;
-            break;
+        const keywordEnd = chunkData.indexOf(0);
+        if (keywordEnd > 0) {
+          const keyword = decodeUtf8(chunkData.slice(0, keywordEnd));
+          try {
+            let textBytes: Uint8Array;
+            if (type === 'tEXt') {
+              textBytes = chunkData.slice(keywordEnd + 1);
+            } else if (type === 'zTXt') {
+              const compressionMethod = chunkData[keywordEnd + 1];
+              if (compressionMethod !== 0) throw new Error('Unsupported PNG text compression');
+              textBytes = await inflatePngText(chunkData.slice(keywordEnd + 2));
+            } else {
+              const compressionFlag = chunkData[keywordEnd + 1];
+              const compressionMethod = chunkData[keywordEnd + 2];
+              let cursor = keywordEnd + 3;
+              const languageEnd = chunkData.indexOf(0, cursor);
+              if (languageEnd < 0) throw new Error('Malformed PNG international text');
+              cursor = languageEnd + 1;
+              const translatedKeywordEnd = chunkData.indexOf(0, cursor);
+              if (translatedKeywordEnd < 0) throw new Error('Malformed PNG international text');
+              cursor = translatedKeywordEnd + 1;
+              textBytes = compressionFlag === 1
+                ? await inflatePngText(chunkData.slice(cursor))
+                : chunkData.slice(cursor);
+              if (compressionFlag === 1 && compressionMethod !== 0) throw new Error('Unsupported PNG text compression');
+            }
+            textChunks[keyword] = decodeUtf8(textBytes);
+          } catch {
+            // Ignore malformed or unsupported optional text metadata.
           }
-        }
-
-        if (nullIdx !== -1) {
-          const keyword = decodeUtf8(chunkData.slice(0, nullIdx));
-          const text = decodeUtf8(chunkData.slice(nullIdx + 1));
-          textChunks[keyword] = text;
         }
       }
 
