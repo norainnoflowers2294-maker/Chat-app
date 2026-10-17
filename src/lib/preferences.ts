@@ -1,6 +1,7 @@
 export const DEFAULT_PREFERENCES = {
   theme: 'colorpop', accent: '#ff007f', fontSize: 16, headerFont: 'sans',
   reducedMotion: false, compactMode: false, messageAnimations: true,
+  chatSystemPrompt: '',
   autoScroll: true, showTimestamps: true, enterToSend: true, confirmDelete: true,
   cloudSync: true, contextMessages: 40, showDiagnostics: true,
   memoryEnabled: true, memoryDepth: 'balanced', trackWardrobe: true,
