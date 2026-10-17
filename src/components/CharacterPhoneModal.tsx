@@ -47,6 +47,7 @@ export interface CharacterPhoneModalProps {
 }
 export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
   isOpen, onClose, chat, characters, activeCharacters, personaName, phoneSystem, onChange, wallet, onSaveWallet, socialWorld,
+  openRouterConfig, preferences, persona, lorebooks, plugins, storyMemories, socialMediaContext,
 }) => {
   const people = useMemo(() => {
     const all = [...characters];
