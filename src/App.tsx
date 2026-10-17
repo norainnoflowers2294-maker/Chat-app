@@ -6,7 +6,7 @@ import { testOpenRouterConnection } from './lib/openrouter';
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ColorPopHeader } from './components/ColorPopHeader';
 import { TopNavPill, NavTab } from './components/TopNavPill';
 import { AppDrawers } from './components/AppDrawers';
@@ -62,6 +62,8 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function App() {
   const [data, setData] = useState<StorageData>(loadLocalData);
+  const dataRef = useRef(data);
+  const [firebaseSyncMessage, setFirebaseSyncMessage] = useState('');
   const preferences = normalizePreferences(data.appPreferences);
   useEffect(() => {
     const root = document.documentElement;
@@ -118,9 +120,20 @@ export default function App() {
 
   // Sync state on change
   const updateData = (newData: StorageData) => {
+    dataRef.current = newData;
     setData(newData);
     saveLocalData(newData);
-    syncToFirebase(newData);
+    if (newData.appPreferences?.cloudSync === false) {
+      setFirebaseSyncMessage('Changes are saved on this device. Firebase sync is turned off in App Settings.');
+      return;
+    }
+    if (!auth.currentUser) {
+      setFirebaseSyncMessage('Changes are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
+      return;
+    }
+    void syncToFirebase(newData)
+      .then(() => setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.'))
+      .catch((error) => setFirebaseSyncMessage(`Firebase could not save the latest changes: ${error instanceof Error ? error.message : String(error)}`));
   };
 
   // Test OpenRouter Connection
@@ -144,24 +157,55 @@ export default function App() {
     // Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setFirebaseUser(u);
-      if (u && data.appPreferences?.cloudSync !== false) {
+      if (!u) {
+        setFirebaseSyncMessage('Changes are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
+        return;
+      }
+      if (dataRef.current.appPreferences?.cloudSync === false) {
+        setFirebaseSyncMessage('Firebase sync is turned off in App Settings.');
+        return;
+      }
+
+      try {
         const remote = await loadFromFirebase();
-        if (remote) {
-          setData((prev) => ({
-            ...prev,
-            appPreferences: normalizePreferences(remote.appPreferences || prev.appPreferences),
-            characters: mergeDefaultCharacters(remote.characters || prev.characters),
-            chats: remote.chats || prev.chats,
-            lorebooks: remote.lorebooks || prev.lorebooks,
-            personas: remote.personas || prev.personas,
-            storyMemories: remote.storyMemories || prev.storyMemories,
-            savedMessages: remote.savedMessages || prev.savedMessages,
-            openRouterConfig: remote.openRouterConfig || prev.openRouterConfig,
-            supabaseConfig: remote.supabaseConfig || prev.supabaseConfig,
-            wallets: remote.wallets || prev.wallets,
-            socialWorld: remote.socialWorld || prev.socialWorld,
-          }));
-        }
+        const local = dataRef.current;
+        const mergeById = <T extends { id: string; updatedAt?: string }>(cloudItems: T[] | undefined, localItems: T[]): T[] => {
+          const merged = new Map((cloudItems || []).map((item) => [item.id, item]));
+          for (const item of localItems) {
+            const cloudItem = merged.get(item.id);
+            const localTime = item.updatedAt ? Date.parse(item.updatedAt) : Number.POSITIVE_INFINITY;
+            const cloudTime = cloudItem?.updatedAt ? Date.parse(cloudItem.updatedAt) : Number.NEGATIVE_INFINITY;
+            if (!cloudItem || localTime >= cloudTime) merged.set(item.id, item);
+          }
+          return [...merged.values()];
+        };
+        const merged: StorageData = {
+          ...local,
+          appPreferences: normalizePreferences({ ...(remote?.appPreferences || {}), ...local.appPreferences }),
+          characters: mergeDefaultCharacters(mergeById(remote?.characters, local.characters)),
+          chats: mergeById(remote?.chats, local.chats),
+          lorebooks: mergeById(remote?.lorebooks, local.lorebooks),
+          personas: mergeById(remote?.personas, local.personas),
+          plugins: mergeById(remote?.plugins, local.plugins),
+          storyMemories: mergeById(remote?.storyMemories, local.storyMemories),
+          savedMessages: mergeById(remote?.savedMessages, local.savedMessages),
+          wallets: mergeById(remote?.wallets, local.wallets),
+          activeChatId: local.activeChatId || remote?.activeChatId,
+          openRouterConfig: {
+            ...(remote?.openRouterConfig || {}),
+            ...local.openRouterConfig,
+            apiKey: local.openRouterConfig.apiKey || remote?.openRouterConfig?.apiKey || '',
+          },
+          supabaseConfig: local.supabaseConfig || remote?.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
+          socialWorld: remote?.socialWorld || local.socialWorld,
+        };
+        dataRef.current = merged;
+        setData(merged);
+        saveLocalData(merged);
+        await syncToFirebase(merged);
+        setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.');
+      } catch (error) {
+        setFirebaseSyncMessage(`Firebase could not finish syncing: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
 
@@ -505,6 +549,7 @@ export default function App() {
           supabaseConfig={data.supabaseConfig}
           onSaveSupabaseConfig={handleSaveSupabaseConfig}
           firebaseUser={firebaseUser}
+          firebaseSyncMessage={firebaseSyncMessage}
         />
         <StoryNotesModal
           isOpen={isStoryNotesOpen}
