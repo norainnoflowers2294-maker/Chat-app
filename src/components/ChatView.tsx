@@ -1166,15 +1166,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
           {[
-            ['Continue', '/continue'],
-            ['Rewind', '/rewind'],
-            ['Narrator', '/nar'],
-            ['Wallet', '/cash'],
-            ['Cash App', '/cashapp'],
-            ['Roll', '/roll'],
-            ['Read Aloud', '/tts'],
-          ].map(([label, command]) => (
-            <button key={command} type="button" disabled={loading} onClick={() => runQuickCommand(command)} className="shrink-0 rounded-full border border-[#ff66b2]/30 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-[#ffd6eb] hover:border-[#ff66b2]/70 hover:bg-[#ff007f]/20 disabled:opacity-40">
+            ['Continue', '/continue', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
+            ['Rewind', '/rewind', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
+            ['Narrator', '/nar', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
+            ['Wallet', '/cash', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
+            ['Cash App', '/cashapp', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
+            ['Roll', '/roll', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
+            ['Read Aloud', '/tts', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
+          ].map(([label, command, colorClass]) => (
+            <button key={command} type="button" disabled={loading} onClick={() => runQuickCommand(command)} className={`min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors ${colorClass} disabled:opacity-40`}>
               {label}
             </button>
           ))}
