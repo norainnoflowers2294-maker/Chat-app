@@ -30,6 +30,24 @@ describe('buildOpenRouterMessages', () => {
     expect(messages[0].content).toContain('[ROLEPLAY INSTRUCTIONS]');
   });
 
+  it('adds global rules from App Settings to the system prompt', () => {
+    const messages = buildOpenRouterMessages({
+      ...getBaseParams(),
+      preferences: {
+        theme: 'colorpop', accent: '#ff007f', fontSize: 16, headerFont: 'sans',
+        reducedMotion: false, compactMode: false, messageAnimations: true, autoScroll: true,
+        showTimestamps: true, enterToSend: true, confirmDelete: true, cloudSync: true,
+        contextMessages: 40, showDiagnostics: true, memoryEnabled: true, memoryDepth: 'balanced',
+        trackWardrobe: true, trackLocations: true, npcAutonomy: true, narratorEnabled: true,
+        narratorFrequency: 'balanced', notifyReplies: false,
+        chatSystemPrompt: 'Never write dialogue or actions for {{user}}.',
+      },
+    });
+
+    expect(messages[0].content).toContain('[GLOBAL CHAT RULES FROM SETTINGS]');
+    expect(messages[0].content).toContain('Never write dialogue or actions for {{user}}.');
+  });
+
   it('should include Persona / User Identity if provided', () => {
     const params = getBaseParams();
     params.persona = {
