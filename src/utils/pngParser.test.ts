@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { parseCharacterFile, parsePngMetadata } from './pngParser';
+import { parseCharacterFile, parsePersonaFile, parsePngMetadata } from './pngParser';
 
 describe('parsePngMetadata', () => {
   beforeAll(() => {
@@ -200,11 +200,109 @@ describe('parseCharacterFile', () => {
     expect(result.avatar).toBe('data:image/png;base64,mocked_base64');
   });
 
-  it('marks PNGs without embedded card data as image-only imports', async () => {
+
+  it('imports the complete character profile from an embedded PNG card', async () => {
+    const card = {
+      spec: 'chara_card_v3',
+      data: {
+        name: 'Mira Vale',
+        aliases: ['Starling'],
+        age: '27',
+        race: 'Latina',
+        birth_date: '10/24',
+        physical_description: 'Tall with dark curls',
+        voice: 'Low and warm',
+        personality: 'Curious and patient',
+        lore: 'Raised by her grandmother.',
+        scenario: 'A late night at the station.',
+        first_message: 'You are late.',
+        example: 'Mira: Keep moving.',
+        tags: ['Mystery'],
+      },
+    };
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const keywordBytes = new TextEncoder().encode('ccv3');
+    const payload = btoa(unescape(encodeURIComponent(JSON.stringify(card))));
+    const chunkData = new Uint8Array([...keywordBytes, 0, ...new TextEncoder().encode(payload)]);
+    const length = chunkData.length;
+    const bytes = new Uint8Array([
+      ...signature,
+      (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff,
+      0x74, 0x45, 0x58, 0x74, ...chunkData, 0, 0, 0, 0,
+    ]);
+    const result = await parseCharacterFile(new File([bytes], 'mira.png', { type: 'image/png' }));
+    expect(result.name).toBe('Mira Vale');
+    expect(result.nicknames).toEqual(['Starling']);
+    expect(result.ethnicity).toBe('Latina');
+    expect(result.description).toBe('Tall with dark curls');
+    expect(result.backstory).toBe('Raised by her grandmother.');
+    expect(result.first_mes).toBe('You are late.');
+    expect(result.mes_example).toBe('Mira: Keep moving.');
+    expect(result.tags).toEqual(['Mystery']);
+  });
+\n  it('marks PNGs without embedded card data as image-only imports', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
     const result = await parseCharacterFile(file);
 
     expect(result.name).toBe('avatar');
     expect(result.customFields?.importWarning).toContain('Only its image was imported');
+  });
+});
+
+describe('parsePersonaFile', () => {
+  it('maps persona JSON fields and uses uploaded PNG as the avatar', async () => {
+    const file = new File([JSON.stringify({
+      spec: 'chara_card_v2',
+      data: {
+        name: 'Emmy',
+        display_name: 'Emmy',
+        nicknames: ['Em'],
+        occupation: 'Artist',
+        description: 'Warm and bold.',
+        appearance: 'Curly hair.',
+        backstory: 'Grew up near the coast.',
+        speaking_style: 'Quick and playful.',
+        traits: ['Witty', 'Loyal'],
+      },
+    })], 'emmy.json', { type: 'application/json' });
+    const result = await parsePersonaFile(file);
+    expect(result.name).toBe('Emmy');
+    expect(result.nicknames).toBe('Em');
+    expect(result.occupation).toBe('Artist');
+    expect(result.appearance).toBe('Curly hair.');
+    expect(result.speaking_style).toBe('Quick and playful.');
+    expect(result.traits).toEqual(['Witty', 'Loyal']);
+  });
+
+  it('imports an embedded SillyTavern persona card from PNG', async () => {
+    const card = {
+      spec: 'chara_card_v2',
+      data: {
+        name: 'Asha',
+        description: 'Confident and thoughtful.',
+        appearance: 'Brown eyes, braided hair.',
+        backstory: 'Her friends are everything.',
+        voice_description: 'Soft but clear.',
+        tags: ['Creative', 'Loyal'],
+      },
+    };
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const key = new TextEncoder().encode('chara');
+    const payload = btoa(unescape(encodeURIComponent(JSON.stringify(card))));
+    const data = new Uint8Array([...key, 0, ...new TextEncoder().encode(payload)]);
+    const length = data.length;
+    const bytes = new Uint8Array([
+      ...signature,
+      (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff,
+      0x74, 0x45, 0x58, 0x74, ...data, 0, 0, 0, 0,
+    ]);
+    const result = await parsePersonaFile(new File([bytes], 'asha.png', { type: 'image/png' }));
+    expect(result.name).toBe('Asha');
+    expect(result.description).toBe('Confident and thoughtful.');
+    expect(result.appearance).toBe('Brown eyes, braided hair.');
+    expect(result.backstory).toBe('Her friends are everything.');
+    expect(result.speaking_style).toBe('Soft but clear.');
+    expect(result.traits).toEqual(['Creative', 'Loyal']);
+    expect(result.avatar).toBe('data:image/png;base64,mocked_base64');
   });
 });
