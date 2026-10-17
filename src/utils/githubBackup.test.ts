@@ -20,12 +20,12 @@ describe('saveGitHubDataBackup', () => {
     try {
       const result = await saveGitHubDataBackup({ profile: 'Emmy 💖' }, 'test-token');
       expect(calls).toHaveLength(2);
-      expect(calls[0].url).toContain('contents/backups/colorpop-user-data.json?ref=main');
+      expect(calls[0].url).toContain('contents/backups/colorpop-user-data.json?ref=colorpop-data-backups');
       expect(calls[0].init?.headers).toMatchObject({ Authorization: 'Bearer test-token' });
       const request = JSON.parse(String(calls[1].init?.body));
       const decoded = new TextDecoder().decode(Uint8Array.from(atob(request.content), (char) => char.charCodeAt(0)));
       expect(JSON.parse(decoded)).toEqual({ profile: 'Emmy 💖' });
-      expect(request.branch).toBe('main');
+      expect(request.branch).toBe('colorpop-data-backups');
       expect(result.url).toContain('colorpop-user-data.json');
     } finally {
       globalThis.fetch = originalFetch;
