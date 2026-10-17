@@ -72,3 +72,8 @@ test('story memories can be edited and pinned through persistent upsert handler'
  assert.match(modal,/Pin memory/);
  assert.match(app,/existing\.some\(\(item\) => item\.id === memory\.id\)/);
 });
+
+test('established Lucious and Emmy identity canon stays in prompt assembly', () => {
+ const system=buildOpenRouterMessages({...params,preferences:normalizePreferences({})})[0].content;
+ assert.match(system,/Lucious is white and Emmy is Black/);
+});
