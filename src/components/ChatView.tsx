@@ -30,6 +30,11 @@ import {
   FileText,
   X,
   ExternalLink,
+  Volume2,
+  VolumeX,
+  Copy,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   Chat,
@@ -111,6 +116,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [regeneratingMsgId, setRegeneratingMsgId] = useState<string | null>(null);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
@@ -130,6 +137,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [chat.messages, loading, preferences.autoScroll, preferences.reducedMotion]);
+
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  }, []);
 
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -249,6 +260,100 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onBookmarkMessage(msg);
     setSavedSuccessMsg(`Saved quote from ${msg.senderName}!`);
     setTimeout(() => setSavedSuccessMsg(null), 2500);
+  };
+
+  const handleSpeakMessage = (msg: ChatMessage) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+      setCommandNotice('Text-to-speech is not available in this browser.');
+      setTimeout(() => setCommandNotice(null), 3000);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    if (speakingMessageId === msg.id) {
+      setSpeakingMessageId(null);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(msg.content);
+    utterance.onend = () => setSpeakingMessageId(null);
+    utterance.onerror = () => setSpeakingMessageId(null);
+    setSpeakingMessageId(msg.id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleCopyMessage = async (msg: ChatMessage) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard is unavailable.');
+      await navigator.clipboard.writeText(msg.content);
+      setCommandNotice('Message copied.');
+    } catch {
+      setCommandNotice('Could not copy this message on this device.');
+    }
+    setTimeout(() => setCommandNotice(null), 2500);
+  };
+
+  const handleChangeSwipe = (msg: ChatMessage, direction: -1 | 1) => {
+    const versions = msg.swipes?.length ? msg.swipes : [msg.content];
+    const currentIndex = Math.min(msg.currentSwipeIndex ?? versions.length - 1, versions.length - 1);
+    const nextIndex = (currentIndex + direction + versions.length) % versions.length;
+    onUpdateChat({
+      ...chat,
+      messages: chat.messages.map((message) => message.id === msg.id
+        ? { ...message, content: versions[nextIndex], currentSwipeIndex: nextIndex }
+        : message),
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleRegenerateMessage = async (msg: ChatMessage) => {
+    if (loading) return;
+    const messageIndex = chat.messages.findIndex((message) => message.id === msg.id);
+    if (messageIndex < 0) return;
+
+    setErrorDetails(null);
+    setLoading(true);
+    setRegeneratingMsgId(msg.id);
+    try {
+      const contextChat = { ...chat, messages: chat.messages.slice(0, messageIndex) };
+      const apiMessages = buildOpenRouterMessages({
+        characters: activeCharacters,
+        persona: activePersona,
+        lorebooks: activeLorebooks,
+        plugins: activePlugins,
+        chat: contextChat,
+        preferences,
+        storyMemories,
+      });
+      const replyLength = chat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const replacement = await sendOpenRouterChat({
+        ...openRouterConfig,
+        temperature: chat.creativity ?? openRouterConfig.temperature,
+        maxTokens,
+      }, apiMessages);
+
+      const versions = msg.swipes?.length ? [...msg.swipes] : [msg.content];
+      const activeIndex = Math.min(msg.currentSwipeIndex ?? versions.length - 1, versions.length - 1);
+      if (versions[activeIndex] !== msg.content) versions.push(msg.content);
+      versions.push(replacement);
+      const nextIndex = versions.length - 1;
+      onUpdateChat({
+        ...chat,
+        messages: chat.messages.map((message) => message.id === msg.id
+          ? { ...message, content: replacement, swipes: versions, currentSwipeIndex: nextIndex, timestamp: Date.now() }
+          : message),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      setErrorDetails({
+        message: err.message || 'Could not regenerate this character reply.',
+        suggestedFix: err.suggestedFix || 'Check your OpenRouter connection and try again.',
+      });
+    } finally {
+      setLoading(false);
+      setRegeneratingMsgId(null);
+    }
   };
 
   return (
@@ -464,29 +569,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10 text-[10px] font-bold">
                   <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{messageName}</span>
 
-                  <div className="flex items-center space-x-2">
-                    {preferences.showTimestamps && <span className="opacity-60 font-mono">
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {preferences.showTimestamps && <span className="opacity-60 font-mono mr-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
                     </span>}
-                    <button disabled={loading} title="Edit message" onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); }}><Edit2 className="w-3 h-3" /></button>
-                    <button disabled={loading} title="Delete message" onClick={() => {
+                    {!isUser && (msg.swipes?.length || 0) > 1 && <>
+                      <button type="button" disabled={loading} aria-label="Previous reply" title="Previous reply" onClick={(e) => { e.stopPropagation(); handleChangeSwipe(msg, -1); }} className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronLeft className="w-3 h-3" /></button>
+                      <span className="text-[9px] opacity-70 tabular-nums">{(msg.currentSwipeIndex ?? msg.swipes!.length - 1) + 1}/{msg.swipes!.length}</span>
+                      <button type="button" disabled={loading} aria-label="Next reply" title="Next reply" onClick={(e) => { e.stopPropagation(); handleChangeSwipe(msg, 1); }} className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronRight className="w-3 h-3" /></button>
+                    </>}
+                    <button type="button" disabled={loading} aria-label={speakingMessageId === msg.id ? "Stop reading message" : "Read message aloud"} title={speakingMessageId === msg.id ? "Stop reading" : "Read aloud"} onClick={(e) => { e.stopPropagation(); handleSpeakMessage(msg); }} className="p-1 rounded hover:bg-white/10 disabled:opacity-40">{speakingMessageId === msg.id ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}</button>
+                    <button type="button" aria-label="Copy message" title="Copy message" onClick={(e) => { e.stopPropagation(); void handleCopyMessage(msg); }} className="p-1 rounded hover:bg-white/10"><Copy className="w-3 h-3" /></button>
+                    {!isUser && <button type="button" disabled={loading} aria-label="Regenerate character reply" title="Regenerate reply" onClick={(e) => { e.stopPropagation(); void handleRegenerateMessage(msg); }} className="p-1 rounded hover:bg-white/10 disabled:opacity-40">{regeneratingMsgId === msg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}</button>}
+                    <button type="button" disabled={loading} aria-label="Edit message" title="Edit message" onClick={(e) => { e.stopPropagation(); setEditingMsgId(msg.id); setEditContent(msg.content); }} className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><Edit2 className="w-3 h-3" /></button>
+                    <button type="button" disabled={loading} aria-label="Delete message" title="Delete message" onClick={(e) => {
+                      e.stopPropagation();
                       if (preferences.confirmDelete && !window.confirm("Delete this message?")) return;
                       onUpdateChat({ ...chat, messages: chat.messages.filter(m => m.id !== msg.id), updatedAt: new Date().toISOString() });
-                    }}><Trash2 className="w-3 h-3" /></button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSaveQuote(msg);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-emerald-300 transition-opacity"
-                      title="Bookmark this quote to Saved Messages"
-                    >
-                      <Bookmark className="w-3 h-3" />
-                    </button>
+                    }} className="p-1 rounded hover:bg-rose-500/20 hover:text-rose-300 disabled:opacity-40"><Trash2 className="w-3 h-3" /></button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleSaveQuote(msg); }} className="p-1 rounded hover:bg-emerald-500/20 hover:text-emerald-300" title="Bookmark this quote to Saved Messages" aria-label="Save message"><Bookmark className="w-3 h-3" /></button>
                   </div>
                 </div>
 
