@@ -24,7 +24,7 @@ const replyStyleInstructions: Record<NonNullable<Chat['replyStyle']>, string> = 
   balanced: 'Balance natural dialogue with clear, vivid action and setting details.',
   screenplay: 'Use a screenplay-like rhythm with concise action beats and character dialogue; do not add camera directions.',
 };
-const lengthInstructions: Record<NonNullable<Chat['replyLength']>, string> = {
+const lengthInstructions: Record<Exclude<NonNullable<Chat['replyLength']>, 'custom'>, string> = {
   short: 'Keep each reply concise, usually one to three short paragraphs, and leave room for the user to respond.',
   medium: 'Write a moderate reply, usually three to five paragraphs, with a clear conversational opening for the user.',
   long: 'Write a fuller reply with several developed paragraphs, but stop before deciding what the user does.',
