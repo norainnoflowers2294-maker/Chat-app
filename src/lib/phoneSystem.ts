@@ -72,7 +72,7 @@ export function formatPhoneStoryContext(state: PhoneSystemState | undefined, cha
   });
   return [
     '[FICTIONAL PHONE DISCOVERIES — LIMITED CHARACTER KNOWLEDGE]',
-    'These are the only phone details characters may treat as discovered. Each item names who actually saw it. Characters who did not discover an item must not know or react to it unless the scene establishes how they learned it. This is fictional app data, not a real device.',
+    'These are the only phone details characters may treat as discovered. Each item names who actually saw it. Only the listed discoverer may react to that private information; other characters must not mention, infer, or act on it unless the scene establishes how they learned it. Never write, speak, think, or act for Emmy or {{user}}. Preserve the selected character’s established POV. This is fictional app data, not a real device.',
     ...lines,
   ].join('\n');
 }
