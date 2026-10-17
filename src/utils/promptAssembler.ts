@@ -27,7 +27,7 @@ const replyStyleInstructions: Record<NonNullable<Chat['replyStyle']>, string> = 
 const lengthInstructions: Record<NonNullable<Chat['replyLength']>, string> = {
   short: 'Keep each reply concise, usually one to three short paragraphs, and leave room for the user to respond.',
   medium: 'Write a moderate reply, usually three to five paragraphs, with a clear conversational opening for the user.',
-  long: 'Write a fuller, slower-paced reply with several developed paragraphs, but stop before deciding what the user does.',
+  long: 'Write a fuller reply with several developed paragraphs, but stop before deciding what the user does.',
 };
 const moodInstructions: Record<NonNullable<Chat['replyMood']>, string> = {
   story: 'Follow the emotional tone established by the current scene.',
@@ -77,7 +77,7 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   const systemParts: string[] = [];
 
   systemParts.push(
-    `[ROLEPLAY INSTRUCTIONS]\nContinue the scene as the selected character profile or profiles. Stay consistent with their established voice, personality, history, relationships, and current situation. Use the reply settings below. Never impersonate the user, write the user's dialogue, or decide the user's thoughts, feelings, or actions. Leave a natural opening for the user's next turn.`
+    `[ROLEPLAY INSTRUCTIONS]\nContinue the scene as the selected character profile or profiles. Stay consistent with their established voice, personality, history, relationships, and current situation. Use the reply settings below. Never impersonate the user, write the user's dialogue, or decide the user's thoughts, feelings, or actions. Leave a natural opening for the user's next turn. Precedence: the non-negotiable user-agency rule and established canon come first; then global instructions; then character-card rules and chat-specific instructions; then style and pacing preferences. Lore and memories provide facts, never permission to invent what the user did.`
   );
   if (preferences?.chatSystemPrompt?.trim()) systemParts.push(`[GLOBAL CHAT RULES FROM SETTINGS]\n${preferences.chatSystemPrompt.trim()}`);
 
@@ -113,14 +113,54 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   }
 
   const style = chat.replyStyle || 'immersive';
-  const length = chat.replyLength || 'medium';
+  const length = chat.replyLength || preferences?.responseLengthTarget || 'medium';
+  const customWords = chat.customResponseWords ?? preferences?.customResponseWords ?? 180;
+  const lengthInstruction = length === 'custom'
+    ? `Aim for about ${customWords} words; this is a prose target, separate from the model's maximum output-token limit.`
+    : lengthInstructions[length];
+  const defaultPointOfView = preferences?.defaultPointOfView || 'character';
   const pointOfView = chat.replyPointOfView === 'first_person' ? 'Write in first person as the responding character.'
     : chat.replyPointOfView === 'third_person' ? 'Write in third person.'
+    : defaultPointOfView === 'first_person' ? 'Use first person as the responding character.'
+    : defaultPointOfView === 'third_person' ? 'Use third person.'
     : characters[0]?.pov === 'first_person' ? 'Follow the character card: write in first person as the responding character.'
     : 'Follow the character card point of view when specified; otherwise write in third person.';
   const mood = chat.replyMood || 'story';
-  systemParts.push(`[CHAT REPLY SETTINGS]\nStyle: ${replyStyleInstructions[style]}\nLength: ${lengthInstructions[length]}\nPoint of view: ${pointOfView}\nMood: ${moodInstructions[mood]}\nCreativity: ${Math.max(0, Math.min(2, chat.creativity ?? 0.85)).toFixed(1)} on a 0–2 scale.`);
-  if (chat.promptInstructions?.trim()) systemParts.push(`[YOUR EXTRA INSTRUCTIONS FOR THIS CHAT]\n${chat.promptInstructions.trim()}`);
+  const dialogueBalance = Math.max(0, Math.min(100, chat.dialogueBalance ?? preferences?.dialogueBalance ?? 50));
+  const pacing = chat.scenePacing || preferences?.scenePacing || 'balanced';
+  const pacingInstruction = pacing === 'slow_burn'
+    ? 'Use slow-burn pacing: let reactions, pauses, and emotional turns develop; do not rush major revelations or relationship changes.'
+    : pacing === 'fast'
+    ? 'Use brisk pacing: advance the immediate scene efficiently while leaving the user’s next action open.'
+    : 'Use balanced pacing: move the scene forward while giving important reactions room to land.';
+  const activity = chat.npcActivity || preferences?.npcActivity || 'balanced';
+  const activityInstruction = activity === 'low'
+    ? 'Keep NPCs mostly in the background unless the scene calls for their involvement.'
+    : activity === 'high'
+    ? 'Let relevant NPCs act and speak independently when plausible, while never controlling the user persona.'
+    : 'Allow relevant NPCs to contribute naturally without crowding the user’s turn.';
+  const qualityRules = [
+    preferences?.knowledgeBoundaries !== false && chat.knowledgeBoundaries !== false
+      ? 'A character may only know what they witnessed, were told, or could plausibly learn; do not leak private thoughts, phone contents, or off-screen events.'
+      : '',
+    preferences?.relationshipContinuity !== false && chat.relationshipContinuity !== false
+      ? 'Carry forward established changes in trust, conflict, friendship, and romance; do not reset relationship dynamics between turns.'
+      : '',
+    preferences?.naturalSpeech !== false && chat.naturalSpeech !== false ? 'Use natural, character-specific speech.' : '',
+    preferences?.reduceRepetition !== false && chat.reduceRepetition !== false ? 'Avoid repeating phrases, descriptions, and emotional beats from recent replies.' : '',
+    preferences?.realisticReactions !== false && chat.realisticReactions !== false ? 'Give characters grounded reactions consistent with what they know and the current situation.' : '',
+    pacingInstruction,
+    activityInstruction,
+  ].filter(Boolean);
+  systemParts.push(`[CHAT REPLY SETTINGS]
+Style: ${replyStyleInstructions[style]}
+Length: ${lengthInstruction}
+Point of view: ${pointOfView}
+Dialogue versus description: ${dialogueBalance}% description, ${100 - dialogueBalance}% dialogue.
+Mood: ${moodInstructions[mood]}
+Creativity target: ${Math.max(0, Math.min(2, chat.creativity ?? 0.85)).toFixed(1)} on a 0–2 scale.
+${qualityRules.join('\n')}`);
+  if (chat.promptInstructions?.trim()) systemParts.push(`[CHAT-SPECIFIC INSTRUCTIONS]\n${chat.promptInstructions.trim()}`);
 
   if (chat.scenario || chat.weather || chat.timeOfDay) {
     systemParts.push(`[CURRENT SCENARIO & ATMOSPHERE]\nSetting: ${chat.scenario || 'Use the character profile and recent conversation to determine the setting.'}\nTime: ${chat.timeOfDay || 'Not specified'}\nAtmosphere & Weather: ${chat.weather || 'Not specified'}\nRelationship Affinity: ${chat.relationshipScore ?? 88}%`);
@@ -146,6 +186,7 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
       preferences.trackWardrobe ? 'Preserve established clothing and accessories until the story changes them.' : '',
       preferences.trackLocations ? 'Preserve the current location and plausible travel between locations.' : '',
       preferences.npcAutonomy ? 'NPCs may act independently within the scene; never control the user persona.' : 'Do not introduce new NPC actions or off-screen events unless the user requests them.',
+      preferences.neverSpeakForUser ? 'Never write dialogue, thoughts, feelings, decisions, reactions, or actions for {{user}} or Emmy.' : '',
       preferences.narratorEnabled ? `Narration activity: ${preferences.narratorFrequency}. ${preferences.narratorFrequency === 'quiet' ? 'Keep narration brief and favor dialogue.' : preferences.narratorFrequency === 'active' ? 'Use detailed sensory scene narration alongside dialogue.' : 'Balance dialogue and scene description.'}` : 'Respond as the character; omit standalone narrator commentary and unsolicited scene narration.',
     ].filter(Boolean);
     systemParts.push(`[USER STORY PREFERENCES]\n${rules.join('\n')}`);
