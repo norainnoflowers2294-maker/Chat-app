@@ -227,17 +227,26 @@ export default function App() {
 
   // Handlers for updates
   const handleUpdateChat = (updatedChat: Chat) => {
-    const updatedChats = data.chats.map((c) => (c.id === updatedChat.id ? updatedChat : c));
-    setActiveChat(updatedChat);
-    updateData({ ...data, chats: updatedChats, activeChatId: updatedChat.id });
+    // Always merge against the latest persisted state. A reply may finish after
+    // the user has switched conversations; it must update its own chat without
+    // stealing the active screen or replacing another chat's messages.
+    const currentData = dataRef.current;
+    const exists = currentData.chats.some((chat) => chat.id === updatedChat.id);
+    const updatedChats = exists
+      ? currentData.chats.map((chat) => (chat.id === updatedChat.id ? updatedChat : chat))
+      : [updatedChat, ...currentData.chats];
+    const selectedChatId = currentData.activeChatId || activeChat?.id || updatedChat.id;
+    if (selectedChatId === updatedChat.id) setActiveChat(updatedChat);
+    updateData({ ...currentData, chats: updatedChats, activeChatId: selectedChatId });
   };
 
   const handleSelectChat = (chatId: string) => {
-    const chat = data.chats.find((c) => c.id === chatId);
+    const currentData = dataRef.current;
+    const chat = currentData.chats.find((item) => item.id === chatId);
     if (chat) {
       setActiveChat(chat);
       setInChatMode(true);
-      updateData({ ...data, activeChatId: chat.id });
+      updateData({ ...currentData, activeChatId: chat.id });
     }
   };
 
