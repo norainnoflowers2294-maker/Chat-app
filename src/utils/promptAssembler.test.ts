@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { buildOpenRouterMessages } from './promptAssembler';
+import { normalizePreferences } from '../lib/preferences';
 import { Character, Persona, Lorebook, Plugin, Chat } from '../types/roleplay';
 
 const getBaseParams = () => ({
@@ -33,15 +34,9 @@ describe('buildOpenRouterMessages', () => {
   it('adds global rules from App Settings to the system prompt', () => {
     const messages = buildOpenRouterMessages({
       ...getBaseParams(),
-      preferences: {
-        theme: 'colorpop', accent: '#ff007f', fontSize: 16, headerFont: 'sans',
-        reducedMotion: false, compactMode: false, messageAnimations: true, autoScroll: true,
-        showTimestamps: true, enterToSend: true, confirmDelete: true, cloudSync: true,
-        contextMessages: 40, showDiagnostics: true, memoryEnabled: true, memoryDepth: 'balanced',
-        trackWardrobe: true, trackLocations: true, npcAutonomy: true, narratorEnabled: true,
-        narratorFrequency: 'balanced', notifyReplies: false,
+      preferences: normalizePreferences({
         chatSystemPrompt: 'Never write dialogue or actions for {{user}}.',
-      },
+      }),
     });
 
     expect(messages[0].content).toContain('[GLOBAL CHAT RULES FROM SETTINGS]');
