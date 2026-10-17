@@ -12,6 +12,7 @@ type Props = {
   activeChatTitle?: string;
   firebaseUser?: { displayName?: string | null; email?: string | null } | null;
   firebaseSyncMessage?: string;
+  firebaseLastSync?: string;
 };
 const groups = [
   ['Appearance', [
@@ -49,7 +50,7 @@ const groups = [
   ]],
   ['Data & privacy', [['cloudSync', 'Sync changes to Firebase when signed in']]],
 ] as const;
-export function PreferencesPanel({ value, onSave, onClose, onExportData, onImportBackup, onApplyRoleplayDefaults, activeChatTitle, firebaseUser, firebaseSyncMessage = '' }: Props) {
+export function PreferencesPanel({ value, onSave, onClose, onExportData, onImportBackup, onApplyRoleplayDefaults, activeChatTitle, firebaseUser, firebaseSyncMessage = '', firebaseLastSync = '' }: Props) {
   const [draft, setDraft] = useState(() => normalizePreferences(value));
   const [tab, setTab] = useState(0);
   const [status, setStatus] = useState('');
@@ -127,6 +128,7 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData, onImpor
         </>}
         {tab === 3 && <p>Continuity and narrator preferences guide AI replies. Saved notes come from Story Notes; phone discoveries stay limited to characters who actually saw them. No automatic background recap is running.</p>}
         {tab === 4 && <><p>Chats save locally in this browser. Firebase sync: {firebaseUser ? 'signed in as ' + (firebaseUser.email || firebaseUser.displayName || 'your account') : 'not signed in'}. Turning sync off does not erase local or cloud data. API credentials are excluded from ordinary exports.</p>
+          <p>Last successful Firebase sync: {firebaseLastSync ? new Date(firebaseLastSync).toLocaleString() : 'not recorded on this device yet'}.</p>
           {firebaseSyncMessage && <p role="status">{firebaseSyncMessage}</p>}
           <div className="cp-data-actions"><button onClick={() => downloadJson('Pretty_Little_Fantasies_Settings.json', { version: 1, settings: draft })}>Export preferences</button>
           <label>Import preferences<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
