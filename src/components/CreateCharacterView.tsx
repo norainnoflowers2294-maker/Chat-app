@@ -209,6 +209,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
   const [mesExample, setMesExample] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [postHistoryInstructions, setPostHistoryInstructions] = useState('');
   const [alternateGreetings, setAlternateGreetings] = useState<string[]>([]);
   const [creatorNotes, setCreatorNotes] = useState('');
 
@@ -289,6 +290,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
     setCustomFields(char.customFields || {});
     setMesExample(char.mes_example || '');
     setSystemPrompt(char.system_prompt || '');
+    setPostHistoryInstructions(char.post_history_instructions || '');
     setAlternateGreetings(char.alternate_greetings || []);
     setCreatorNotes(char.creator_notes || '');
   };
@@ -470,6 +472,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
       summary: summary.trim() || physicalDescription.slice(0, 150) || 'Character in ColorPop Universe',
       mes_example: mesExample,
       system_prompt: systemPrompt,
+      post_history_instructions: postHistoryInstructions,
       alternate_greetings: alternateGreetings,
       creator_notes: creatorNotes,
       tags: tags.length ? tags : ['Original'],
@@ -2299,6 +2302,20 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
                 <textarea rows={4} value={systemPrompt} onChange={(e) => { setSystemPrompt(e.target.value); markUnsaved(); }}
                   className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
                   style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">Post-History Instructions</label>
+                <p className="text-[10px] text-[#ffd6eb]/65">Sent after the conversation history, immediately before the AI writes each reply. Use this for rules that must be followed every turn.</p>
+                <textarea
+                  rows={6}
+                  maxLength={6000}
+                  value={postHistoryInstructions}
+                  onChange={(e) => { setPostHistoryInstructions(e.target.value); markUnsaved(); }}
+                  placeholder={"Stay in first person as {{char}}. Write only {{char}}'s words, thoughts, and actions. Never write dialogue, thoughts, feelings, reactions, decisions, or actions for {{user}} or Emmy. Stop and leave Emmy's response entirely to the user."}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.hotPink}88` }}
+                />
+                <span className="block text-right text-[10px] text-white/45">{postHistoryInstructions.length}/6000</span>
               </div>
               <div className="space-y-1.5">
                 <label className="font-bold block">Alternate Greetings (one per line)</label>
