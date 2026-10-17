@@ -30,6 +30,7 @@ import { StoryNotesModal } from './components/StoryNotesModal';
 import { SavedMessagesModal } from './components/SavedMessagesModal';
 import { SceneGeneratorModal } from './components/SceneGeneratorModal';
 import { FileKeeperView } from './components/FileKeeperView';
+import { ScratchpadView } from './components/ScratchpadView';
 import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
@@ -726,6 +727,8 @@ export default function App() {
           />
         ) : activeTab === 'files' ? (
           <FileKeeperView onBack={() => setActiveTab('home')} />
+        ) : activeTab === 'scratchpad' ? (
+          <ScratchpadView onBack={() => setActiveTab('home')} />
         ) : activeTab === 'perchance' ? (
           <PerchanceView />
         ) : activeTab === 'personas' ? (

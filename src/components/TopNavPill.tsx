@@ -9,9 +9,10 @@ import {
   Image,
   Sparkles,
   FolderOpen,
+  Edit2,
 } from 'lucide-react';
 
-export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'gallery' | 'files' | 'perchance' | 'social' | 'more';
+export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'gallery' | 'files' | 'perchance' | 'social' | 'scratchpad' | 'more';
 
 interface TopNavPillProps {
   activeTab: NavTab;
@@ -33,6 +34,7 @@ export const TopNavPill: React.FC<TopNavPillProps> = ({
     { id: 'gallery', label: 'Gallery', icon: <Image className="w-4 h-4" /> },
     { id: 'files', label: 'Files', icon: <FolderOpen className="w-4 h-4" /> },
     { id: 'perchance', label: 'Perchance AI', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'scratchpad', label: 'Scratchpad', icon: <Edit2 className="w-4 h-4" /> },
   ];
 
   return (

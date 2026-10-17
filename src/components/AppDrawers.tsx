@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   BookOpen, FileText, FolderOpen, Home, Image, MessageSquare,
   PanelLeft, PanelRight, Puzzle, Settings, Sparkles, Users, UserRound, WalletCards, X,
-  Bookmark, GitBranch, AtSign,
+  Bookmark, GitBranch, AtSign, Edit2,
 } from 'lucide-react';
 import type { Chat } from '../types/roleplay';
 import type { NavTab } from './TopNavPill';
@@ -32,6 +32,7 @@ const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
   { id: 'gallery', label: 'Gallery', icon: <Image className="h-4 w-4" /> },
   { id: 'files', label: 'Files', icon: <FolderOpen className="h-4 w-4" /> },
   { id: 'perchance', label: 'Perchance AI', icon: <Sparkles className="h-4 w-4" /> },
+  { id: 'scratchpad', label: 'Scratchpad', icon: <Edit2 className="h-4 w-4" /> },
   { id: 'social', label: 'Social Media', icon: <AtSign className="h-4 w-4" /> },
 ];
 
