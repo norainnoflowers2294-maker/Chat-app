@@ -3,7 +3,11 @@ import { X, Smartphone, MessageCircle, PhoneCall, Image as ImageIcon, Users, Bel
 import { addPhoneItem, ensureFictionalPhone, formatPhoneStoryContext, recordPhoneDiscovery, type PhoneSystemState, type FictionalPhone, type FictionalPhoneItem, type FictionalPhoneItemKind } from '../lib/phoneSystem';
 import { recordIncomingTransfer, type StoryWallet } from '../lib/wallet';
 import type { SocialMediaWorld } from '../lib/socialMedia';
-import type { Chat, Character } from '../types/roleplay';
+import type { Chat, Character, OpenRouterConfig, Persona, Lorebook, Plugin, StoryMemory } from '../types/roleplay';
+import type { AppPreferences } from '../lib/preferences';
+import { sendOpenRouterChat } from '../lib/openrouter';
+import { buildOpenRouterMessages } from '../utils/promptAssembler';
+import { formatPhoneStoryContext } from '../lib/phoneSystem';
 
 type PhoneTab = 'texts' | 'calls' | 'photos' | 'contacts' | 'notifications' | 'money' | 'social' | 'notes' | 'scratchpad' | 'settings';
 const tabs: Array<{ id: PhoneTab; label: string; icon: React.ElementType; color: string }> = [
@@ -34,6 +38,13 @@ export interface CharacterPhoneModalProps {
   wallet?: StoryWallet;
   onSaveWallet?: (wallet: StoryWallet) => void;
   socialWorld?: SocialMediaWorld;
+  openRouterConfig: OpenRouterConfig;
+  preferences: AppPreferences;
+  persona: Persona | null;
+  lorebooks: Lorebook[];
+  plugins: Plugin[];
+  storyMemories: StoryMemory[];
+  socialMediaContext: string;
 }
 export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
   isOpen, onClose, chat, characters, activeCharacters, personaName, phoneSystem, onChange, wallet, onSaveWallet, socialWorld,
@@ -58,6 +69,7 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
   const [pinInput, setPinInput] = useState('');
   const [newPin, setNewPin] = useState('');
   const [accessMessage, setAccessMessage] = useState('');
+  const [generatingPhoneEvent, setGeneratingPhoneEvent] = useState(false);
   const [transferAmount, setTransferAmount] = useState('');
   const [transferTo, setTransferTo] = useState(personaName || 'Emmy');
   const [transferMemo, setTransferMemo] = useState('');
@@ -148,6 +160,47 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
       setAccessMessage('Fictional transfer saved to this chat’s wallet.');
     } catch (error) { setAccessMessage(error instanceof Error ? error.message : 'Could not save transfer.'); }
   };
+  const generatePhoneEvent = async () => {
+    if (!phone || generatingPhoneEvent) return;
+    setGeneratingPhoneEvent(true);
+    setAccessMessage('');
+    try {
+      const messages = buildOpenRouterMessages({
+        characters: activeCharacters,
+        persona,
+        lorebooks,
+        plugins,
+        chat,
+        preferences,
+        storyMemories,
+        socialMediaContext,
+        phoneContext: formatPhoneStoryContext(currentState, chat.id, activeCharacters.map((character) => character.id)),
+      });
+      messages.push({
+        role: 'user',
+        content: 'Create one believable fictional incoming phone event for ' + ownerName + '’s phone: either an SMS or a call/voicemail from another character. Respect the current scene and character knowledge. Do not write any words, thoughts, feelings, actions, or decisions for Emmy or {{user}}. Return only JSON with keys kind ("text" or "call"), title, from, and body. Make body only the incoming sender’s message or voicemail.',
+      });
+      const raw = await sendOpenRouterChat(openRouterConfig, messages);
+      const json = raw.match(/\\{[\\s\\S]*\\}/)?.[0];
+      let event: { kind?: string; title?: string; from?: string; body?: string } = {};
+      if (json) {
+        try { event = JSON.parse(json); } catch { /* Keep the model response as a plain fictional message. */ }
+      }
+      const body = event.body?.trim() || raw.trim();
+      updatePhone(addPhoneItem(currentState, phone.id, {
+        kind: event.kind === 'call' ? 'call' : 'text',
+        title: event.title?.trim() || (event.kind === 'call' ? 'Incoming call / voicemail' : 'Incoming message'),
+        from: event.from?.trim() || 'Unknown caller',
+        body,
+        locked: false,
+      }));
+      setAccessMessage('A fictional incoming ' + (event.kind === 'call' ? 'call' : 'text') + ' was saved on ' + ownerName + '’s phone.');
+    } catch (error) {
+      setAccessMessage(error instanceof Error ? error.message : 'Could not generate a fictional phone event. Check the model connection.');
+    } finally {
+      setGeneratingPhoneEvent(false);
+    }
+  };
   const items = phone?.items.filter((item) => {
     const kind = kindForTab[activeTab];
     return kind ? item.kind === kind : activeTab === 'social' ? item.kind === 'social' : false;
@@ -195,6 +248,7 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
                 <div style={{ minWidth: 0 }}><h2 style={{ margin: 0, fontSize: 20 }}>{ownerName}’s {tabs.find((tab) => tab.id === activeTab)?.label}</h2><div style={{ opacity: .62, fontSize: 12 }}>Viewed as {peopleName(viewerId)} · {chat.title}</div></div>
               </div>
               {accessMessage && <div role="status" style={{ marginBottom: 12, padding: 10, borderRadius: 12, background: '#F579AD20', color: '#ffd6eb', fontSize: 13 }}>{accessMessage}</div>}
+              {(activeTab === 'texts' || activeTab === 'calls') && <button type="button" disabled={generatingPhoneEvent} onClick={() => void generatePhoneEvent()} style={{ ...buttonStyle, background: '#FF3C00', marginBottom: 12, opacity: generatingPhoneEvent ? .65 : 1 }}>{generatingPhoneEvent ? 'Generating fictional phone event…' : '✨ Generate incoming text or call'}</button>}
               {activeTab === 'money' && <section>
                 <p style={{ opacity: .72, fontSize: 13 }}>Fictional Cash App activity is shared with the chat wallet.</p>
                 {wallet?.transactions.slice(0, 8).map((transaction) => <article key={transaction.id} style={{ padding: 12, borderRadius: 14, marginBottom: 8, background: '#00857724', border: '1px solid #00857770' }}><b>{transaction.sender} → {transaction.recipient}</b><div>{safeCurrency(transaction.amountCents, transaction.currency)} · {transaction.memo}</div><small style={{ opacity: .6 }}>{new Date(transaction.timestamp).toLocaleString()}</small></article>)}
