@@ -83,15 +83,15 @@ function checkGeneratedReply(
     '{{user}}',
     persona?.name || '',
     persona?.display_name || '',
-    persona?.name?.split(/\\s+/)[0] || '',
+    persona?.name?.split(/\s+/)[0] || '',
   ].map((name) => name.trim()).filter(Boolean)));
 
   for (const name of userNames) {
     const escapedName = escapeRegex(name);
-    const actionAfterName = new RegExp('\\\\b' + escapedName + '\\\\b\\\\s+(?:' + ACTION_VERBS + ')\\\\b', 'i');
-    const dialogueLabel = new RegExp('(?:^|\\\\n)\\\\s*(?:[*_]*' + escapedName + '[*_]*|\\\\[?' + escapedName + '\\\\]?)\\\\s*[:—-]', 'i');
+    const actionAfterName = new RegExp('\\b' + escapedName + '\\b\\s+(?:' + ACTION_VERBS + ')\\b', 'i');
+    const dialogueLabel = new RegExp('(?:^|\\n)\\s*(?:[*_]*' + escapedName + '[*_]*|\\[?' + escapedName + '\\]?)\\s*[:—-]', 'i');
     if (actionAfterName.test(response) || dialogueLabel.test(response)) {
-      violations.push(`The reply appears to speak or act for ${name}.`);
+      violations.push('The reply appears to speak or act for ' + name + '.');
     }
   }
 
@@ -108,7 +108,7 @@ function checkGeneratedReply(
       ? respondingNames.map(escapeRegex).join('|')
       : 'Lucious|Lucius';
     const thirdPersonLead = new RegExp(
-      '(?:^|[.!?\\\\n]\\\\s*)[*_>"“”\\\\s]*(?:he|(?:' + namePattern + '))\\\\s+(?:' + ACTION_VERBS + ')\\\\b',
+      '(?:^|[.!?\\n]\\s*)[*_>"“”\\s]*(?:he|(?:' + namePattern + '))\\s+(?:' + ACTION_VERBS + ')\\b',
       'i',
     );
     if (thirdPersonLead.test(response)) {
