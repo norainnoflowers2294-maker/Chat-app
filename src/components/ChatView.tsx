@@ -492,19 +492,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   // Send message
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, quickText?: string) => {
     if (e) e.preventDefault();
-    if (!inputText.trim() || loading) return;
+    if (!(quickText ?? inputText).trim() || loading) return;
 
     setErrorDetails(null);
-    const command = parseSlashCommand(inputText.trim());
+    const command = quickText ? null : parseSlashCommand(inputText.trim());
     if (command) {
       setInputText('');
       await executeSlashCommand(command);
       return;
     }
 
-    const userText = inputText.trim();
+    const userText = (quickText ?? inputText).trim();
     const assistantWasTagged = /(^|\\s)@assistant\\b/i.test(userText);
     const userMessage: ChatMessage = {
       id: `msg_u_${Date.now()}`,
@@ -592,6 +592,54 @@ export const ChatView: React.FC<ChatViewProps> = ({
     } finally {
       finishChatRequest(chat.id);
     }
+  };
+
+
+  const handleStoryAction = (name: string) => {
+    if (loading) return;
+    if (name === 'OOC') { setInputText(text => text.startsWith('OOC:') ? text : 'OOC: ' + text); inputRef.current?.focus(); return; }
+    if (name === 'Restart') {
+      if (window.confirm('Restart this chat? This will clear its current messages.')) {
+        onUpdateChat({ ...chat, messages: [], updatedAt: new Date().toISOString() });
+        setInputText('');
+      }
+      return;
+    }
+    if (name === 'Remember') {
+      const message = chat.messages[chat.messages.length - 1];
+      if (message) { onBookmarkMessage(message); setCommandNotice('Latest message bookmarked.'); }
+      else setCommandNotice('Nothing to bookmark yet.');
+      return;
+    }
+    const builtIn: Record<string, string> = { Continue: '/continue', Roll: '/roll', Narrator: '/nar', Rewind: '/rewind', Wallet: '/cash', 'Cash App': '/cashapp', 'Read Aloud': '/tts' };
+    if (builtIn[name]) { runQuickCommand(builtIn[name]); return; }
+    const story: Record<string, string> = {
+      Chaos: 'Introduce an unexpected, plausible event or plot twist that fits the ongoing scene.',
+      Phone: 'Have an established NPC phone or text someone, showing the sender and message clearly. Never send a message as the user persona.',
+      Scribe: 'Write a detailed cinematic description of the room, characters, surroundings, lighting, sounds and atmosphere.',
+      Weather: 'Describe the weather vividly and realistically, respecting season, location and previously established conditions.',
+      House: 'Describe the current house and room layout, entrances, furniture, and established NPC positions. Maintain floorplan consistency.',
+      NPC: 'Have an established NPC enter or interact naturally while honoring their character profile.',
+      Mood: 'Shift the atmosphere naturally with dialogue from NPCs and environmental details.',
+      Outfit: 'Describe NPC clothing and accessories; only describe user clothing already established.',
+      Thoughts: 'Reveal only the AI viewpoint character private thoughts, never the user persona thoughts.',
+      Flashback: 'Show a relevant memory from the characters past, keeping user choices and dialogue unwritten.',
+      Surprise: 'Introduce an unexpected but coherent visitor, discovery or complication.',
+      'Group Chat': 'Show an in-world group text thread between established NPCs with clear sender labels. Never text as the user persona.',
+    };
+    let direction = story[name];
+    if (name === 'Time Skip') {
+      const amount = window.prompt('Skip forward how far?');
+      if (!amount?.trim()) return;
+      direction = 'Advance the scene by ' + amount.trim() + ' without deciding user actions.';
+    }
+    if (name === 'Location') {
+      const place = window.prompt('Choose the next location:');
+      if (!place?.trim()) return;
+      direction = 'Transition to ' + place.trim() + ' without scripting user movements or decisions.';
+    }
+    if (!direction) return;
+    void handleSendMessage(undefined, '[Story direction: ' + direction + ' Keep the established POV. Do not speak, act, decide, or think for the user persona.]');
   };
 
   // Roll d20 quick action
@@ -1165,17 +1213,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       <div className="relative z-20 p-3 sm:p-4 bg-[#140410]/95 backdrop-blur-md border-t border-[#ff3399]/40">
         <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
-          {[
-            ['Continue', '/continue', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
-            ['Rewind', '/rewind', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
-            ['Narrator', '/nar', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
-            ['Wallet', '/cash', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
-            ['Cash App', '/cashapp', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
-            ['Roll', '/roll', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
-            ['Read Aloud', '/tts', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
-          ].map(([label, command, colorClass]) => (
-            <button key={command} type="button" disabled={loading} onClick={() => runQuickCommand(command)} className={`min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors ${colorClass} disabled:opacity-40`}>
-              {label}
+          {([["OOC","💬","#FF1493"],["Restart","🔄","#7951C5"],["Chaos","🎲","#DB4980"],["Phone","📱","#169D96"],["Scribe","✍️","#467FE0"],["Weather","🌦️","#9C6AC6"],["House","🏠","#CD765F"],["Continue","▶️","#273AAB"],["Time Skip","⏰","#9C5CBF"],["NPC","👥","#258D97"],["Mood","🎭","#B12FA7"],["Remember","📌","#CD5088"],["Roll","🎲","#1179C1"],["Narrator","🎬","#A735A0"],["Location","📍","#AE6D96"],["Outfit","👗","#C6548A"],["Thoughts","🧠","#7956AE"],["Flashback","⏪","#5D70B6"],["Surprise","🎁","#C65F74"],["Group Chat","💌","#D83F8D"],["Rewind","↩️","#B86264"],["Wallet","💵","#00877E"],["Cash App","💸","#B93280"],["Read Aloud","🔊","#95469C"]] as string[][]).map(([label, symbol, color]) => (
+            <button key={label} type="button" disabled={loading} onClick={() => handleStoryAction(label)}
+              aria-label={label} title={label} style={{ backgroundColor: color, borderColor: '#ffffff55' }}
+              className="min-h-11 shrink-0 rounded-xl border px-3 py-2 text-xs font-bold text-white shadow-sm disabled:opacity-40 flex items-center gap-1.5">
+              <span aria-hidden="true" className="text-base">{symbol}</span><span>{label}</span>
             </button>
           ))}
         </div>
