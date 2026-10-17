@@ -209,7 +209,7 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
                 <p style={{ opacity: .72, fontSize: 13 }}>Fictional social feed. Tap “Seen by {peopleName(viewerId)}” to record what this character knows.</p>
                 {(socialWorld?.posts || []).slice().sort((a,b) => Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,15).map((post) => {
                   const profile = socialWorld?.profiles.find((entry) => entry.id === post.profileId);
-                  const read = currentState.scratchpad.some((entry) => entry.source === post.id && entry.discoveredBy.includes(viewerId));
+                  const read = currentState.scratchpad.some((entry) => entry.chatId === chat.id && entry.discoveredBy.includes(viewerId) && entry.text.endsWith(post.text));
                   return <article key={post.id} style={{ padding: 12, borderRadius: 14, marginBottom: 8, background: '#FF008016', border: '1px solid #FF008055' }}><b>{profile?.name || post.profileId}</b><p style={{ margin: '6px 0' }}>{post.text}</p><button onClick={() => addSocialDiscovery(post)} style={{ ...buttonStyle, padding: '6px 9px', fontSize: 12, background: read ? '#008577' : '#FF0080' }}>{read ? 'Saved as seen' : 'Seen by ' + peopleName(viewerId)}</button></article>;
                 })}
               </section>}
