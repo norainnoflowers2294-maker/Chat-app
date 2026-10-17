@@ -275,12 +275,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
       return;
     }
 
+    const userText = inputText.trim();
+    const assistantWasTagged = /(^|\\s)@assistant\\b/i.test(userText);
     const userMessage: ChatMessage = {
       id: `msg_u_${Date.now()}`,
       senderId: 'user',
       senderName: activePersona ? activePersona.name : 'You',
       avatar: activePersona?.avatar || '/colorpop_hero.jpg',
-      content: inputText.trim(),
+      content: userText,
       timestamp: Date.now(),
     };
 
@@ -310,8 +312,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const maxTokens = replyLength === 'short'
         ? Math.min(openRouterConfig.maxTokens, 512)
         : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      if (assistantWasTagged) {
+        apiMessages.unshift({
+          role: 'system',
+          content: 'The user explicitly tagged @assistant. Reply as the Pretty Little Fantasies in-chat assistant, a helpful out-of-character participant who can answer questions about the scene, offer ideas, and help the user steer the roleplay. Speak directly to the user, keep character actions and dialogue under the user’s control, and do not impersonate a roleplay character. Do not continue as the roleplay character in this reply.',
+        });
+      }
       const botReply = await sendOpenRouterChat({ ...openRouterConfig, temperature: updatedChat.creativity ?? openRouterConfig.temperature, maxTokens }, apiMessages);
-      const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
+      const responder = assistantWasTagged
+        ? { id: 'assistant', name: 'Pretty Little Fantasies Assistant', avatar: '/colorpop_hero.jpg' }
+        : activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
 
       const replyMessage: ChatMessage = {
         id: `msg_a_${Date.now()}`,
@@ -822,7 +832,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               rows={1}
               placeholder={`Reply to ${activeCharacters.map((c) => c.name).join(' & ')} as ${
                 activePersona?.name || 'yourself'
-              }... Type / for commands`}
+              }... Type / for commands, @assistant to summon help`}
               value={inputText}
               onChange={(e) => { setInputText(e.target.value); setCommandSuggestionIndex(0); }}
               onKeyDown={(e) => {
