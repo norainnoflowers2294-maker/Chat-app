@@ -78,6 +78,7 @@ interface ChatViewProps {
   onOpenGitHubSyncModal: () => void;
   onOpenSocialMedia: () => void;
   onOpenWallet: (view: 'dashboard' | 'activity') => void;
+  onStartNewChat: () => void;
   onUpdatePreferences: (value: AppPreferences) => void;
   onTogglePlugin: (pluginId: string) => void;
   onBookmarkMessage: (msg: ChatMessage) => void;
@@ -107,6 +108,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenGitHubSyncModal,
   onOpenSocialMedia,
   onOpenWallet,
+  onStartNewChat,
   onUpdatePreferences,
   onTogglePlugin,
   onBookmarkMessage,
@@ -243,6 +245,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const executeSlashCommand = async (command: SlashCommand) => {
     if (command.type === 'wallet') {
       onOpenWallet(command.view);
+    } else if (command.type === 'ooc') {
+      const enabled = command.enabled ?? !chat.oocMode;
+      onUpdateChat({ ...chat, oocMode: enabled, updatedAt: new Date().toISOString() });
+      setCommandNotice(enabled
+        ? 'OOC mode is on. Messages will guide the scene out of character until /ic.'
+        : 'OOC mode is off. Back in character.');
+      setTimeout(() => setCommandNotice(null), 4000);
     } else if (command.type === 'narrator') {
       const enabled = command.enabled ?? !preferences.narratorEnabled;
       const nextPreferences = { ...preferences, narratorEnabled: enabled, ...(command.frequency ? { narratorFrequency: command.frequency } : {}) };
@@ -290,7 +299,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
       setTimeout(() => setCommandNotice(null), 3000);
     } else {
-      setCommandNotice('Commands: /continue, /rewind, /nar, /cash, /cashapp, /roll, /tts, /help.');
+      setCommandNotice('Commands: /continue, /rewind, /nar, /ooc, /ic, /cash, /cashapp, /roll, /tts, /help.');
       setTimeout(() => setCommandNotice(null), 4500);
     }
   };
@@ -322,7 +331,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       senderId: 'user',
       senderName: activePersona ? activePersona.name : 'You',
       avatar: activePersona?.avatar || '/colorpop_hero.jpg',
-      content: userText,
+      content: chat.oocMode ? `[OOC] ${userText}` : userText,
       timestamp: Date.now(),
     };
 
@@ -347,6 +356,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat: updatedChat,
         preferences, storyMemories, socialMediaContext,
       });
+
+      if (updatedChat.oocMode) {
+        apiMessages.unshift({
+          role: 'system',
+          content: 'Out-of-character mode is enabled. Treat the user message marked [OOC] as meta direction or a question about the roleplay. Respond out of character, follow their direction, and do not advance the scene or write actions, thoughts, or dialogue for the user. Keep the response concise unless asked for detail.',
+        });
+      }
 
       const replyLength = updatedChat.replyLength || 'medium';
       const maxTokens = replyLength === 'short'
@@ -688,6 +704,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Right Action Icons: Affinity, Plugins, Scene, Story Notes, Settings */}
         <div className="flex items-center space-x-1.5 sm:space-x-2">
+          <button
+            type="button"
+            onClick={onStartNewChat}
+            aria-label="Start another chat with these characters"
+            title="Start another chat with these characters"
+            className="p-2 rounded-xl bg-[#ff007f]/20 hover:bg-[#ff007f]/40 border border-[#ff66b2]/50 text-[#ffd6eb] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+
           {/* Affinity Heart Widget */}
           <button
             onClick={() => {
