@@ -48,7 +48,7 @@ describe('buildOpenRouterMessages', () => {
     expect(messages[0].content).toContain('Description: Test description');
     expect(messages[0].content).toContain('Speaking Style: Formal');
     expect(messages[0].content).toContain('Traits: brave, smart');
-    expect(messages[0].content).toContain('Address {{user}} as TestUser.');
+    expect(messages[0].content).toContain('Address {{user}} as TestUser when natural.');
   });
 
   it('should include Characters in Scene if provided', () => {
