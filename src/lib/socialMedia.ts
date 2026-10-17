@@ -2,7 +2,7 @@ export interface SocialProfile {
   id: string;
   name: string;
   bio: string;
-  relationship?: string;
+  relationship?: string;\n  avatar?: string;
 }
 
 export interface SocialPost {
