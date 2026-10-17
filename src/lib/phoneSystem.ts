@@ -6,6 +6,7 @@ export interface FictionalPhoneItem {
   body: string;
   createdAt: number;
   from?: string;
+  mediaUrl?: string;
   locked?: boolean;
   discoveredBy: string[];
 }
