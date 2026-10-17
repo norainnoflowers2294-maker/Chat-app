@@ -17,7 +17,7 @@ import {
   RefreshCw,
   LogOut,
 } from 'lucide-react';
-import { OpenRouterConfig, ConnectionDiagnostic, SupabaseConfig } from '../types/roleplay';
+import { OpenRouterConfig, ConnectionDiagnostic, Chat } from '../types/roleplay';
 import { signInWithGoogle, logOutFirebase } from '../lib/firebase';
 import { User } from 'firebase/auth';
 import { saveGitHubDataBackup } from '../utils/githubBackup';
@@ -30,7 +30,10 @@ interface OpenRouterSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   config: OpenRouterConfig;
-  onSaveConfig: (cfg: OpenRouterConfig, supabaseCfg?: SupabaseConfig) => void;
+  onSaveConfig: (cfg: OpenRouterConfig) => void;
+  activeChat?: Chat;
+  onUpdateChat?: (chat: Chat) => void;
+  onImportBackup?: (data: unknown) => void;
   diagnostic: ConnectionDiagnostic;
   onTestConnection: (key?: string) => Promise<void>;
   firebaseUser: User | null;
@@ -43,6 +46,9 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   onClose,
   config,
   onSaveConfig,
+  activeChat,
+  onUpdateChat,
+  onImportBackup,
   diagnostic,
   onTestConnection,
   firebaseUser,
@@ -149,7 +155,34 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', badge: 'Best for Roleplay' },
   ];
 
-  if (showPreferences) return <PreferencesPanel value={preferences} onSave={onSavePreferences} onClose={() => setShowPreferences(false)} onExportData={onExportData} />;
+  if (showPreferences) return <PreferencesPanel
+    value={preferences}
+    onSave={onSavePreferences}
+    onClose={() => setShowPreferences(false)}
+    onExportData={onExportData}
+    onImportBackup={onImportBackup}
+    activeChatTitle={activeChat?.title}
+    firebaseUser={firebaseUser}
+    firebaseSyncMessage={firebaseSyncMessage}
+    onApplyRoleplayDefaults={(nextPreferences) => {
+      if (!activeChat || !onUpdateChat) return;
+      onUpdateChat({
+        ...activeChat,
+        replyLength: nextPreferences.responseLengthTarget,
+        customResponseWords: nextPreferences.customResponseWords,
+        dialogueBalance: nextPreferences.dialogueBalance,
+        scenePacing: nextPreferences.scenePacing,
+        npcActivity: nextPreferences.npcActivity,
+        knowledgeBoundaries: nextPreferences.knowledgeBoundaries,
+        relationshipContinuity: nextPreferences.relationshipContinuity,
+        naturalSpeech: nextPreferences.naturalSpeech,
+        reduceRepetition: nextPreferences.reduceRepetition,
+        realisticReactions: nextPreferences.realisticReactions,
+        replyPointOfView: nextPreferences.defaultPointOfView,
+        updatedAt: new Date().toISOString(),
+      });
+    }}
+  />;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-0 backdrop-blur-md animate-in fade-in duration-200 sm:p-4">
