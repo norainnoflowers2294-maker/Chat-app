@@ -220,4 +220,5 @@ export interface StoryMemory {
   type: 'note' | 'quote' | 'recap';
   content: string;
   createdAt: string;
+  pinned?: boolean;
 }
