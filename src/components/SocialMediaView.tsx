@@ -21,10 +21,33 @@ export const SocialMediaView: React.FC<SocialMediaViewProps> = ({
   const [showComposer, setShowComposer] = useState(false);
 
   const profileAvatar = (profile: SocialProfile) => {
-    const key = profile.name.trim().toLocaleLowerCase();
-    return characters.find((item) => item.name.trim().toLocaleLowerCase() === key)?.avatar
-      || personas.find((item) => (item.display_name || item.name).trim().toLocaleLowerCase() === key)?.avatar
-      || '/colorpop_hero.jpg';
+    const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+    const aliases: Record<string, string[]> = {
+      lucious: ['lucious', 'lucius', 'luciousvance', 'luciouswillhelm'],
+      emmy: ['emmy', 'emberlee', 'emberleeelizabeth'],
+      val: ['val', 'valorie'],
+      kyla: ['kyla'],
+    };
+    const profileNames = new Set([normalize(profile.name), ...(aliases[profile.id] || [])]);
+    const character = characters.find((item) =>
+      [item.name, ...(item.nicknames || [])].some((name) => profileNames.has(normalize(name)))
+    );
+    if (character?.avatar) return character.avatar;
+    const persona = personas.find((item) =>
+      [item.name, item.display_name || '', ...(item.nicknames || '').split(',')].some((name) => profileNames.has(normalize(name)))
+    );
+    if (persona?.avatar) return persona.avatar;
+    const defaults: Record<string, string> = {
+      lucious: '/lucious.jpg',\n      emmy: '/characters/emmy.svg',
+      vic: '/characters/vic.svg',
+      abel: '/characters/abel.svg',
+      reese: '/characters/reese.svg',
+      ryker: '/characters/ryker.svg',
+      kaylynn: '/characters/kaylynn.svg',\n      kyla: '/characters/kyla.svg',\n      luca: '/characters/luca.svg',\n      kyle: '/characters/kyle.svg',\n      matt: '/characters/matt.svg',\n      val: '/characters/val.svg',
+      asha: '/characters/asha.svg',
+      bri: '/characters/bri.svg',
+    };
+    return profile.avatar || defaults[profile.id] || '/colorpop_hero.jpg';
   };
   const posts = useMemo(() => [...world.posts]
     .filter((post) => selectedProfileId === 'all' || post.profileId === selectedProfileId)
