@@ -182,7 +182,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  preferences, storyMemories, socialMediaContext, phoneContext, onOpenPhone,
+  preferences, storyMemories, socialMediaContext, phoneContext, phoneContext, onOpenPhone,
   chat,
   allChats,
   characters,
@@ -314,6 +314,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         storyMemories,
         socialMediaContext,
         phoneContext,
+        phoneContext,
       });
       apiMessages.push({
         role: 'user',
@@ -365,6 +366,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences,
         storyMemories,
         socialMediaContext,
+        phoneContext,
       });
       apiMessages.push({
         role: 'user',
@@ -539,7 +541,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         lorebooks: activeLorebooks,
         plugins: activePlugins,
         chat: updatedChat,
-        preferences, storyMemories, socialMediaContext,
+        preferences, storyMemories, socialMediaContext, phoneContext,
       });
 
       if (updatedChat.oocMode) {
@@ -705,6 +707,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences,
         storyMemories,
         socialMediaContext,
+        phoneContext,
       });
       apiMessages.push({ role: 'user', content: instruction });
       const replyLength = chat.replyLength || 'medium';
@@ -898,6 +901,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences,
         storyMemories,
         socialMediaContext,
+        phoneContext,
       });
       const replyLength = chat.replyLength || 'medium';
       const maxTokens = replyLength === 'short'
