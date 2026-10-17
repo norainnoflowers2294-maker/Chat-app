@@ -65,9 +65,9 @@ class GeneratedReplyRuleError extends Error {
 const ACTION_VERBS = 'says?|asks?|replies?|answers?|whispers?|shouts?|laughs?|smiles?|nods?|shakes?|looks?|glances?|walks?|moves?|steps?|reaches?|takes?|turns?|stands?|sits?|leans?|runs?|cries?|thinks?|feels?|decides?|chooses?|opens?|closes?|grabs?|holds?|pulls?|pushes?|follows?|leaves?|enters?|begins?|starts?|frowns?|blinks?|breathes?|watches?|stares?|tells?|murmurs?|sighs?|shrugs?|kneels?|rolls?';
 
 function escapeRegex(value: string): string {
-  const specialCharacters = '.^$*+?()[]{}|\\\\';
+  const specialCharacters = '.^$*+?()[]{}|\\';
   return Array.from(value).map((character) =>
-    specialCharacters.includes(character) ? '\\\\' + character : character
+    specialCharacters.includes(character) ? '\\' + character : character
   ).join('');
 }
 
