@@ -251,13 +251,14 @@ export default function App() {
   };
 
   const createChatForCharacterIds = (characterIds: string[]) => {
+    const currentData = dataRef.current;
     const selectedCharacters = characterIds
-      .map((id) => data.characters.find((character) => character.id === id))
+      .map((id) => currentData.characters.find((character) => character.id === id))
       .filter((character): character is Character => Boolean(character));
     if (!selectedCharacters.length) return;
 
-    const activePersona = data.personas.find((persona) => persona.is_default) || data.personas[0];
-    const matchingChats = data.chats.filter((existing) =>
+    const activePersona = currentData.personas.find((persona) => persona.is_default) || currentData.personas[0];
+    const matchingChats = currentData.chats.filter((existing) =>
       existing.characterIds.length === selectedCharacters.length &&
       selectedCharacters.every((character) => existing.characterIds.includes(character.id))
     );
@@ -270,37 +271,24 @@ export default function App() {
       title,
       characterIds: selectedCharacters.map((character) => character.id),
       personaId: activePersona?.id || 'persona_siren',
-      lorebookIds: data.lorebooks.slice(0, 3).map((lorebook) => lorebook.id),
-      pluginIds: data.plugins.slice(0, 5).map((plugin) => plugin.id),
+      lorebookIds: currentData.lorebooks.slice(0, 3).map((lorebook) => lorebook.id),
+      pluginIds: currentData.plugins.slice(0, 5).map((plugin) => plugin.id),
       scenario: selectedCharacters[0].scenario || 'A new story in the Pretty Little Fantasies universe.',
       bgImage: selectedCharacters[0].avatar || '/penthouse.jpg',
       relationshipScore: 88,
-      messages: [{
-        id: `msg_first_${Date.now()}`,
-        senderId: selectedCharacters[0].id,
-        senderName: selectedCharacters[0].name,
-        avatar: selectedCharacters[0].avatar,
-        content: selectedCharacters[0].first_mes,
-        timestamp: Date.now(),
-      }],
+      messages: [],
+      openingPending: true,
       createdAt: now,
       updatedAt: now,
     };
-    updateData({ ...data, chats: [chat, ...data.chats], activeChatId: chat.id });
+    updateData({ ...currentData, chats: [chat, ...currentData.chats], activeChatId: chat.id });
     setActiveChat(chat);
     setInChatMode(true);
   };
 
   const handleStartChatWithCharacter = (char: Character) => {
-    const chat = [...data.chats]
-      .filter((existing) => existing.characterIds.includes(char.id))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-    if (chat) {
-      setActiveChat(chat);
-      setInChatMode(true);
-      updateData({ ...data, activeChatId: chat.id });
-      return;
-    }
+    // Starting from Home always creates a fresh thread. Existing conversations
+    // remain available from the Chats tab and the recent-chat cards.
     createChatForCharacterIds([char.id]);
   };
 
