@@ -42,12 +42,36 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
     try {
       const parsed = await parseCharacterFile(file);
-      if (onOpenCreateCharacter) {
-        onClose();
-        onOpenCreateCharacter(parsed as Character);
-      }
+      const now = new Date().toISOString();
+      const fallbackName = file.name.replace(/\\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim() || 'Imported Character';
+      const matchingCharacter = characters.find((character) =>
+        character.name.trim().toLocaleLowerCase() === String(parsed.name || fallbackName).trim().toLocaleLowerCase()
+      );
+      const imported = {
+        ...parsed,
+        id: parsed.id || matchingCharacter?.id || `char_import_${Date.now()}`,
+        name: String(parsed.name || fallbackName),
+        avatar: String(parsed.avatar || '/colorpop_hero.jpg'),
+        description: String(parsed.description || ''),
+        personality: String(parsed.personality || ''),
+        scenario: String(parsed.scenario || ''),
+        first_mes: String(parsed.first_mes || ''),
+        summary: String(parsed.summary || parsed.description || 'Imported character card'),
+        mes_example: String(parsed.mes_example || ''),
+        tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+        createdAt: parsed.createdAt || matchingCharacter?.createdAt || now,
+        updatedAt: now,
+      } as Character;
+
+      // Save immediately so the imported card appears in the library without
+      // requiring a second save step in the editor.
+      onSaveCharacter(imported);
+      setSearch('');
+      e.target.value = '';
     } catch (err) {
       console.error('Failed to parse file:', err);
+      window.alert(err instanceof Error ? `Could not import character: ${err.message}` : 'Could not import this character card.');
+      e.target.value = '';
     }
   };
 
