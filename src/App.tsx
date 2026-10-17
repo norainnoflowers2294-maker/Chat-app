@@ -70,6 +70,9 @@ export default function App() {
   const firebaseSyncRevisionRef = useRef(0);
   const firebaseSyncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [firebaseSyncMessage, setFirebaseSyncMessage] = useState('');
+  const [firebaseLastSync, setFirebaseLastSync] = useState(() => {
+    try { return localStorage.getItem('plf_last_firebase_sync') || ''; } catch { return ''; }
+  });
   const preferences = normalizePreferences(data.appPreferences);
   useEffect(() => {
     const root = document.documentElement;
@@ -131,7 +134,10 @@ export default function App() {
       if (revision !== firebaseSyncRevisionRef.current) return;
       await syncToFirebase(snapshot);
       if (revision === firebaseSyncRevisionRef.current) {
-        setFirebaseSyncMessage('Firebase sync complete · ' + new Date().toLocaleString());
+        const syncedAt = new Date().toISOString();
+        setFirebaseLastSync(syncedAt);
+        try { localStorage.setItem('plf_last_firebase_sync', syncedAt); } catch {}
+        setFirebaseSyncMessage('Firebase sync complete · ' + new Date(syncedAt).toLocaleString());
       }
     });
     firebaseSyncQueueRef.current = operation;
@@ -702,6 +708,7 @@ export default function App() {
           onTestConnection={testOpenRouter}
           firebaseUser={firebaseUser}
           firebaseSyncMessage={firebaseSyncMessage}
+          firebaseLastSync={firebaseLastSync}
         />
         <StoryNotesModal
           isOpen={isStoryNotesOpen}
