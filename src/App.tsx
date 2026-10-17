@@ -70,9 +70,7 @@ export default function App() {
   const firebaseSyncRevisionRef = useRef(0);
   const firebaseSyncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [firebaseSyncMessage, setFirebaseSyncMessage] = useState('');
-  const [firebaseLastSync, setFirebaseLastSync] = useState(() => {
-    try { return localStorage.getItem('plf_last_firebase_sync') || ''; } catch { return ''; }
-  });
+  const [firebaseLastSync, setFirebaseLastSync] = useState('');
   const preferences = normalizePreferences(data.appPreferences);
   useEffect(() => {
     const root = document.documentElement;
@@ -121,6 +119,11 @@ export default function App() {
 
   // Firebase user
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  useEffect(() => {
+    if (!firebaseUser) { setFirebaseLastSync(''); return; }
+    try { setFirebaseLastSync(localStorage.getItem(`plf_last_firebase_sync:${firebaseUser.uid}`) || ''); } catch { setFirebaseLastSync(''); }
+  }, [firebaseUser?.uid]);
+
 
   // OpenRouter Connection Diagnostics
   const [diagnostic, setDiagnostic] = useState<ConnectionDiagnostic>({
@@ -135,8 +138,11 @@ export default function App() {
       await syncToFirebase(snapshot);
       if (revision === firebaseSyncRevisionRef.current) {
         const syncedAt = new Date().toISOString();
-        setFirebaseLastSync(syncedAt);
-        try { localStorage.setItem('plf_last_firebase_sync', syncedAt); } catch {}
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+          setFirebaseLastSync(syncedAt);
+          try { localStorage.setItem(`plf_last_firebase_sync:${userId}`, syncedAt); } catch {}
+        }
         setFirebaseSyncMessage('Firebase sync complete · ' + new Date(syncedAt).toLocaleString());
       }
     });
