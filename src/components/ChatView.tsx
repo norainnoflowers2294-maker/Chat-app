@@ -1,6 +1,6 @@
 import type { AppPreferences } from '../lib/preferences';
 import type { StoryMemory } from '../types/roleplay';
-import { sendOpenRouterChat } from '../lib/openrouter';
+import { sendOpenRouterChatDetailed, type OpenRouterResponseInfo } from '../lib/openrouter';
 import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -127,8 +127,11 @@ async function sendCheckedCharacterReply(
   persona: Persona | null,
   skipCheck = false,
   allowNarrator = false,
+  onResponseInfo?: (info: OpenRouterResponseInfo) => void,
 ): Promise<string> {
-  let reply = await sendOpenRouterChat(config, messages);
+  let result = await sendOpenRouterChatDetailed(config, messages);
+  let reply = result.content;
+  onResponseInfo?.(result.response);
   if (skipCheck) return reply;
   let violations = checkGeneratedReply(reply, characters, persona, allowNarrator);
   if (!violations.length) return reply;
@@ -140,7 +143,9 @@ async function sendCheckedCharacterReply(
       content: `The previous draft was rejected by the app’s response check: ${violations.join(' ')} Rewrite the reply from scratch. Write only as the selected character, preserve the required point of view, and do not give Emmy or the user any words, thoughts, feelings, reactions, decisions, or actions.`,
     },
   ];
-  reply = await sendOpenRouterChat(config, retryMessages);
+  result = await sendOpenRouterChatDetailed(config, retryMessages);
+  reply = result.content;
+  onResponseInfo?.(result.response);
   violations = checkGeneratedReply(reply, characters, persona, allowNarrator);
   if (violations.length) {
     throw new GeneratedReplyRuleError(`I blocked a reply because it still appears to break the character rules: ${violations.join(' ')}`);
@@ -226,6 +231,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return next;
   });
   const [errorDetails, setErrorDetails] = useState<{ message: string; suggestedFix?: string } | null>(null);
+  const [lastModelUsed, setLastModelUsed] = useState<OpenRouterResponseInfo | null>(null);
+  const recordModelUsed = (info: OpenRouterResponseInfo) => setLastModelUsed(info);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [diceResult, setDiceResult] = useState<string | null>(null);
@@ -333,7 +340,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ...openRouterConfig,
         temperature: chat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode));
+      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode), false, recordModelUsed);
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
       const replyTimestamp = Date.now();
       const formattedReply = textMode ? responder.name + ' - ' + botReply : botReply;
@@ -388,7 +395,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ...openRouterConfig,
         temperature: openingChat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages, activeCharacters, activePersona, Boolean(openingChat.oocMode));
+      }, apiMessages, activeCharacters, activePersona, Boolean(openingChat.oocMode), false, recordModelUsed);
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
       const openingMessage: ChatMessage = {
         id: `msg_opening_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -606,6 +613,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         activeCharacters,
         activePersona,
         assistantWasTagged || Boolean(updatedChat.oocMode),
+        false,
+        recordModelUsed,
       );
       const responder = assistantWasTagged
         ? { id: 'assistant', name: 'Pretty Little Fantasies Assistant', avatar: '/colorpop_hero.jpg' }
@@ -761,7 +770,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ...openRouterConfig,
         temperature: chat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages, activeCharacters, activePersona, false, allowNarrator);
+      }, apiMessages, activeCharacters, activePersona, false, allowNarrator, recordModelUsed);
       const responder = action === 'Group Chat'
         ? { id: 'assistant', name: 'Group Chat', avatar: '/colorpop_hero.jpg' }
         : activeCharacters[0] || { id: 'char_bot', name: 'Narrator' };
@@ -954,7 +963,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ...openRouterConfig,
         temperature: chat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode) || msg.senderId === 'assistant');
+      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode) || msg.senderId === 'assistant', false, recordModelUsed);
 
       const versions = msg.swipes?.length ? [...msg.swipes] : [msg.content];
       const activeIndex = Math.min(msg.currentSwipeIndex ?? versions.length - 1, versions.length - 1);
