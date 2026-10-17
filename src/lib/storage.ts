@@ -99,31 +99,18 @@ export function mergeDefaultCharacters(characters: Character[] | undefined): Cha
   return [...refreshedSaved, ...missingDefaults];
 }
 
-export function loadLocalData(): StorageData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        appPreferences: normalizePreferences(parsed.appPreferences),
-        characters: mergeDefaultCharacters(parsed.characters?.length ? parsed.characters : INITIAL_CHARACTERS),
-        lorebooks: parsed.lorebooks?.length ? parsed.lorebooks : INITIAL_LOREBOOKS,
-        personas: parsed.personas?.length ? parsed.personas : INITIAL_PERSONAS,
-        plugins: parsed.plugins?.length ? parsed.plugins : INITIAL_PLUGINS,
-        chats: parsed.chats?.length ? parsed.chats : INITIAL_CHATS,
-        activeChatId: parsed.activeChatId || (parsed.chats?.[0]?.id ?? INITIAL_CHATS[0]?.id),
-        openRouterConfig: { ...DEFAULT_OPENROUTER_CONFIG, ...(parsed.openRouterConfig || {}) },
-        supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
-        storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
-        wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
-        socialWorld: parsed.socialWorld?.profiles ? parsed.socialWorld : DEFAULT_SOCIAL_WORLD,
-        savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
-      };
-    }
-  } catch (err) {
-    console.warn('Failed to load local storage, falling back to defaults:', err);
-  }
+const STORAGE_META_KEY = `${STORAGE_KEY}_saved_at`;
+const LOCAL_DB_NAME = 'pretty-little-fantasies-local';
+const LOCAL_DB_STORE = 'snapshots';
+const LOCAL_DB_KEY = 'app-data';
+let localWriteQueue: Promise<void> = Promise.resolve();
 
+interface LocalDataSnapshot {
+  savedAt: number;
+  data: StorageData;
+}
+
+function defaultLocalData(): StorageData {
   return {
     appPreferences: { ...DEFAULT_PREFERENCES },
     characters: INITIAL_CHARACTERS,
@@ -141,12 +128,117 @@ export function loadLocalData(): StorageData {
   };
 }
 
-export function saveLocalData(data: StorageData): void {
+function normalizeStoredData(parsed: any): StorageData {
+  return {
+    appPreferences: normalizePreferences(parsed.appPreferences),
+    characters: mergeDefaultCharacters(parsed.characters?.length ? parsed.characters : INITIAL_CHARACTERS),
+    lorebooks: parsed.lorebooks?.length ? parsed.lorebooks : INITIAL_LOREBOOKS,
+    personas: parsed.personas?.length ? parsed.personas : INITIAL_PERSONAS,
+    plugins: parsed.plugins?.length ? parsed.plugins : INITIAL_PLUGINS,
+    chats: parsed.chats?.length ? parsed.chats : INITIAL_CHATS,
+    activeChatId: parsed.activeChatId || (parsed.chats?.[0]?.id ?? INITIAL_CHATS[0]?.id),
+    openRouterConfig: { ...DEFAULT_OPENROUTER_CONFIG, ...(parsed.openRouterConfig || {}) },
+    supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
+    storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
+    wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
+    socialWorld: parsed.socialWorld?.profiles ? parsed.socialWorld : DEFAULT_SOCIAL_WORLD,
+    savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
+  };
+}
+
+function openLocalDatabase(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable in this browser.'));
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(LOCAL_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(LOCAL_DB_STORE)) request.result.createObjectStore(LOCAL_DB_STORE, { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Could not open local chat storage.'));
+    request.onblocked = () => reject(new Error('Local chat storage is blocked by another tab.'));
+  });
+}
+
+async function readLocalSnapshot(): Promise<LocalDataSnapshot | null> {
+  const db = await openLocalDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction(LOCAL_DB_STORE, 'readonly');
+      const request = transaction.objectStore(LOCAL_DB_STORE).get(LOCAL_DB_KEY);
+      request.onsuccess = () => resolve(request.result ? { savedAt: request.result.savedAt, data: request.result.data } : null);
+      request.onerror = () => reject(request.error || new Error('Could not read local chat storage.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function writeLocalSnapshot(snapshot: LocalDataSnapshot): Promise<void> {
+  const db = await openLocalDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(LOCAL_DB_STORE, 'readwrite');
+      transaction.objectStore(LOCAL_DB_STORE).put({ id: LOCAL_DB_KEY, ...snapshot });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error('Could not save local chat storage.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Local chat storage save was aborted.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export function loadLocalData(): StorageData {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return normalizeStoredData(JSON.parse(raw));
+  } catch (err) {
+    console.warn('Failed to load local storage, falling back to defaults:', err);
+  }
+  return defaultLocalData();
+}
+
+/** Loads the newest local snapshot, using IndexedDB when localStorage is full. */
+export async function loadLocalDataAsync(): Promise<StorageData> {
+  let localParsed: unknown = null;
+  let localSavedAt = 0;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) localParsed = JSON.parse(raw);
+    localSavedAt = Number(localStorage.getItem(STORAGE_META_KEY)) || 0;
+  } catch (err) {
+    console.warn('Failed to read local storage snapshot:', err);
+  }
+
+  try {
+    const snapshot = await readLocalSnapshot();
+    if (snapshot && snapshot.savedAt > localSavedAt) return normalizeStoredData(snapshot.data);
+  } catch (err) {
+    console.warn('Could not read IndexedDB snapshot:', err);
+  }
+  return localParsed ? normalizeStoredData(localParsed) : defaultLocalData();
+}
+
+export function saveLocalData(data: StorageData): Promise<void> {
+  const savedAt = Date.now();
+  let localSaved = false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_META_KEY, String(savedAt));
+    localSaved = true;
   } catch (err) {
-    console.error('Failed to save to localStorage:', err);
+    console.warn('localStorage is full or unavailable; saving app data to IndexedDB:', err);
   }
+
+  const persist = localWriteQueue.catch(() => undefined).then(() => writeLocalSnapshot({ savedAt, data }));
+  localWriteQueue = persist.catch(() => undefined);
+  return persist.catch((err) => {
+    if (localSaved) {
+      console.warn('IndexedDB save failed; localStorage contains the saved app data:', err);
+      return;
+    }
+    throw err;
+  });
 }
 
 const embeddedImageUrlCache = new Map<string, { source: string; url: string }>();
