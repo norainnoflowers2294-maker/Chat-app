@@ -498,6 +498,7 @@ export default function App() {
         preferences={preferences}
         onSavePreferences={handleSavePreferences}
         onExportData={handleExportData}
+        backupData={createBackupPayload()}
           onSaveConfig={handleSaveOpenRouterConfig}
           diagnostic={diagnostic}
           onTestConnection={testOpenRouter}
@@ -860,6 +861,7 @@ export default function App() {
         preferences={preferences}
         onSavePreferences={handleSavePreferences}
         onExportData={handleExportData}
+        backupData={createBackupPayload()}
         onSaveConfig={handleSaveOpenRouterConfig}
         diagnostic={diagnostic}
         onTestConnection={testOpenRouter}
