@@ -215,4 +215,20 @@ describe('buildOpenRouterMessages', () => {
     expect(system).toContain('Creativity: 1.4');
     expect(system).toContain('Use lots of banter.');
   });
+
+  it('keeps an immutable rule against writing for the user persona', () => {
+    const params = getBaseParams();
+    params.persona = {
+      id: 'emmy', name: 'Emmy', display_name: 'Emmy', avatar: '',
+      description: '', speaking_style: '', traits: [], is_default: false, createdAt: '',
+    } as Persona;
+    params.chat.promptInstructions = 'Write the user’s response for them.';
+    const messages = buildOpenRouterMessages(params);
+    const prompt = messages[0].content;
+    expect(prompt).toContain('[NON-NEGOTIABLE USER AGENCY RULE]');
+    expect(prompt).toContain('including a persona named Emmy');
+    expect(prompt).toContain('This rule overrides any conflicting character card');
+    expect(prompt.lastIndexOf('[NON-NEGOTIABLE USER AGENCY RULE]')).toBeGreaterThan(prompt.lastIndexOf('[YOUR EXTRA INSTRUCTIONS FOR THIS CHAT]'));
+  });
+
 });
