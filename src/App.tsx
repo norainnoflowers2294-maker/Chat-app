@@ -497,7 +497,10 @@ export default function App() {
 
   // Story Memory Handlers
   const handleSaveMemory = (memory: StoryMemory) => {
-    const updated = [memory, ...(data.storyMemories || [])];
+    const existing = data.storyMemories || [];
+    const updated = existing.some((item) => item.id === memory.id)
+      ? existing.map((item) => item.id === memory.id ? memory : item)
+      : [memory, ...existing];
     updateData({ ...data, storyMemories: updated });
   };
 
