@@ -54,6 +54,7 @@ import { ChatSettingsPanel } from './ChatSettingsPanel';
 interface ChatViewProps {
   preferences: AppPreferences;
   storyMemories: StoryMemory[];
+  socialMediaContext: string;
   chat: Chat;
   allChats: Chat[];
   characters: Character[];
@@ -74,6 +75,7 @@ interface ChatViewProps {
   onOpenSavedMessagesModal: () => void;
   onOpenSceneGeneratorModal: () => void;
   onOpenGitHubSyncModal: () => void;
+  onOpenSocialMedia: () => void;
   onOpenWallet: (view: 'dashboard' | 'activity') => void;
   onUpdatePreferences: (value: AppPreferences) => void;
   onTogglePlugin: (pluginId: string) => void;
@@ -81,7 +83,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  preferences, storyMemories,
+  preferences, storyMemories, socialMediaContext,
   chat,
   allChats,
   characters,
@@ -102,6 +104,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenSavedMessagesModal,
   onOpenSceneGeneratorModal,
   onOpenGitHubSyncModal,
+  onOpenSocialMedia,
   onOpenWallet,
   onUpdatePreferences,
   onTogglePlugin,
@@ -198,6 +201,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat,
         preferences,
         storyMemories,
+        socialMediaContext,
       });
       apiMessages.push({
         role: 'user',
@@ -339,7 +343,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         lorebooks: activeLorebooks,
         plugins: activePlugins,
         chat: updatedChat,
-        preferences, storyMemories,
+        preferences, storyMemories, socialMediaContext,
       });
 
       const replyLength = updatedChat.replyLength || 'medium';
@@ -1124,6 +1128,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button type="button" aria-label="Close tools drawer" onClick={() => setIsRightDrawerOpen(false)} className="rounded-xl bg-white/10 p-2 text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <section className="rounded-xl border border-[#ff66b2]/30 bg-white/5 p-3">
+                <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Social Media world</h3>
+                <p className="mb-2 text-[11px] leading-relaxed text-[#ffd6eb]/65">This world stays separate unless you turn it on for this chat.</p>
+                <button type="button" aria-pressed={Boolean(chat.socialMediaEnabled)} onClick={() => onUpdateChat({ ...chat, socialMediaEnabled: !chat.socialMediaEnabled, updatedAt: new Date().toISOString() })} className={`w-full rounded-lg p-2 text-xs font-semibold ${chat.socialMediaEnabled ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white hover:bg-white/15'}`}>{chat.socialMediaEnabled ? 'Social context on for this chat' : 'Turn on for this chat'}</button>
+                <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenSocialMedia(); }} className="mt-2 w-full rounded-lg bg-[#ff007f]/20 p-2 text-left text-xs font-semibold text-white hover:bg-[#ff007f]/35">Open Social Media world</button>
+              </section>
               <section className="rounded-xl border border-[#ff66b2]/30 bg-white/5 p-3">
                 <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Text-to-speech voice</h3>
                 <select aria-label="Select text-to-speech voice" value={selectedTtsVoiceId} onChange={(event) => setSelectedTtsVoiceId(event.target.value)} className="w-full rounded-lg border border-[#ff66b2]/40 bg-[#1e0818] p-2 text-sm text-white">
