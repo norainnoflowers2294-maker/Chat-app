@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_PREFERENCES, normalizePreferences, downloadJson, type AppPreferences } from '../lib/preferences';
 import './preferences.css';
 
@@ -7,6 +7,11 @@ type Props = {
   onSave: (value: AppPreferences) => void;
   onClose: () => void;
   onExportData: () => void;
+  onImportBackup?: (data: unknown) => void;
+  onApplyRoleplayDefaults?: (value: AppPreferences) => void;
+  activeChatTitle?: string;
+  firebaseUser?: { displayName?: string | null; email?: string | null } | null;
+  firebaseSyncMessage?: string;
 };
 const groups = [
   ['Appearance', [
@@ -16,9 +21,24 @@ const groups = [
   ]],
   ['Chat', [
     ['autoScroll', 'Scroll to newest message'], ['showTimestamps', 'Show message times'],
-    ['chatSystemPrompt', 'Chat rules and response instructions'],
+    
     ['confirmDelete', 'Confirm message deletion'],
     ['showDiagnostics', 'Show connection status in chat'], ['notifyReplies', 'Desktop reply notifications'],
+  ]],
+  ['AI & roleplay', [
+    ['responseLengthTarget', 'Default response length (prose target)', ['short', 'medium', 'long', 'custom']],
+    ['customResponseWords', 'Custom target length (words)', [40, 1500, 20]],
+    ['dialogueBalance', 'Description balance (0 = mostly dialogue, 100 = mostly description)', [0, 100, 5]],
+    ['scenePacing', 'Scene pacing', ['slow_burn', 'balanced', 'fast']],
+    ['npcActivity', 'NPC activity / independence', ['low', 'balanced', 'high']],
+    ['knowledgeBoundaries', 'Characters only know what they witnessed, were told, or plausibly learned'],
+    ['relationshipContinuity', 'Preserve trust, conflict, friendship, and romance changes'],
+    ['naturalSpeech', 'Use natural, character-specific speech'],
+    ['reduceRepetition', 'Avoid repetitive phrases and emotional beats'],
+    ['realisticReactions', 'Use realistic reactions consistent with what characters know'],
+    ['defaultPointOfView', 'Default point of view', ['character', 'first_person', 'third_person']],
+    ['neverSpeakForUser', 'Never write dialogue, thoughts, or actions for {{user}} (including Emmy)'],
+    ['chatSystemPrompt', 'Global instructions / system prompt'],
   ]],
   ['Memory & narrator', [
     ['contextMessages', 'Recent messages sent to AI', [5, 200, 5]],
@@ -29,10 +49,17 @@ const groups = [
   ]],
   ['Data & privacy', [['cloudSync', 'Sync changes to Firebase when signed in']]],
 ] as const;
-export function PreferencesPanel({ value, onSave, onClose, onExportData }: Props) {
+export function PreferencesPanel({ value, onSave, onClose, onExportData, onImportBackup, onApplyRoleplayDefaults, activeChatTitle, firebaseUser, firebaseSyncMessage = '' }: Props) {
   const [draft, setDraft] = useState(() => normalizePreferences(value));
   const [tab, setTab] = useState(0);
   const [status, setStatus] = useState('');
+  const tabsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(normalizePreferences(value));
+  useEffect(() => { tabsRef.current[tab]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }, [tab]);
+  const requestClose = () => {
+    if (dirty && !window.confirm('Discard unsaved App Settings changes?')) return;
+    onClose();
+  };
   useEffect(() => { setDraft(normalizePreferences(value)); }, [value]);
   const update = async (key: string, val: unknown) => {
     if (key === 'notifyReplies' && val) {
@@ -43,6 +70,22 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData }: Props
     }
     setDraft(prev => normalizePreferences({ ...prev, [key]: val }));
     setStatus('Unsaved changes');
+  };
+  const importBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 10000000) throw new Error('Choose a backup under 10 MB.');
+      const parsed = JSON.parse(await file.text());
+      const data = parsed.data ?? parsed;
+      if (!Array.isArray(data?.chats) || !Array.isArray(data?.characters) || !Array.isArray(data?.personas)) {
+        throw new Error('This file is not a Pretty Little Fantasies app backup.');
+      }
+      if (!window.confirm('Restore this backup and replace the current chats, characters, personas, lorebooks, and saved story data? Your API key will be kept.')) return;
+      onImportBackup?.(data);
+      setStatus('Backup restored. Existing API credentials were kept.');
+    } catch (error: any) { setStatus(error.message || 'Could not restore this backup.'); }
+    event.target.value = '';
   };
   const importSettings = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -59,30 +102,36 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData }: Props
   };
   return <div className="cp-preferences" role="dialog" aria-modal="true" aria-label="App settings">
     <div className="cp-preferences-card">
-      <header><div><small>COLORPOP</small><h2>Make it yours</h2></div><button type="button" onClick={onClose} aria-label="Close app settings">×</button></header>
-      <nav aria-label="Settings sections">{groups.map(([title], i) => <button key={title} type="button" aria-pressed={tab === i} onClick={() => setTab(i)}>{title}</button>)}</nav>
-      <main><h3>{groups[tab][0]}</h3>
+      <header><div><small>PRETTY LITTLE FANTASIES</small><h2>Make it yours</h2></div><button type="button" onClick={requestClose} aria-label="Close app settings">×</button></header>
+      <nav aria-label="Settings sections">{groups.map(([title], i) => <button key={title} ref={(node) => { tabsRef.current[i] = node; }} type="button" aria-pressed={tab === i} onClick={() => setTab(i)}>{title}</button>)}</nav>
+      <main tabIndex={0}><h3>{groups[tab][0]}</h3>
         {groups[tab][1].map((field) => {
           const [key, label] = field;
           const spec = (field as readonly unknown[])[2];
           const current = draft[key as keyof AppPreferences];
-          if (key === 'chatSystemPrompt') return <label className="cp-setting cp-setting-block" key={key}><span>{label}</span><textarea value={String(current || '')} maxLength={6000} rows={7} placeholder="Tell the AI how to respond in every chat. Example: Never write dialogue, thoughts, or actions for {{user}}. Keep character voices distinct and leave room for my reply." onChange={e => update(key, e.target.value)} /><small>{String(current || '').length}/6000 characters. These rules are added to the AI system prompt for every chat.</small></label>;
+          if (key === 'customResponseWords' && draft.responseLengthTarget !== 'custom') return null;
+          if (key === 'chatSystemPrompt') return <label className="cp-setting cp-setting-block" key={key}><span>{label}</span><textarea value={String(current || '')} maxLength={6000} rows={7} placeholder="Example: Keep character voices distinct. Never write dialogue, thoughts, or actions for {{user}}." onChange={e => update(key, e.target.value)} /><small>{String(current || '').length}/6000 characters. Added to the global system prompt; character canon and non-negotiable user-agency rules remain higher priority.</small></label>;
           return <label className="cp-setting" key={key}><span>{label}</span>{!spec ? <input type="checkbox" checked={Boolean(current)} onChange={e => update(key, e.target.checked)} />
             : spec === 'color' ? <input type="color" value={String(current)} onChange={e => update(key, e.target.value)} />
             : typeof (spec as any)[0] === 'number' ? <span className="cp-range"><input type="range" min={(spec as number[])[0]} max={(spec as number[])[1]} step={(spec as number[])[2]} value={Number(current)} onChange={e => update(key, Number(e.target.value))} /><output>{current}</output></span>
             : <select value={String(current)} onChange={e => update(key, e.target.value)}>{(spec as string[]).map(v => <option key={v}>{v}</option>)}</select>}</label>;
         })}
-        {tab === 1 && <p>Chat rules are sent with every AI request as system instructions. Per-chat instructions can still be added in Chat Settings.</p>}
-        {tab === 2 && <p>Continuity and narrator preferences guide AI replies. Saved notes come from Story Notes; these controls do not create a separate timeline or wardrobe database.</p>}
-        {tab === 1 && <p>Notifications show only “A reply is ready,” without chat text. On mobile, browser support varies.</p>}
-        {tab === 3 && <><p>Chats always save on this device. Cloud sync only runs while signed in and enabled. Turning it off does not erase existing cloud data. API keys stay out of these exports.</p>
-          <div className="cp-data-actions"><button onClick={() => downloadJson('ColorPop_Settings.json', { version: 1, settings: draft })}>Export preferences</button>
+        {tab === 1 && <p>Chat controls here affect app behavior. Chat-specific instructions can be added in Chat Settings. Notifications show only “A reply is ready,” without chat text.</p>}
+        {tab === 2 && <>
+          <p>These roleplay values guide chats unless a chat has its own override. New chats start from these defaults. The global instructions are sent in the system prompt; character-card rules are separate and take precedence over style preferences.</p>
+          {activeChatTitle && onApplyRoleplayDefaults && <button type="button" onClick={() => { onApplyRoleplayDefaults(draft); setStatus('AI and roleplay defaults applied to ' + activeChatTitle + '.'); }}>Apply AI defaults to current chat: {activeChatTitle}</button>}
+        </>}
+        {tab === 3 && <p>Continuity and narrator preferences guide AI replies. Saved notes come from Story Notes; phone discoveries stay limited to characters who actually saw them. No automatic background recap is running.</p>}
+        {tab === 4 && <><p>Chats save locally in this browser. Firebase sync: {firebaseUser ? 'signed in as ' + (firebaseUser.email || firebaseUser.displayName || 'your account') : 'not signed in'}. Turning sync off does not erase local or cloud data. API credentials are excluded from ordinary exports.</p>
+          {firebaseSyncMessage && <p role="status">{firebaseSyncMessage}</p>}
+          <div className="cp-data-actions"><button onClick={() => downloadJson('Pretty_Little_Fantasies_Settings.json', { version: 1, settings: draft })}>Export preferences</button>
           <label>Import preferences<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
-          <button onClick={onExportData}>Download chats & libraries backup</button></div>
+          <button onClick={onExportData}>Download chats &amp; libraries backup</button>
+          {onImportBackup && <label>Restore app backup (replaces saved content after confirmation)<input type="file" accept="application/json,.json" onChange={importBackup} /></label>}</div>
           <p>No analytics collection or public profile publishing is enabled by this app. Account deletion is managed separately from device preferences.</p></>}
         <details><summary>Features needing additional services</summary><p>Direct Gemini/custom providers, streamed replies, automatic recaps, timeline and relationship databases, AI image generation, and background story alerts are not connected yet. Gemini models can still be selected through OpenRouter using their OpenRouter model ID.</p></details>
       </main>
-      <footer><p role="status">{status}</p><div><button onClick={() => { setDraft({ ...DEFAULT_PREFERENCES }); setStatus('Defaults selected. Save to apply.'); }}>Reset preferences</button><button className="cp-primary" onClick={() => { onSave(draft); setStatus('Preferences saved on this device.'); }}>Save preferences</button></div></footer>
+      <footer><p role="status">{status || (dirty ? 'Unsaved changes' : 'All changes saved.')}</p><div><button onClick={requestClose}>Cancel</button><button onClick={() => { setDraft({ ...DEFAULT_PREFERENCES }); setStatus('Defaults selected. Save to apply.'); }}>Reset preferences</button><button className="cp-primary" onClick={() => { onSave(draft); setStatus('Preferences saved.'); }}>Save preferences</button></div></footer>
     </div>
   </div>;
 }
