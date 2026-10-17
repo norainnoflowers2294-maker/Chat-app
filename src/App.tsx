@@ -765,6 +765,7 @@ export default function App() {
         onOpenSavedMessagesModal={() => setIsSavedMessagesOpen(true)}
         onOpenSceneGeneratorModal={() => setIsSceneGeneratorOpen(true)}
         onOpenGitHubSyncModal={() => setIsGitSyncOpen(true)}
+        onOpenWallet={handleOpenWallet}
         onTogglePlugin={handleTogglePlugin}
         onBoostAffinity={() => {
           if (activeChat) {
