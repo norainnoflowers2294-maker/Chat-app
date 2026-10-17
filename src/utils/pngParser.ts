@@ -116,7 +116,6 @@ function unwrapCard(parsed: any): Record<string, any> {
 
 function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: string): Partial<Character> {
   const data = unwrapCard(parsed);
-  const physical = firstDefined(data, 'physical_description', 'appearance', 'looks');
   const backstory = firstDefined(data, 'backstory', 'history', 'background', 'lore');
   const summary = firstDefined(data, 'summary', 'short_description');
   const familyRaw = firstDefined(data, 'familyMembers', 'family_members', 'relatives');
@@ -207,7 +206,7 @@ function decodeCardPayload(raw: string): any {
 }
 
 export async function parseCharacterFile(file: File): Promise<Partial<Character>> {
-  const fallbackName = file.name.replace(/\\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Unnamed Character';
+  const fallbackName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Unnamed Character';
   if (file.name.toLowerCase().endsWith('.json')) {
     return normalizeCharacterCard(JSON.parse(await file.text()), fallbackName);
   }
