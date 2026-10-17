@@ -615,9 +615,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         senderId: responder.id,
         senderName: responder.name,
         avatar: responder.avatar,
-        content: botReply,
-        timestamp: Date.now(),
-        swipes: [botReply],
+        content: formattedReply,
+        timestamp: replyTimestamp,
+        swipes: [formattedReply],
         currentSwipeIndex: 0,
       };
 
