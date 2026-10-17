@@ -23,6 +23,7 @@ import {
   Briefcase,
   Layers,
   Activity,
+  WalletCards,
   Check,
 } from 'lucide-react';
 import {
@@ -58,6 +59,7 @@ interface DualTrackOverlayProps {
   onOpenSavedMessagesModal: () => void;
   onOpenSceneGeneratorModal: () => void;
   onOpenGitHubSyncModal: () => void;
+  onOpenWallet: (view: 'dashboard' | 'activity') => void;
   onTogglePlugin: (pluginId: string) => void;
   onBoostAffinity?: () => void;
 }
@@ -85,6 +87,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
   onOpenSavedMessagesModal,
   onOpenSceneGeneratorModal,
   onOpenGitHubSyncModal,
+  onOpenWallet,
   onTogglePlugin,
   onBoostAffinity,
 }) => {
@@ -555,6 +558,21 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
               </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenWallet('dashboard');
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-[#ff66b2]/30 bg-gradient-to-r from-[#ff007f]/15 to-[#9b51e0]/15 p-3 text-left transition hover:border-[#ff66b2]/70 hover:bg-[#ff007f]/20"
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff007f]/20 text-[#ff99cc]"><WalletCards className="h-4 w-4" /></span>
+              <span><strong className="block text-xs text-white">Story Wallet &amp; Cash App</strong><small className="text-[10px] text-[#ffd6eb]/60">Balances and character transfers</small></span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-[#ff99cc]" />
+          </button>
 
           {/* 5 Active Roleplay Plugins */}
           <div className="space-y-2">
