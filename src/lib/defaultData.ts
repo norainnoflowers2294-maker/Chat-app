@@ -155,6 +155,25 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
 ];
 
 
+export const ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS = Object.fromEntries(
+  ADDITIONAL_CHARACTERS.map((character) => [character.id, character.avatar])
+) as Record<string, string>;
+
+const additionalCharacterPortraits: Record<string, string> = {
+  char_ryker_alexander_wilhelm: '/characters/ryker.svg',
+  char_victor_wilhelm: '/characters/vic.svg',
+  char_abel_wilhelm: '/characters/abel.svg',
+  char_reese_wilhelm: '/characters/reese.svg',
+  char_kaylynn: '/characters/kaylynn.svg',
+  char_brielle_monroe: '/characters/bri.svg',
+  char_asha: '/characters/asha.svg',
+};
+
+ADDITIONAL_CHARACTERS.forEach((character) => {
+  const portrait = additionalCharacterPortraits[character.id];
+  if (portrait) character.avatar = portrait;
+});
+
 INITIAL_CHARACTERS.push(...ADDITIONAL_CHARACTERS);
 
 export const INITIAL_PERSONAS: Persona[] = [
