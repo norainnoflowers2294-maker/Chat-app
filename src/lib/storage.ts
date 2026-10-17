@@ -2,6 +2,7 @@ import { DEFAULT_PREFERENCES, normalizePreferences, type AppPreferences } from '
 import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, SupabaseConfig, StoryMemory } from '../types/roleplay';
 import { INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
 import { db, auth } from './firebase';
+import { DEFAULT_WALLETS, type StoryWallet } from './wallet';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface StorageData {
@@ -15,6 +16,7 @@ export interface StorageData {
   openRouterConfig: OpenRouterConfig;
   supabaseConfig: SupabaseConfig;
   storyMemories: StoryMemory[];
+  wallets: StoryWallet[];
   savedMessages: Array<{
     id: string;
     chatId: string;
@@ -36,7 +38,7 @@ export const DEFAULT_OPENROUTER_CONFIG: OpenRouterConfig = {
   frequencyPenalty: 0.2,
   presencePenalty: 0.2,
   siteUrl: 'https://ais-dev-ohlfym6cwp4w2lwha7oenj-597148229967.us-east1.run.app',
-  siteName: 'ColorPop Roleplay Hub',
+  siteName: 'Pretty Little Fantasies',
 };
 
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfig = {
@@ -91,6 +93,7 @@ export function loadLocalData(): StorageData {
         openRouterConfig: { ...DEFAULT_OPENROUTER_CONFIG, ...(parsed.openRouterConfig || {}) },
         supabaseConfig: { ...DEFAULT_SUPABASE_CONFIG, ...(parsed.supabaseConfig || {}) },
         storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
+        wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
         savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
       };
     }
@@ -109,6 +112,7 @@ export function loadLocalData(): StorageData {
     openRouterConfig: DEFAULT_OPENROUTER_CONFIG,
     supabaseConfig: DEFAULT_SUPABASE_CONFIG,
     storyMemories: DEFAULT_MEMORIES,
+    wallets: DEFAULT_WALLETS,
     savedMessages: DEFAULT_SAVED_MSGS,
   };
 }
@@ -139,6 +143,9 @@ export async function syncToFirebase(data: StorageData): Promise<void> {
         activeChatId: data.activeChatId || '',
         storyMemories: data.storyMemories || [],
         savedMessages: data.savedMessages || [],
+        wallets: data.wallets || DEFAULT_WALLETS,
+        openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
+        supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
         updatedAt: new Date().toISOString(),
       },
       { merge: true }

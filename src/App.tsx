@@ -20,14 +20,18 @@ import { LorebookModal } from './components/LorebookModal';
 import { PersonaModal } from './components/PersonaModal';
 import { PersonaCreatorView } from './components/PersonaCreatorView';
 import { PersonaLibraryView } from './components/PersonaLibraryView';
+import { PerchanceView } from './components/PerchanceView';
 import { PluginModal } from './components/PluginModal';
 import { OpenRouterSettingsModal } from './components/OpenRouterSettingsModal';
 import { StoryNotesModal } from './components/StoryNotesModal';
 import { SavedMessagesModal } from './components/SavedMessagesModal';
 import { SceneGeneratorModal } from './components/SceneGeneratorModal';
+import { FileKeeperView } from './components/FileKeeperView';
 import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
+import { WalletModal } from './components/WalletModal';
+import { getWalletForScope, type StoryWallet } from './lib/wallet';
 
 import {
   Character,
@@ -63,6 +67,13 @@ export default function App() {
     root.style.setProperty('--cp-heading-font', preferences.headerFont === 'serif' ? 'Georgia, serif' : preferences.headerFont === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
   }, [preferences.theme, preferences.accent, preferences.fontSize, preferences.headerFont, preferences.reducedMotion]);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [homeImage, setHomeImage] = useState<string>(() => {
+    try { return localStorage.getItem('colorpop_home_picture_v1') || '/colorpop_hero.jpg'; } catch { return '/colorpop_hero.jpg'; }
+  });
+  const handleSetHomeImage = (image: string) => {
+    setHomeImage(image);
+    try { localStorage.setItem('colorpop_home_picture_v1', image); } catch { window.alert('Could not save the home picture in this browser.'); }
+  };
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [inChatMode, setInChatMode] = useState(false);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -81,6 +92,8 @@ export default function App() {
   const [isSavedMessagesOpen, setIsSavedMessagesOpen] = useState(false);
   const [isSceneGeneratorOpen, setIsSceneGeneratorOpen] = useState(false);
   const [isGitSyncOpen, setIsGitSyncOpen] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [walletView, setWalletView] = useState<'dashboard' | 'activity'>('dashboard');
 
   // Persona Page & Creator Mode
   const [isPersonaCreatorOpen, setIsPersonaCreatorOpen] = useState(false);
@@ -138,6 +151,9 @@ export default function App() {
             personas: remote.personas || prev.personas,
             storyMemories: remote.storyMemories || prev.storyMemories,
             savedMessages: remote.savedMessages || prev.savedMessages,
+            openRouterConfig: remote.openRouterConfig || prev.openRouterConfig,
+            supabaseConfig: remote.supabaseConfig || prev.supabaseConfig,
+            wallets: remote.wallets || prev.wallets,
           }));
         }
       }
@@ -280,6 +296,20 @@ export default function App() {
   const handleSavePreferences = (value: AppPreferences) => {
     updateData({ ...data, appPreferences: normalizePreferences(value) });
   };
+  const handleOpenWallet = (view: 'dashboard' | 'activity') => {
+    if (!activeChat) return;
+    const persona = data.personas.find((item) => item.id === activeChat.personaId) || data.personas[0];
+    const wallet = getWalletForScope(data.wallets, activeChat.id, persona?.id || 'persona_default');
+    if (!data.wallets.some((item) => item.id === wallet.id)) updateData({ ...data, wallets: [...data.wallets, wallet] });
+    setWalletView(view);
+    setIsWalletOpen(true);
+  };
+  const handleSaveWallet = (wallet: StoryWallet) => {
+    const wallets = data.wallets.some((item) => item.id === wallet.id)
+      ? data.wallets.map((item) => item.id === wallet.id ? wallet : item)
+      : [...data.wallets, wallet];
+    updateData({ ...data, wallets });
+  };
   const handleExportData = () => {
     const { openRouterConfig, supabaseConfig, ...backup } = data;
     downloadJson('ColorPop_Backup.json', { version: 1, exportedAt: new Date().toISOString(), ...backup });
@@ -333,6 +363,10 @@ export default function App() {
     setIsCreateCharacterOpen(true);
   };
 
+  const activeWalletPersona = activeChat ? (data.personas.find((item) => item.id === activeChat.personaId) || data.personas[0]) : undefined;
+  const activeWallet = activeChat && activeWalletPersona ? getWalletForScope(data.wallets, activeChat.id, activeWalletPersona.id) : null;
+  const walletSenderName = activeChat ? (data.characters.find((item) => activeChat.characterIds.includes(item.id))?.name || 'Story character') : 'Story character';
+
   // 1. Dedicated Full-Page Create Character View
   if (isCreateCharacterOpen) {
     return (
@@ -354,7 +388,7 @@ export default function App() {
         onOpenLibrary={() => {
           setIsCreateCharacterOpen(false);
           setCharacterToEdit(null);
-          setIsCharModalOpen(true);
+          setActiveTab('characters');
         }}
         onOpenPersonaLibrary={() => {
           setIsCreateCharacterOpen(false);
@@ -370,7 +404,7 @@ export default function App() {
         onOpenGallery={() => {
           setIsCreateCharacterOpen(false);
           setCharacterToEdit(null);
-          setIsSceneGeneratorOpen(true);
+          setActiveTab('gallery');
         }}
         onOpenHome={() => {
           setIsCreateCharacterOpen(false);
@@ -408,6 +442,8 @@ export default function App() {
           onOpenSavedMessagesModal={() => setIsSavedMessagesOpen(true)}
           onOpenSceneGeneratorModal={() => setIsSceneGeneratorOpen(true)}
           onOpenGitHubSyncModal={() => setIsGitSyncOpen(true)}
+          onOpenWallet={handleOpenWallet}
+          onUpdatePreferences={handleSavePreferences}
           onTogglePlugin={handleTogglePlugin}
           onBookmarkMessage={handleBookmarkMessage}
         />
@@ -484,6 +520,16 @@ export default function App() {
           onApplySceneBackground={handleApplySceneBackground}
         />
         <GitHubSyncModal isOpen={isGitSyncOpen} onClose={() => setIsGitSyncOpen(false)} />
+        {activeWallet && activeWalletPersona && <WalletModal
+          isOpen={isWalletOpen}
+          onClose={() => setIsWalletOpen(false)}
+          view={walletView}
+          onChangeView={setWalletView}
+          wallet={activeWallet}
+          personaName={activeWalletPersona.name}
+          characterName={walletSenderName}
+          onSaveWallet={handleSaveWallet}
+        />}
       </>
     );
   }
@@ -516,8 +562,8 @@ export default function App() {
               setActiveTab(t);
               if (t === 'chats') {
                 if (activeChat) setInChatMode(true);
-              } else if (t === 'characters') {
-                handleOpenCreateCharacterPage(null);
+              } else if (t === 'characters' || t === 'gallery' || t === 'files') {
+                setIsCreateCharacterOpen(false);
               } else if (t === 'lorebooks') {
                 setIsLoreModalOpen(true);
               } else if (t === 'personas') {
@@ -542,7 +588,32 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
-        {activeTab === 'personas' ? (
+        {activeTab === 'characters' ? (
+          <CharacterModal
+            isOpen={true}
+            fullPage
+            onClose={() => setActiveTab('home')}
+            characters={data.characters}
+            onSaveCharacter={handleSaveCharacter}
+            onStartChatWithCharacter={handleStartChatWithCharacter}
+            onOpenCreateCharacter={(character) => handleOpenCreateCharacterPage(character)}
+          />
+        ) : activeTab === 'gallery' ? (
+          <SceneGeneratorModal
+            isOpen={true}
+            fullPage
+            homeImage={homeImage}
+            onSetHomeImage={(image) => { handleSetHomeImage(image); setActiveTab('home'); }}
+            onClose={() => setActiveTab('home')}
+            chats={data.chats}
+            activeChatId={activeChat?.id}
+            onApplySceneBackground={handleApplySceneBackground}
+          />
+        ) : activeTab === 'files' ? (
+          <FileKeeperView />
+        ) : activeTab === 'perchance' ? (
+          <PerchanceView />
+        ) : activeTab === 'personas' ? (
           isPersonaCreatorOpen ? (
             <PersonaCreatorView
               initialPersona={personaToEdit}
@@ -574,12 +645,14 @@ export default function App() {
           <>
             {/* 3. Luxury Hero Banner + Quick Links 12-Jewel Grid */}
             <ColorPopHero
+              heroImage={homeImage}
+              onOpenGallery={() => setActiveTab('gallery')}
               onQuickAction={(id) => {
-                if (id === 'characters') handleOpenCreateCharacterPage(null);
+                if (id === 'characters') setActiveTab('characters');
                 else if (id === 'lorebooks') setIsLoreModalOpen(true);
                 else if (id === 'plugins') setIsPluginModalOpen(true);
                 else if (id === 'settings') setIsSettingsOpen(true);
-                else if (id === 'gallery') setIsSceneGeneratorOpen(true);
+                else if (id === 'gallery') setActiveTab('gallery');
                 else if (id === 'templates' || id === 'loreberry') handleOpenCreateCharacterPage(null);
               }}
               onOpenCharacterModal={() => handleOpenCreateCharacterPage(null)}
@@ -615,7 +688,7 @@ export default function App() {
               activeCategory={activeCategory}
               onSelectCategory={(cat) => {
                 setActiveCategory(cat);
-                if (cat === 'characters') handleOpenCreateCharacterPage(null);
+                if (cat === 'characters') setActiveTab('characters');
                 if (cat === 'personas') {
                   setActiveTab('personas');
                   setIsPersonaCreatorOpen(false);
@@ -623,7 +696,7 @@ export default function App() {
                 }
                 if (cat === 'lorebooks' || cat === 'locations') setIsLoreModalOpen(true);
                 if (cat === 'plugins') setIsPluginModalOpen(true);
-                if (cat === 'images') setIsSceneGeneratorOpen(true);
+                if (cat === 'images') setActiveTab('gallery');
                 if (cat === 'favorites') setIsSavedMessagesOpen(true);
                 if (cat === 'recent') {
                   if (activeChat) setInChatMode(true);

@@ -91,6 +91,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
   const [diceResult, setDiceResult] = useState<string | null>(null);
   const [quickNote, setQuickNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
+  const [activeTrack, setActiveTrack] = useState<'left' | 'right'>('left');
 
   // Close on Escape key
   useEffect(() => {
@@ -160,6 +161,10 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
           <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff99cc] to-[#ff3399]">
             Dual Track Mode
           </span>
+          <div className="flex items-center gap-1 sm:hidden">
+            <button onClick={() => setActiveTrack('left')} aria-pressed={activeTrack === 'left'} className={`px-2 py-1 rounded-full text-[10px] font-bold ${activeTrack === 'left' ? 'bg-white text-[#9b125c]' : 'bg-white/10 text-white'}`}>Left</button>
+            <button onClick={() => setActiveTrack('right')} aria-pressed={activeTrack === 'right'} className={`px-2 py-1 rounded-full text-[10px] font-bold ${activeTrack === 'right' ? 'bg-white text-[#9b125c]' : 'bg-white/10 text-white'}`}>Right</button>
+          </div>
           <button
             onClick={onClose}
             className="flex items-center space-x-1.5 px-2.5 py-1 bg-[#ff007f] hover:bg-[#ff1a8c] text-white rounded-full text-xs font-bold transition-all shadow-[0_0_12px_rgba(255,0,128,0.8)]"
@@ -176,9 +181,9 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
       {/* Pops up and slides over from the left edge */}
       {/* ========================================================================= */}
       <aside
-        className={`absolute top-0 bottom-0 left-0 w-80 sm:w-96 bg-[#12030e]/95 border-r-2 border-[#ff3399]/60 backdrop-blur-xl shadow-[10px_0_40px_rgba(255,51,153,0.35)] flex flex-col z-50 transform transition-transform duration-300 ease-out ${
+        className={`absolute top-0 bottom-0 left-0 w-screen sm:w-96 bg-[#12030e]/95 border-r-2 border-[#ff3399]/60 backdrop-blur-xl shadow-[10px_0_40px_rgba(255,51,153,0.35)] flex flex-col z-50 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        } ${isOpen && activeTrack === 'left' ? 'max-sm:translate-x-0' : 'max-sm:-translate-x-full'}`}
       >
         {/* Left Track Header with X */}
         <div className="p-4 border-b border-[#ff3399]/30 flex items-center justify-between bg-[#190514]">
@@ -193,7 +198,7 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
               >
                 Left Track: Navigation
               </h3>
-              <p className="text-[10px] text-[#ff99cc]">ColorPop Roleplay Hub</p>
+              <p className="text-[10px] text-[#ff99cc]">Pretty Little Fantasies</p>
             </div>
           </div>
 
@@ -476,9 +481,9 @@ export const DualTrackOverlay: React.FC<DualTrackOverlayProps> = ({
       {/* Pops up and slides over from the right edge */}
       {/* ========================================================================= */}
       <aside
-        className={`absolute top-0 bottom-0 right-0 w-80 sm:w-96 bg-[#12030e]/95 border-l-2 border-[#ff3399]/60 backdrop-blur-xl shadow-[-10px_0_40px_rgba(255,51,153,0.35)] flex flex-col z-50 transform transition-transform duration-300 ease-out ${
+        className={`absolute top-0 bottom-0 right-0 w-screen sm:w-96 bg-[#12030e]/95 border-l-2 border-[#ff3399]/60 backdrop-blur-xl shadow-[-10px_0_40px_rgba(255,51,153,0.35)] flex flex-col z-50 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        } ${isOpen && activeTrack === 'right' ? 'max-sm:translate-x-0' : 'max-sm:translate-x-full'}`}
       >
         {/* Right Track Header with X */}
         <div className="p-4 border-b border-[#ff3399]/30 flex items-center justify-between bg-[#190514]">

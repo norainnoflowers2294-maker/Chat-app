@@ -1,227 +1,164 @@
 import { resolveImageUrl } from '../utils/imageUrl';
-import React, { useState } from 'react';
-import { X, Sparkles, Image as ImageIcon, Download, Check, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Check, Upload, Trash2, Home, Plus, Folder, Image as ImageIcon, Pencil, FolderPlus } from 'lucide-react';
 import { Chat } from '../types/roleplay';
+import { onAuthStateChanged } from 'firebase/auth';
+import { deleteObject, getDownloadURL, getMetadata, listAll, ref, updateMetadata, uploadBytes } from 'firebase/storage';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, storage } from '../lib/firebase';
+
+interface Album { id: string; name: string; coverImage: string; }
+interface Picture { id?: string; title: string; url: string; albumId?: string; }
+const ALBUMS_KEY = 'colorpop_gallery_albums_v1';
+const GALLERY_KEY = 'colorpop_gallery_items_v1';
+const readJson = <T,>(key: string, fallback: T): T => {
+  try { const parsed = JSON.parse(localStorage.getItem(key) || 'null'); return parsed ?? fallback; } catch { return fallback; }
+};
 
 interface SceneGeneratorModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  chats: Chat[];
-  activeChatId?: string;
-  onApplySceneBackground: (chatId: string, bgUrl: string) => void;
+  isOpen: boolean; onClose: () => void; chats: Chat[]; activeChatId?: string;
+  onApplySceneBackground: (chatId: string, bgUrl: string) => void; fullPage?: boolean;
+  homeImage?: string; onSetHomeImage?: (image: string) => void;
 }
 
-export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({
-  isOpen,
-  onClose,
-  chats,
-  activeChatId,
-  onApplySceneBackground,
-}) => {
-  const [prompt, setPrompt] = useState('Opulent multi-level glass penthouse overlooking futuristic neon skyline at 2 AM, violet and magenta rim lights, luxury marble terrace');
-  const [style, setStyle] = useState('Photorealistic Luxury');
-  const [aspect, setAspect] = useState('16:9');
-  const [selectedChatId, setSelectedChatId] = useState<string>(activeChatId || chats[0]?.id || '');
-  const [selectedImage, setSelectedImage] = useState<string>('/penthouse.jpg');
+export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen, onClose, chats, activeChatId, onApplySceneBackground, fullPage = false, homeImage, onSetHomeImage }) => {
+  const [selectedChatId, setSelectedChatId] = useState(activeChatId || chats[0]?.id || '');
+  const [selectedImage, setSelectedImage] = useState(homeImage || '');
+  const [uploaded, setUploaded] = useState<Picture[]>(() => readJson(GALLERY_KEY, []));
+  const [albums, setAlbums] = useState<Album[]>(() => readJson(ALBUMS_KEY, []));
+  const [activeAlbumId, setActiveAlbumId] = useState('all');
+  const [albumName, setAlbumName] = useState('');
+  const [cloudMessage, setCloudMessage] = useState('');
+  const activeAlbum = albums.find((album) => album.id === activeAlbumId);
+  const visiblePictures = useMemo(() => activeAlbumId === 'all' ? uploaded : uploaded.filter((picture) => picture.albumId === activeAlbumId), [activeAlbumId, uploaded]);
 
-  // Curated scene collection presets
-  const scenePresets = [
-    {
-      title: 'Skyfall Penthouse Terrace',
-      url: '/penthouse.jpg',
-      category: 'Luxury',
-      desc: 'Marble terrace overlooking neon magenta city lights.',
-    },
-    {
-      title: 'Beverly Hills Citadel',
-      url: '/mansion.jpg',
-      category: 'Estate',
-      desc: '30,000-sq-ft private compound with infinity pool and palm trees.',
-    },
-    {
-      title: 'Midnight Highway Run',
-      url: '/roadtrip.jpg',
-      category: 'Action',
-      desc: 'Twin-turbo exotic supercars speeding along the coastal highway.',
-    },
-    {
-      title: 'ColorPop VIP Lounge',
-      url: '/colorpop_hero.jpg',
-      category: 'Nightlife',
-      desc: 'Diamond chandeliers, black velvet booths, and vintage champagne.',
-    },
-    {
-      title: 'Billionaire Suite Intimacy',
-      url: '/lucious.jpg',
-      category: 'Intimate',
-      desc: 'Smoky ambient amber glow with private balcony lounge.',
-    },
-  ];
-
-  if (!isOpen) return null;
-
-  const handleApply = () => {
-    if (selectedChatId && selectedImage) {
-      onApplySceneBackground(selectedChatId, selectedImage);
-      onClose();
-    }
+  const savePictures = (items: Picture[]) => {
+    setUploaded(items);
+    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(items)); }
+    catch { window.alert('Gallery storage is full. Delete a few pictures and try again.'); }
   };
+  const saveAlbums = (items: Album[]) => {
+    setAlbums(items);
+    try { localStorage.setItem(ALBUMS_KEY, JSON.stringify(items)); }
+    catch { window.alert('Could not save your albums in this browser.'); }
+    const user = auth.currentUser;
+    if (user) void setDoc(doc(db, 'users', user.uid), { galleryAlbums: items }, { merge: true }).catch(() => setCloudMessage('Albums are saved on this device, but Firebase could not sync them.'));
+  };
+  useEffect(() => onAuthStateChanged(auth, async (user) => {
+    if (!user) { setCloudMessage('Sign in to Firebase to back up your pictures and albums.'); return; }
+    try {
+      const albumDoc = await getDoc(doc(db, 'users', user.uid));
+      const cloudAlbums = albumDoc.data()?.galleryAlbums;
+      if (Array.isArray(cloudAlbums)) { setAlbums(cloudAlbums); localStorage.setItem(ALBUMS_KEY, JSON.stringify(cloudAlbums)); }
+      const result = await listAll(ref(storage, `users/${user.uid}/gallery`));
+      const cloudPictures = await Promise.all(result.items.map(async (item): Promise<Picture> => {
+        const [metadata, url] = await Promise.all([getMetadata(item), getDownloadURL(item)]);
+        return { id: metadata.customMetadata?.id || item.name, title: metadata.customMetadata?.title || item.name, url, albumId: metadata.customMetadata?.albumId || undefined };
+      }));
+      let combined = [...uploaded];
+      for (const picture of cloudPictures) {
+        const match = combined.findIndex((local) => local.id === picture.id);
+        if (match >= 0) combined[match] = picture; else combined.push(picture);
+      }
+      // Move older browser-only photos into Firebase on the next signed-in visit.
+      for (const local of combined.filter((picture) => picture.url.startsWith('data:'))) {
+        const blob = await (await fetch(local.url)).blob();
+        const id = local.id || `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const cloudRef = ref(storage, `users/${user.uid}/gallery/${id}.jpg`);
+        await uploadBytes(cloudRef, blob, { contentType: blob.type || 'image/jpeg', customMetadata: { id, title: local.title, albumId: local.albumId || '' } });
+        local.id = id; local.url = await getDownloadURL(cloudRef);
+      }
+      setUploaded(combined); localStorage.setItem(GALLERY_KEY, JSON.stringify(combined)); setCloudMessage('Pictures and albums are backed up to Firebase Storage.');
+    } catch { setCloudMessage('Firebase backup could not load. Your browser copies are still here; check Firebase sign-in and Storage rules.'); }
+  }), []);
+  const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith('image/'));
+    const newPictures: Picture[] = [];
+    for (const file of files) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file);
+      });
+      const compressed = await new Promise<string>((resolve) => {
+        const image = new Image();
+        image.onload = () => { const scale = Math.min(1, 1400 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale); canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.82)); };
+        image.onerror = () => resolve(dataUrl); image.src = dataUrl;
+      });
+      const id = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const title = file.name.replace(/\.[^.]+$/, '');
+      let url = compressed;
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const blob = await (await fetch(compressed)).blob();
+          const cloudRef = ref(storage, `users/${user.uid}/gallery/${id}.jpg`);
+          await uploadBytes(cloudRef, blob, { contentType: 'image/jpeg', customMetadata: { id, title } });
+          url = await getDownloadURL(cloudRef);
+        } catch { setCloudMessage('Picture saved in this browser, but its Firebase upload failed. Check your connection and Storage rules.'); }
+      } else setCloudMessage('Picture saved in this browser. Sign in to back it up to Firebase.');
+      newPictures.push({ id, title, url });
+    }
+    if (newPictures.length) savePictures([...uploaded, ...newPictures]);
+    event.target.value = '';
+  };
+  const createAlbum = () => {
+    const name = albumName.trim(); if (!name) return;
+    const id = `album_${Date.now()}`;
+    saveAlbums([...albums, { id, name, coverImage: selectedImage || uploaded[0]?.url || '' }]);
+    setAlbumName(''); setActiveAlbumId(id);
+  };
+  const deleteAlbum = () => {
+    if (!activeAlbum || !window.confirm(`Delete the album “${activeAlbum.name}”? Its pictures will stay in All Photos.`)) return;
+    saveAlbums(albums.filter((album) => album.id !== activeAlbum.id));
+    savePictures(uploaded.map((picture) => picture.albumId === activeAlbum.id ? { ...picture, albumId: undefined } : picture));
+    setActiveAlbumId('all');
+  };
+  const renameAlbum = () => {
+    if (!activeAlbum) return;
+    const name = window.prompt('Album name', activeAlbum.name)?.trim(); if (!name) return;
+    saveAlbums(albums.map((album) => album.id === activeAlbum.id ? { ...album, name } : album));
+  };
+  const updateAlbumCover = () => {
+    if (!activeAlbum || !selectedImage) return;
+    saveAlbums(albums.map((album) => album.id === activeAlbum.id ? { ...album, coverImage: selectedImage } : album));
+  };
+  const putInAlbum = () => {
+    if (!activeAlbum || !selectedImage) return;
+    const updated = uploaded.map((picture) => picture.url === selectedImage ? { ...picture, albumId: activeAlbum.id } : picture);
+    savePictures(updated);
+    const picture = updated.find((item) => item.url === selectedImage);
+    const user = auth.currentUser;
+    if (user && picture?.id && !picture.url.startsWith('data:')) void updateMetadata(ref(storage, `users/${user.uid}/gallery/${picture.id}.jpg`), { customMetadata: { id: picture.id, title: picture.title, albumId: activeAlbum.id } }).catch(() => setCloudMessage('Photo moved in this browser, but the Firebase album update failed.'));
+  };
+  const deletePicture = (picture: Picture) => {
+    savePictures(uploaded.filter((item) => item.url !== picture.url));
+    const user = auth.currentUser;
+    if (user && picture.id && !picture.url.startsWith('data:')) void deleteObject(ref(storage, `users/${user.uid}/gallery/${picture.id}.jpg`)).catch(() => setCloudMessage('Photo removed from this browser, but Firebase could not delete its cloud copy.'));
+    if (selectedImage === picture.url) setSelectedImage('');
+  };
+  if (!isOpen) return null;
+  const selectedTitle = uploaded.find((picture) => picture.url === selectedImage)?.title || 'Picture';
+  const handleApply = () => { if (selectedChatId && selectedImage) { onApplySceneBackground(selectedChatId, selectedImage); onClose(); } };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-3xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl p-6 shadow-[0_0_40px_rgba(255,51,153,0.4)] flex flex-col max-h-[90vh] overflow-hidden text-[#ffd6eb]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#ff3399]/30 pb-4 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-[#00b4db] to-[#0083b0] text-white shadow-[0_0_15px_rgba(0,180,219,0.6)]">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h2
-                className="text-xl font-bold text-white tracking-wide"
-                style={{ fontFamily: "'Playfair Display', serif" }}
-              >
-                Scene Image Visualizer
-              </h2>
-              <p className="text-xs text-[#ffd6eb]/70">
-                Generate high-fashion backgrounds and set dynamic backdrops for your roleplay chats
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-[#ffd6eb] hover:text-white transition-all"
-            title="Close (X)"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-          {/* Prompt Box */}
-          <div className="p-4 bg-[#1e071a] border border-[#ff3399]/30 rounded-2xl space-y-3">
-            <label className="text-xs font-bold text-[#ff99cc] block">
-              Scene Prompt &amp; Atmosphere
-            </label>
-            <textarea
-              rows={2}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="w-full bg-[#12040e] border border-[#ff3399]/30 focus:border-[#ff3399] rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none resize-none"
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-[11px] text-[#ffd6eb]/70">Style:</span>
-                <select
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  className="bg-[#12040e] border border-[#ff3399]/30 rounded-xl px-2.5 py-1 text-xs text-white"
-                >
-                  <option value="Photorealistic Luxury">Photorealistic Luxury</option>
-                  <option value="Anime Cyberpunk">Anime Cyberpunk</option>
-                  <option value="Cinematic Noir">Cinematic Noir</option>
-                  <option value="Fantasy Oil Painting">Fantasy Oil Painting</option>
-                </select>
-
-                <select
-                  value={aspect}
-                  onChange={(e) => setAspect(e.target.value)}
-                  className="bg-[#12040e] border border-[#ff3399]/30 rounded-xl px-2.5 py-1 text-xs text-white"
-                >
-                  <option value="16:9">16:9 Landscape</option>
-                  <option value="9:16">9:16 Portrait</option>
-                  <option value="1:1">1:1 Square</option>
-                </select>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-[11px] text-[#ffd6eb]/70">Target Chat:</span>
-                <select
-                  value={selectedChatId}
-                  onChange={(e) => setSelectedChatId(e.target.value)}
-                  className="bg-[#12040e] border border-[#ff3399]/30 rounded-xl px-2.5 py-1 text-xs text-white"
-                >
-                  {chats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Preset Scene Gallery */}
-          <div>
-            <h3 className="text-xs font-bold text-[#ff99cc] uppercase tracking-wider mb-2.5">
-              Available Scene &amp; Atmosphere Presets
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {scenePresets.map((preset) => {
-                const isSelected = selectedImage === preset.url;
-                return (
-                  <div
-                    key={preset.url}
-                    onClick={() => setSelectedImage(preset.url)}
-                    className={`relative rounded-2xl overflow-hidden border-2 cursor-pointer transition-all aspect-[16/10] group ${
-                      isSelected
-                        ? 'border-[#00b4db] ring-2 ring-[#00b4db]/50 shadow-[0_0_20px_rgba(0,180,219,0.5)] scale-[1.02]'
-                        : 'border-[#ff3399]/30 hover:border-[#ff3399]'
-                    }`}
-                  >
-                    <img
-                      src={resolveImageUrl(preset.url)}
-                      alt={preset.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
-
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 p-1 rounded-full bg-[#00b4db] text-white shadow">
-                        <Check className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-
-                    <div className="absolute bottom-2 left-2 right-2 text-left">
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/60 text-cyan-300 border border-white/20">
-                        {preset.category}
-                      </span>
-                      <h4 className="text-xs font-bold text-white truncate mt-0.5">{preset.title}</h4>
-                      <p className="text-[10px] text-[#ffd6eb]/80 truncate">{preset.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="pt-4 mt-2 border-t border-[#ff3399]/30 flex items-center justify-between">
-          <p className="text-xs text-[#ffd6eb]/70">
-            Selected: <strong className="text-white">{scenePresets.find((p) => p.url === selectedImage)?.title || 'Custom Scene'}</strong>
-          </p>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-[#ffd6eb] rounded-xl text-xs font-semibold"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleApply}
-              className="px-5 py-2 bg-gradient-to-r from-[#00b4db] to-[#0083b0] hover:from-[#1ac6ea] hover:to-[#0098cc] text-white rounded-xl text-xs font-bold shadow-[0_0_20px_rgba(0,180,219,0.7)] transition-all hover:scale-105"
-            >
-              Set as Chat Backdrop
-            </button>
-          </div>
-        </div>
+  return <div className={fullPage ? 'w-full max-w-7xl mx-auto px-4 py-6' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md'}>
+    <section className={`relative w-full ${fullPage ? 'max-w-7xl min-h-[70vh]' : 'max-w-4xl max-h-[90vh]'} bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl p-5 sm:p-6 shadow-[0_0_40px_rgba(255,51,153,0.4)] flex flex-col overflow-hidden text-[#ffd6eb]`}>
+      <header className="flex items-center justify-between border-b border-[#ff3399]/30 pb-4 mb-4">
+        <div><h2 className="text-xl font-bold text-white">Picture Library</h2><p className="text-xs text-[#ffd6eb]/70">Organize your pictures into albums and choose album covers.</p></div>
+        <button onClick={onClose} className="p-2 rounded-xl bg-white/10 hover:bg-white/20" aria-label="Close"><X className="w-5 h-5" /></button>
+      </header>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <label className="cursor-pointer px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] text-white text-xs font-bold flex items-center gap-2"><Upload className="w-4 h-4" /> Add pictures<input type="file" accept="image/*" multiple onChange={handlePictureUpload} className="hidden" /></label>
+        <div className="flex gap-2"><input aria-label="New album name" value={albumName} onChange={(event) => setAlbumName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && createAlbum()} placeholder="Album name" className="w-36 sm:w-48 bg-[#12040e] border border-[#ff3399]/30 rounded-xl px-3 py-2 text-xs text-white" /><button onClick={createAlbum} disabled={!albumName.trim()} className="px-3 py-2 rounded-xl bg-[#00b4db]/20 border border-[#00b4db]/40 text-cyan-100 text-xs font-bold disabled:opacity-40 flex items-center gap-1"><FolderPlus className="w-4 h-4" /> Create album</button></div>
+        <span className="text-[11px] text-[#ffd6eb]/60">{cloudMessage || 'Pictures and albums are saved in this browser.'}</span>
       </div>
-    </div>
-  );
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+        <button onClick={() => setActiveAlbumId('all')} className={`shrink-0 px-3 py-2 rounded-xl border text-xs font-semibold ${activeAlbumId === 'all' ? 'bg-[#ff007f]/25 border-[#ff3399] text-white' : 'bg-white/5 border-white/10 text-white/70'}`}><ImageIcon className="w-4 h-4 inline mr-1.5" />All Photos <span className="opacity-60">{uploaded.length}</span></button>
+        {albums.map((album) => <button key={album.id} onClick={() => setActiveAlbumId(album.id)} className={`shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${activeAlbumId === album.id ? 'bg-[#ff007f]/25 border-[#ff3399] text-white' : 'bg-white/5 border-white/10 text-white/70'}`}><span className="w-8 h-8 rounded-lg bg-black/30 overflow-hidden inline-flex items-center justify-center">{album.coverImage ? <img src={resolveImageUrl(album.coverImage)} className="w-full h-full object-cover" /> : <Folder className="w-4 h-4" />}</span>{album.name}<span className="opacity-60">{uploaded.filter((picture) => picture.albumId === album.id).length}</span></button>)}
+      </div>
+      {activeAlbum && <div className="flex flex-wrap items-center gap-2 p-3 mb-3 rounded-xl bg-[#1e071a] border border-[#ff3399]/20"><strong className="text-sm text-white mr-auto">{activeAlbum.name}</strong><button onClick={renameAlbum} className="px-2.5 py-1.5 text-xs rounded-lg bg-white/10 flex gap-1"><Pencil className="w-3.5 h-3.5" />Rename</button><button onClick={updateAlbumCover} disabled={!selectedImage} className="px-2.5 py-1.5 text-xs rounded-lg bg-cyan-500/20 text-cyan-100 disabled:opacity-40">Use selected as cover</button><button onClick={putInAlbum} disabled={!selectedImage} className="px-2.5 py-1.5 text-xs rounded-lg bg-pink-500/20 text-pink-100 disabled:opacity-40">Add selected photo</button><button onClick={deleteAlbum} className="px-2.5 py-1.5 text-xs rounded-lg bg-red-500/15 text-red-200 flex gap-1"><Trash2 className="w-3.5 h-3.5" />Delete album</button></div>}
+      <div className="flex-1 min-h-[200px] overflow-y-auto pr-1">
+        {visiblePictures.length ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">{visiblePictures.map((picture, index) => <button key={picture.id || `${picture.url}_${index}`} onClick={() => setSelectedImage(picture.url)} className={`relative rounded-2xl overflow-hidden border-2 text-left aspect-[4/3] group ${selectedImage === picture.url ? 'border-[#00b4db] ring-2 ring-[#00b4db]/40' : 'border-[#ff3399]/25 hover:border-[#ff3399]'}`}><img src={resolveImageUrl(picture.url)} alt={picture.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />{selectedImage === picture.url && <span className="absolute top-2 right-2 rounded-full p-1 bg-cyan-500 text-white"><Check className="w-4 h-4" /></span>}<span className="absolute inset-x-0 bottom-0 p-2 pt-8 bg-gradient-to-t from-black/90 to-transparent text-xs font-semibold text-white truncate">{picture.title}</span><span onClick={(event) => { event.stopPropagation(); deletePicture(picture); }} role="button" aria-label={`Delete ${picture.title}`} className="absolute left-2 top-2 p-1.5 rounded-full bg-black/70 text-white"><Trash2 className="w-3.5 h-3.5" /></span></button>)}</div> : <div className="h-48 flex flex-col items-center justify-center text-center text-white/55"><ImageIcon className="w-8 h-8 mb-2 opacity-40" /><p className="text-sm">{activeAlbum ? 'This album is empty. Select a photo in All Photos, then choose Add selected photo.' : 'No pictures yet. Add pictures from your device to start your library.'}</p></div>}
+      </div>
+      <footer className="pt-4 mt-3 border-t border-[#ff3399]/30 flex flex-wrap items-center gap-2 justify-between"><p className="text-xs text-[#ffd6eb]/70">Selected: <strong className="text-white">{selectedTitle}</strong></p><div className="flex flex-wrap gap-2">{onSetHomeImage && <button onClick={() => selectedImage && onSetHomeImage(selectedImage)} disabled={!selectedImage} className="px-3 py-2 bg-[#ff007f]/20 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Home className="w-4 h-4" /> Set Home Picture</button>}<select aria-label="Target chat" value={selectedChatId} onChange={(event) => setSelectedChatId(event.target.value)} className="max-w-40 bg-[#12040e] border border-[#ff3399]/30 rounded-xl px-2.5 py-2 text-xs text-white">{chats.map((chat) => <option key={chat.id} value={chat.id}>{chat.title}</option>)}</select><button onClick={handleApply} disabled={!selectedImage || !selectedChatId} className="px-4 py-2 bg-gradient-to-r from-[#00b4db] to-[#0083b0] text-white rounded-xl text-xs font-bold disabled:opacity-40">Set as Chat Backdrop</button></div></footer>
+    </section>
+  </div>;
 };

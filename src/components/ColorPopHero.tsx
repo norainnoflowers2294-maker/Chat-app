@@ -25,6 +25,8 @@ interface ColorPopHeroProps {
   onOpenChats: () => void;
   onOpenPlugins: () => void;
   onOpenSettings: () => void;
+  heroImage?: string;
+  onOpenGallery?: () => void;
 }
 
 export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
@@ -35,6 +37,8 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
   onOpenChats,
   onOpenPlugins,
   onOpenSettings,
+  heroImage,
+  onOpenGallery,
 }) => {
   const quickLinks = [
     { id: 'loreberry', label: 'Loreberry', icon: <Heart className="w-4 h-4 text-pink-400 fill-pink-500/40" />, glow: 'from-pink-600 to-rose-500', action: () => onQuickAction('loreberry') },
@@ -57,13 +61,14 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
       <div className="lg:col-span-8 relative group">
         <div className="relative rounded-3xl overflow-hidden border-2 border-[#ff3399]/60 shadow-[0_0_35px_rgba(255,51,153,0.45)] bg-[#12040e] aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] lg:aspect-auto lg:h-[460px]">
           <img
-            src={resolveImageUrl("/colorpop_hero.jpg")}
-            alt="ColorPop Luxury Couple"
+            src={resolveImageUrl(heroImage || "/colorpop_hero.jpg")}
+            alt="Pretty Little Fantasies homepage image"
             className="w-full h-full object-cover object-center group-hover:scale-[1.02] transition-transform duration-700"
           />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
 
+          {onOpenGallery && <button onClick={onOpenGallery} className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-full bg-black/60 border border-white/30 text-white text-[11px] font-semibold backdrop-blur-md hover:bg-black/80">Change home picture</button>}
           <div className="absolute top-4 left-4 text-[#ff99cc] drop-shadow-[0_0_10px_#ff007f] pointer-events-none">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
@@ -71,7 +76,7 @@ export const ColorPopHero: React.FC<ColorPopHeroProps> = ({
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between z-10">
             <div className="space-y-1">
               <span className="px-3 py-1 rounded-full bg-[#ff007f]/40 backdrop-blur-md border border-[#ff80bf]/50 text-white font-mono text-[10px] tracking-wider uppercase font-bold flex items-center gap-1.5 w-fit shadow-[0_0_15px_rgba(255,0,128,0.5)]">
-                <Sparkles className="w-3 h-3 text-[#ffd6eb]" /> ColorPop Elite Universe
+                <Sparkles className="w-3 h-3 text-[#ffd6eb]" /> Pretty Little Fantasies
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                 The Sovereign Billionaires &bull; Chapter IV

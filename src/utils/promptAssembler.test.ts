@@ -184,4 +184,35 @@ describe('buildOpenRouterMessages', () => {
     expect(messages[2].role).toBe('assistant');
     expect(messages[2].content).toBe('Hello human');
   });
+
+  it('includes the full selected character and user profile details', () => {
+    const params = getBaseParams();
+    params.characters = [{
+      id: 'c1', name: 'Mira Vale', avatar: '', description: 'Silver hair and green eyes', personality: 'Sharp-witted',
+      summary: 'A runaway star pilot', scenario: '', first_mes: '', mes_example: '', tags: [], createdAt: '', updatedAt: '',
+      nicknames: ['Miri'], age: '27', backstory: 'Raised on a cargo ship', voiceDescription: 'Low and warm',
+      height: '5ft 8in', hairColor: 'Silver', eyeColor: 'Green', system_prompt: 'Never break character',
+    } as Character];
+    params.persona = {
+      id: 'p1', name: 'Jasmine', display_name: 'Jas', nicknames: 'Jazz', occupation: 'Artist', avatar: '',
+      description: 'Curious', appearance: 'Dark curls', backstory: 'Loves old books', speaking_style: 'Playful',
+      traits: ['kind'], is_default: false, createdAt: '',
+    } as Persona;
+
+    const system = buildOpenRouterMessages(params)[0].content;
+    for (const detail of ['Nicknames: Miri', 'Age: 27', 'History and background: Raised on a cargo ship', 'Voice: Low and warm', 'System Directive: Never break character', 'Name to use in the scene: Jas', 'Nicknames: Jazz', 'Occupation: Artist', 'Appearance: Dark curls', 'Background: Loves old books']) {
+      expect(system).toContain(detail);
+    }
+  });
+
+  it('adds chat-specific reply controls and extra instructions', () => {
+    const params = getBaseParams();
+    params.chat = { ...params.chat, replyStyle: 'dialogue', replyLength: 'short', replyPointOfView: 'first_person', replyMood: 'playful', creativity: 1.4, promptInstructions: 'Use lots of banter.' };
+    const system = buildOpenRouterMessages(params)[0].content;
+    expect(system).toContain('dialogue-forward');
+    expect(system).toContain('first person as the responding character');
+    expect(system).toContain('playful banter');
+    expect(system).toContain('Creativity: 1.4');
+    expect(system).toContain('Use lots of banter.');
+  });
 });

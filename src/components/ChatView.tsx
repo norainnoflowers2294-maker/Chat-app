@@ -8,6 +8,7 @@ import {
   Sparkles,
   ArrowLeft,
   Settings,
+  SlidersHorizontal,
   Heart,
   CloudMoon,
   Dices,
@@ -41,7 +42,9 @@ import {
   ConnectionDiagnostic,
 } from '../types/roleplay';
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
+import { parseSlashCommand } from '../lib/slashCommands';
 import { DualTrackOverlay } from './DualTrackOverlay';
+import { ChatSettingsPanel } from './ChatSettingsPanel';
 
 interface ChatViewProps {
   preferences: AppPreferences;
@@ -66,6 +69,8 @@ interface ChatViewProps {
   onOpenSavedMessagesModal: () => void;
   onOpenSceneGeneratorModal: () => void;
   onOpenGitHubSyncModal: () => void;
+  onOpenWallet: (view: 'dashboard' | 'activity') => void;
+  onUpdatePreferences: (value: AppPreferences) => void;
   onTogglePlugin: (pluginId: string) => void;
   onBookmarkMessage: (msg: ChatMessage) => void;
 }
@@ -92,6 +97,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenSavedMessagesModal,
   onOpenSceneGeneratorModal,
   onOpenGitHubSyncModal,
+  onOpenWallet,
+  onUpdatePreferences,
   onTogglePlugin,
   onBookmarkMessage,
 }) => {
@@ -102,6 +109,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [editContent, setEditContent] = useState('');
   const [diceResult, setDiceResult] = useState<string | null>(null);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
+  const [commandNotice, setCommandNotice] = useState<string | null>(null);
+  const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
@@ -110,7 +119,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // Active entities in this chat
   const activeCharacters = characters.filter((c) => chat.characterIds.includes(c.id));
-  const activePersona = personas.find((p) => p.id === chat.personaId) || personas[0] || null;
+  const activePersona = chat.personaId ? personas.find((p) => p.id === chat.personaId) || null : personas[0] || null;
   const activeLorebooks = lorebooks.filter((l) => chat.lorebookIds.includes(l.id)).slice(0, 3);
   const activePlugins = plugins.filter((p) => chat.pluginIds.includes(p.id)).slice(0, 5);
 
@@ -128,18 +137,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!inputText.trim() || loading) return;
 
     setErrorDetails(null);
-
-    // If dice roll command
-    if (inputText.trim().startsWith('/roll')) {
-      const roll = Math.floor(Math.random() * 20) + 1;
-      const statMsg =
-        roll >= 18
-          ? 'Critical Success! (Natural ' + roll + ')'
-          : roll >= 10
-          ? 'Success (Rolled ' + roll + ')'
-          : 'Failure (Rolled ' + roll + ')';
-      setDiceResult(statMsg);
-      setTimeout(() => setDiceResult(null), 4000);
+    const command = parseSlashCommand(inputText.trim());
+    if (command) {
+      setInputText('');
+      if (command.type === 'wallet') {
+        onOpenWallet(command.view);
+        return;
+      }
+      if (command.type === 'narrator') {
+        const enabled = command.enabled ?? !preferences.narratorEnabled;
+        const nextPreferences = { ...preferences, narratorEnabled: enabled, ...(command.frequency ? { narratorFrequency: command.frequency } : {}) };
+        onUpdatePreferences(nextPreferences);
+        const detail = command.frequency ? ' Narration detail: ' + command.frequency + '.' : '';
+        setCommandNotice('Narrator ' + (enabled ? 'enabled.' : 'disabled.') + detail);
+        setTimeout(() => setCommandNotice(null), 3500);
+        return;
+      }
+      if (command.type === 'roll') {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const result = roll >= 18 ? 'Critical Success! (Natural ' + roll + ')' : roll >= 10 ? 'Success (Rolled ' + roll + ')' : 'Failure (Rolled ' + roll + ')';
+        setDiceResult(result);
+        setTimeout(() => setDiceResult(null), 4000);
+        return;
+      }
     }
 
     const userMessage: ChatMessage = {
@@ -173,7 +193,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences, storyMemories,
       });
 
-      const botReply = await sendOpenRouterChat(openRouterConfig, apiMessages);
+      const replyLength = updatedChat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const botReply = await sendOpenRouterChat({ ...openRouterConfig, temperature: updatedChat.creativity ?? openRouterConfig.temperature, maxTokens }, apiMessages);
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
 
       const replyMessage: ChatMessage = {
@@ -286,7 +310,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-[#ffd6eb]/70 truncate max-w-xs">
-                Playing as <strong className="text-white">{activePersona?.name}</strong> &bull; {activeLorebooks.length} Lorebooks &bull; {activePlugins.length} Plugins
+                Playing as <select aria-label="Choose persona for this chat" value={chat.personaId || activePersona?.id || ''} onChange={(e) => onUpdateChat({ ...chat, personaId: e.target.value, updatedAt: new Date().toISOString() })} className="max-w-[130px] bg-[#1e0818] border border-[#ff66b2]/50 rounded-md px-1 py-0.5 text-white focus:outline-none focus:border-[#ff007f]">{personas.map((persona) => <option key={persona.id} value={persona.id}>{persona.display_name || persona.name}</option>)}</select> &bull; {activeLorebooks.length} Lorebooks &bull; {activePlugins.length} Plugins
               </p>
             </div>
           </div>
@@ -334,6 +358,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Puzzle className="w-4 h-4 text-fuchsia-400" />
           </button>
 
+          <button type="button" onClick={() => setIsChatSettingsOpen(true)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-pink-200 transition-colors" title="Chat reply settings" aria-label="Chat reply settings">
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+
           {/* Settings / Diagnostic Button */}
           <button
             onClick={onOpenSettings}
@@ -344,6 +372,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </button>
         </div>
       </header>
+
+      {isChatSettingsOpen && <ChatSettingsPanel chat={chat} characters={characters} personas={personas} onClose={() => setIsChatSettingsOpen(false)} onSave={(updatedChat) => { onUpdateChat(updatedChat); setIsChatSettingsOpen(false); }} />}
 
       {/* Scenario / Lore / Atmosphere Bar */}
       <div className="relative z-20 px-4 py-1.5 bg-[#1b0516]/85 border-b border-[#ff3399]/20 flex items-center justify-between text-[11px] text-[#ffd6eb]/80">
@@ -404,6 +434,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       >
         {chat.messages.map((msg) => {
           const isUser = msg.senderId === 'user';
+          const messageCharacter = characters.find((character) => character.id === msg.senderId);
+          const messageAvatar = messageCharacter?.avatar || msg.avatar || (isUser ? activePersona?.avatar : undefined) || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg');
+          const messageName = messageCharacter?.name || msg.senderName;
 
           return (
             <div
@@ -414,8 +447,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               {/* Avatar */}
               <img
-                src={resolveImageUrl(msg.avatar || (isUser ? '/colorpop_hero.jpg' : '/lucious.jpg'))}
-                alt={msg.senderName}
+                src={resolveImageUrl(messageAvatar)}
+                alt={messageName}
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#ff3399]/50 shadow-md shrink-0"
               />
 
@@ -429,7 +462,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               >
                 {/* Sender Name + Quick Save Action */}
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10 text-[10px] font-bold">
-                  <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{msg.senderName}</span>
+                  <span className={`cp-sender ${isUser ? 'text-white' : 'text-[#ff99cc]'}`}>{messageName}</span>
 
                   <div className="flex items-center space-x-2">
                     {preferences.showTimestamps && <span className="opacity-60 font-mono">
@@ -524,6 +557,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         )}
 
+        {commandNotice && <div role="status" className="mx-auto mb-2 rounded-xl border border-[#ff66b2]/40 bg-[#310d28]/95 px-4 py-2 text-sm text-[#ffd6eb] shadow-lg">{commandNotice}</div>}
         {diceResult && (
           <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl text-emerald-300 text-xs font-bold flex items-center space-x-2 animate-bounce">
             <Dices className="w-4 h-4" />

@@ -9,7 +9,7 @@ interface GitHubSyncModalProps {
 
 export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ isOpen, onClose }) => {
   const [repoUrl, setRepoUrl] = useState(DEFAULT_GITHUB_REPO_URL);
-  const [commitMsg, setCommitMsg] = useState('Update ColorPop Roleplay Hub with Dual Track Screen and Interconnected Links');
+  const [commitMsg, setCommitMsg] = useState('Update Pretty Little Fantasies with Dual Track Screen and Interconnected Links');
   const [pushing, setPushing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
 

@@ -646,7 +646,7 @@ app.post('/api/openrouter/test', async (req: Request, res: Response) => {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': getAppUrl(req),
-        'X-Title': 'ColorPop Roleplay Hub',
+        'X-Title': 'Pretty Little Fantasies',
       },
     });
 
@@ -730,7 +730,7 @@ app.post('/api/openrouter/chat', async (req: Request, res: Response) => {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': getAppUrl(req),
-        'X-Title': 'ColorPop Roleplay Hub',
+        'X-Title': 'Pretty Little Fantasies',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -783,7 +783,7 @@ app.post('/api/git/push', async (req: Request, res: Response) => {
 
   const token = (process.env.GITHUB_CLIENT_ID || process.env.GITHUB_TOKEN || '').trim();
   const repoUrl = req.body.repoUrl || 'https://github.com/norainnoflowers2294-maker/Chat-app.git';
-  const commitMsg = req.body.commitMsg || `Update ColorPop Roleplay Hub - ${new Date().toISOString()}`;
+  const commitMsg = req.body.commitMsg || `Update Pretty Little Fantasies - ${new Date().toISOString()}`;
 
   if (!token) {
     res.status(400).json({ error: 'GitHub token not found in environment' });
