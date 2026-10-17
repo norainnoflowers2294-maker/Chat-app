@@ -30,11 +30,11 @@ export const SocialMediaView: React.FC<SocialMediaViewProps> = ({
     };
     const profileNames = new Set([normalize(profile.name), ...(aliases[profile.id] || [])]);
     const character = characters.find((item) =>
-      [item.name, ...(item.nicknames || [])].some((name) => profileNames.has(normalize(name)))
+      [item.name, ...(item.nicknames || [])].some((name) => {\n        const candidate = normalize(name);\n        return [...profileNames].some((profileName) => candidate === profileName || candidate.startsWith(profileName));\n      })
     );
     if (character?.avatar) return character.avatar;
     const persona = personas.find((item) =>
-      [item.name, item.display_name || '', ...(item.nicknames || '').split(',')].some((name) => profileNames.has(normalize(name)))
+      [item.name, item.display_name || '', ...(item.nicknames || '').split(',')].some((name) => {\n        const candidate = normalize(name);\n        return [...profileNames].some((profileName) => candidate === profileName || candidate.startsWith(profileName));\n      })
     );
     if (persona?.avatar) return persona.avatar;
     const defaults: Record<string, string> = {
