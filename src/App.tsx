@@ -702,7 +702,7 @@ export default function App() {
             onApplySceneBackground={handleApplySceneBackground}
           />
         ) : activeTab === 'files' ? (
-          <FileKeeperView />
+          <FileKeeperView onBack={() => setActiveTab('home')} />
         ) : activeTab === 'perchance' ? (
           <PerchanceView />
         ) : activeTab === 'personas' ? (
