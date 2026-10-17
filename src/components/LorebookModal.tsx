@@ -161,7 +161,16 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ff3399]/30 bg-[#0d020b]">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Back to the app"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-[#ffd6eb] hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#ff6f61] to-[#ff8577] flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,111,97,0.6)]">
               <BookOpen className="w-5 h-5" />
             </div>
