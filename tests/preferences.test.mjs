@@ -76,6 +76,7 @@ test('story memories can be edited and pinned through persistent upsert handler'
  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
  assert.match(modal,/Edit Memory Note/);
  assert.match(modal,/Pin memory/);
+ assert.ok(modal.indexOf('const chatsById = useMemo') < modal.indexOf('if (!isOpen) return null;'), 'modal hooks must run before the closed-state return');
  assert.match(app,/existing\.some\(\(item\) => item\.id === savedMemory\.id\)/);
  assert.match(app,/deletedAt, updatedAt: deletedAt/);
 });
