@@ -53,6 +53,7 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const [draftFrom, setDraftFrom] = useState('');
+  const [draftMediaUrl, setDraftMediaUrl] = useState('');
   const [draftLocked, setDraftLocked] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -112,8 +113,8 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
     if (!phone || !draftBody.trim()) return;
     const kind = kindForTab[activeTab] || 'note';
     const title = draftTitle.trim() || (kind === 'text' ? 'Message' : kind === 'call' ? 'Call' : kind === 'photo' ? 'Photo' : kind === 'contact' ? 'Contact' : kind === 'notification' ? 'Notification' : 'Note');
-    updatePhone(addPhoneItem(currentState, phone.id, { kind, title, body: draftBody.trim(), from: draftFrom.trim() || undefined, locked: draftLocked }));
-    setDraftTitle(''); setDraftBody(''); setDraftFrom(''); setDraftLocked(false);
+    updatePhone(addPhoneItem(currentState, phone.id, { kind, title, body: draftBody.trim(), from: draftFrom.trim() || undefined, mediaUrl: draftMediaUrl.trim() || undefined, locked: draftLocked }));
+    setDraftTitle(''); setDraftBody(''); setDraftFrom(''); setDraftMediaUrl(''); setDraftLocked(false);
   };
   const readItem = (item: FictionalPhoneItem) => {
     if (!phone) return;
@@ -225,14 +226,14 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
                 {items.length ? items.map((item) => {
                   const hidden = item.locked && !revealedItems.includes(item.id);
                   return <article key={item.id} style={{ padding: 13, borderRadius: 15, marginBottom: 9, background: '#ffffff0e', border: '1px solid #ffffff2b', boxShadow: '0 5px 18px #02091f50' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'start' }}><div style={{ flex: 1 }}><b>{hidden ? '🔒 Hidden item' : item.title}</b>{item.from && <span style={{ opacity: .65 }}> · {item.from}</span>}<p style={{ margin: '7px 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{hidden ? 'Locked story content' : item.body}</p><small style={{ opacity: .58 }}><Clock3 size={12} style={{ verticalAlign: 'middle' }}/> {new Date(item.createdAt).toLocaleString()} · known by {item.discoveredBy.length ? item.discoveredBy.map(peopleName).join(', ') : 'no character yet'}</small></div><button onClick={() => readItem(item)} style={{ ...buttonStyle, padding: '7px 10px', background: '#B0005A' }}><Eye size={15}/>{item.discoveredBy.includes(viewerId) ? ' Seen' : ' Read'}</button></div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'start' }}><div style={{ flex: 1 }}><b>{hidden ? '🔒 Hidden item' : item.title}</b>{item.from && <span style={{ opacity: .65 }}> · {item.from}</span>}<p style={{ margin: '7px 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{hidden ? 'Locked story content' : item.body}</p>{!hidden && item.mediaUrl && <img src={item.mediaUrl} alt={item.title} style={{ width: 'min(100%, 420px)', maxHeight: 320, objectFit: 'contain', borderRadius: 12, border: '1px solid #ffffff35' }}/>} <small style={{ opacity: .58 }}><Clock3 size={12} style={{ verticalAlign: 'middle' }}/> {new Date(item.createdAt).toLocaleString()} · known by {item.discoveredBy.length ? item.discoveredBy.map(peopleName).join(', ') : 'no character yet'}</small></div><button onClick={() => readItem(item)} style={{ ...buttonStyle, padding: '7px 10px', background: '#B0005A' }}><Eye size={15}/>{item.discoveredBy.includes(viewerId) ? ' Seen' : ' Read'}</button></div>
                   </article>;
                 }) : <p style={{ opacity: .62 }}>No {tabs.find((tab) => tab.id === activeTab)?.label.toLowerCase()} yet. Add fictional content below.</p>}
                 <div style={{ marginTop: 16, padding: 13, borderRadius: 16, border: '1px solid #8BAEF255', background: '#8BAEF210', display: 'grid', gap: 8 }}>
                   <b style={{ fontSize: 14 }}>Add fictional {tabs.find((tab) => tab.id === activeTab)?.label.toLowerCase()}</b>
                   <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder="Title / subject" style={controlStyle}/>
                   <input value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} placeholder="From / caller (optional)" style={controlStyle}/>
-                  <textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} placeholder="Details, message, voicemail, or note" rows={3} style={{ ...controlStyle, resize: 'vertical', fontFamily: 'inherit' }}/>
+                  <textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} placeholder="Details, message, voicemail, or note" rows={3} style={{ ...controlStyle, resize: 'vertical', fontFamily: 'inherit' }}/>{activeTab === 'photos' && <><input value={draftMediaUrl} onChange={(e) => setDraftMediaUrl(e.target.value)} placeholder="Fictional image URL (optional)" style={controlStyle}/><label style={{ fontSize: 12, opacity: .78 }}>Or add a screenshot/photo<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setDraftMediaUrl(typeof reader.result === 'string' ? reader.result : ''); reader.readAsDataURL(file); }}/></label></>}
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><input type="checkbox" checked={draftLocked} onChange={(e) => setDraftLocked(e.target.checked)}/> Hide behind PIN</label>
                   <button onClick={addEntry} disabled={!draftBody.trim()} style={{ ...buttonStyle, background: tabs.find((tab) => tab.id === activeTab)?.color || '#AE31A5', opacity: draftBody.trim() ? 1 : .55 }}><Plus size={16}/> Save to this phone</button>
                 </div>
