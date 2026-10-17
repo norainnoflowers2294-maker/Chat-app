@@ -81,63 +81,161 @@ export async function parsePngMetadata(file: File): Promise<{ textChunks: Record
   return { textChunks, base64Image };
 }
 
-export async function parseCharacterFile(file: File): Promise<Partial<Character>> {
-  if (file.name.endsWith('.json')) {
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-    const data = parsed.data || parsed;
+function asString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return fallback;
+}
+
+function firstDefined(data: Record<string, any>, ...keys: string[]) {
+  for (const key of keys) {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') return data[key];
+  }
+  return undefined;
+}
+
+function normalizeFeatureMarks(value: unknown): FeatureMark[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item: any, index) => {
+    if (typeof item === 'string') return { id: `imported_mark_${index}`, location: '', description: item };
     return {
-      name: data.name || 'Unnamed Character',
-      summary: data.summary || data.description?.slice(0, 150) || '',
-      description: data.description || '',
-      personality: data.personality || '',
-      scenario: data.scenario || '',
-      first_mes: data.first_mes || data.greeting || 'Hello!',
-      mes_example: data.mes_example || '',
-      system_prompt: data.system_prompt || '',
-      tags: Array.isArray(data.tags) ? data.tags : [],
+      id: asString(item?.id, `imported_mark_${index}`),
+      location: asString(item?.location ?? item?.place),
+      description: asString(item?.description ?? item?.details ?? item?.text),
     };
+  });
+}
+
+function unwrapCard(parsed: any): Record<string, any> {
+  let data = parsed?.data || parsed?.character || parsed;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Character card JSON must contain an object.');
+  // Some exporters wrap card data more than once.
+  if (data.data && typeof data.data === 'object') data = data.data;
+  return data;
+}
+
+function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: string): Partial<Character> {
+  const data = unwrapCard(parsed);
+  const physical = firstDefined(data, 'physical_description', 'appearance', 'looks');
+  const backstory = firstDefined(data, 'backstory', 'history', 'background', 'lore');
+  const summary = firstDefined(data, 'summary', 'short_description');
+  const familyRaw = firstDefined(data, 'familyMembers', 'family_members', 'relatives');
+  const familyMembers = Array.isArray(familyRaw) ? familyRaw.map((item: any, index) => ({
+    id: asString(item?.id, `imported_family_${index}`),
+    name: asString(item?.name, typeof item === 'string' ? item : ''),
+    relationship: asString(item?.relationship ?? item?.relation, 'Other'),
+    age: asString(item?.age),
+    description: asString(item?.description),
+    status: asString(item?.status, 'Unknown'),
+    characterId: asString(item?.characterId ?? item?.character_id) || undefined,
+  })) : [];
+  const spouseRaw = firstDefined(data, 'spouse', 'current_spouse');
+  const spouse = typeof spouseRaw === 'string'
+    ? (spouseRaw ? { name: spouseRaw, relationshipStatus: '' } : undefined)
+    : spouseRaw && typeof spouseRaw === 'object'
+      ? { name: asString(spouseRaw.name), relationshipStatus: asString(spouseRaw.relationshipStatus ?? spouseRaw.relationship_status ?? spouseRaw.status), characterId: asString(spouseRaw.characterId ?? spouseRaw.character_id) || undefined }
+      : undefined;
+
+  const consumed = new Set([
+    'name', 'nicknames', 'nickname', 'age', 'ethnicity', 'birthday', 'birthYear', 'birth_year', 'zodiacSign', 'zodiac_sign',
+    'avatar', 'image', 'height', 'bodyType', 'body_type', 'build', 'scars', 'birthmarks', 'tattoos',
+    'hairColor', 'hair_color', 'eyeColor', 'eye_color', 'description', 'physical_description', 'appearance', 'looks',
+    'voiceDescription', 'voice_description', 'voice', 'voiceTags', 'voice_tags', 'personality', 'backstory', 'history', 'background', 'lore',
+    'spouse', 'current_spouse', 'familyMembers', 'family_members', 'relatives', 'scenario', 'first_mes', 'greeting', 'firstMessage',
+    'pov', 'summary', 'short_description', 'mes_example', 'example_dialogue', 'system_prompt', 'tags', 'alternate_greetings', 'creator_notes',
+    'customFields', 'custom_fields', 'extensions', 'creator', 'character_version', 'spec', 'spec_version', 'post_history_instructions',
+  ]);
+  const rawCustom = firstDefined(data, 'customFields', 'custom_fields', 'extensions');
+  const unknownFields = Object.fromEntries(Object.entries(data).filter(([key]) => !consumed.has(key)));
+  const customFields = { ...(rawCustom && typeof rawCustom === 'object' && !Array.isArray(rawCustom) ? rawCustom : {}), ...unknownFields };
+
+  const tagsRaw = firstDefined(data, 'tags');
+  const greetingsRaw = firstDefined(data, 'alternate_greetings', 'alternateGreetings');
+  const nicknamesRaw = firstDefined(data, 'nicknames', 'nickname');
+  const rawPov = asString(firstDefined(data, 'pov', 'reply_pov'));
+  const normalizedPov = /first/i.test(rawPov) ? 'first_person' : /third/i.test(rawPov) ? 'third_person' : rawPov;
+  const description = asString(firstDefined(data, 'description', 'physical_description', 'appearance', 'looks'));
+  const cardSummary = asString(summary, description.slice(0, 150));
+
+  return {
+    name: asString(firstDefined(data, 'name'), fallbackName),
+    nicknames: Array.isArray(nicknamesRaw) ? nicknamesRaw.map((value: unknown) => asString(value)).filter(Boolean) : (typeof nicknamesRaw === 'string' ? nicknamesRaw.split(',').map((v: string) => v.trim()).filter(Boolean) : []),
+    age: asString(firstDefined(data, 'age')),
+    ethnicity: asString(firstDefined(data, 'ethnicity', 'race')),
+    birthday: asString(firstDefined(data, 'birthday', 'birth_date')),
+    birthYear: asString(firstDefined(data, 'birthYear', 'birth_year')),
+    zodiacSign: asString(firstDefined(data, 'zodiacSign', 'zodiac_sign')),
+    avatar: avatar || asString(firstDefined(data, 'avatar', 'image')),
+    height: asString(firstDefined(data, 'height')),
+    bodyType: asString(firstDefined(data, 'bodyType', 'body_type', 'build')),
+    scars: normalizeFeatureMarks(data.scars),
+    birthmarks: normalizeFeatureMarks(data.birthmarks),
+    tattoos: normalizeFeatureMarks(data.tattoos),
+    hairColor: asString(firstDefined(data, 'hairColor', 'hair_color')),
+    eyeColor: asString(firstDefined(data, 'eyeColor', 'eye_color')),
+    description,
+    voiceDescription: asString(firstDefined(data, 'voiceDescription', 'voice_description', 'voice')),
+    voiceTags: Array.isArray(firstDefined(data, 'voiceTags', 'voice_tags')) ? firstDefined(data, 'voiceTags', 'voice_tags').map((v: unknown) => asString(v)).filter(Boolean) : [],
+    personality: asString(firstDefined(data, 'personality')),
+    backstory: asString(backstory),
+    spouse,
+    familyMembers,
+    scenario: asString(firstDefined(data, 'scenario')),
+    first_mes: asString(firstDefined(data, 'first_mes', 'greeting', 'firstMessage'), 'Hello!'),
+    pov: normalizedPov,
+    summary: cardSummary,
+    mes_example: asString(firstDefined(data, 'mes_example', 'example_dialogue')),
+    system_prompt: asString(firstDefined(data, 'system_prompt', 'post_history_instructions')),
+    tags: Array.isArray(tagsRaw) ? tagsRaw.map((v: unknown) => asString(v)).filter(Boolean) : (typeof tagsRaw === 'string' ? tagsRaw.split(',').map((v: string) => v.trim()).filter(Boolean) : []),
+    alternate_greetings: Array.isArray(greetingsRaw) ? greetingsRaw.map((v: unknown) => asString(v)).filter(Boolean) : [],
+    creator_notes: asString(firstDefined(data, 'creator_notes')),
+    customFields,
+  };
+}
+
+function decodeCardPayload(raw: string): any {
+  const candidates = [raw];
+  try {
+    const binary = atob(raw.trim());
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    candidates.unshift(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {}
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch {}
+  }
+  throw new Error('No valid character card data was found in this PNG.');
+}
+
+export async function parseCharacterFile(file: File): Promise<Partial<Character>> {
+  const fallbackName = file.name.replace(/\\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Unnamed Character';
+  if (file.name.toLowerCase().endsWith('.json')) {
+    return normalizeCharacterCard(JSON.parse(await file.text()), fallbackName);
   }
 
   const { textChunks, base64Image } = await parsePngMetadata(file);
-  const rawChara = textChunks['chara'] || textChunks['ccv3'] || textChunks['description'] || textChunks['Comment'];
+  const rawChara = Object.entries(textChunks).find(([key]) =>
+    ['chara', 'ccv3', 'description', 'comment'].includes(key.toLowerCase())
+  )?.[1];
 
   if (rawChara) {
     try {
-      let jsonStr = rawChara;
-      try {
-        jsonStr = decodeURIComponent(escape(atob(rawChara)));
-      } catch {}
-
-      const parsed = JSON.parse(jsonStr);
-      const data = parsed.data || parsed;
-
-      return {
-        name: data.name || file.name.replace(/\.[^/.]+$/, ''),
-        avatar: base64Image,
-        summary: data.summary || data.description?.slice(0, 150) || '',
-        description: data.description || '',
-        personality: data.personality || '',
-        scenario: data.scenario || '',
-        first_mes: data.first_mes || data.greeting || 'Hello!',
-        mes_example: data.mes_example || '',
-        system_prompt: data.system_prompt || '',
-        tags: Array.isArray(data.tags) ? data.tags : ['imported'],
-      };
-    } catch (e) {
-      console.error('Failed to parse embedded chara JSON:', e);
+      return normalizeCharacterCard(decodeCardPayload(rawChara), fallbackName, base64Image);
+    } catch (error) {
+      console.warn('Could not read embedded character card data:', error);
     }
   }
 
   return {
-    name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+    name: fallbackName,
     avatar: base64Image,
-    summary: 'Imported character card',
+    summary: 'PNG image imported as the character avatar. No embedded character card data was found.',
     description: '',
     personality: '',
     scenario: '',
-    first_mes: 'Hello there! Let us begin our roleplay.',
-    tags: ['imported'],
+    first_mes: 'Hello!',
+    mes_example: '',
+    tags: [],
+    customFields: { importWarning: 'This PNG contains no readable character card metadata. Only its image was imported.' },
   };
 }
 
