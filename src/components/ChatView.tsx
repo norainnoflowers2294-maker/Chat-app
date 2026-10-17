@@ -182,7 +182,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  preferences, storyMemories, socialMediaContext, phoneContext, phoneContext, onOpenPhone,
+  preferences, storyMemories, socialMediaContext, phoneContext, onOpenPhone,
   chat,
   allChats,
   characters,
@@ -313,7 +313,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences,
         storyMemories,
         socialMediaContext,
-        phoneContext,
         phoneContext,
       });
       apiMessages.push({
