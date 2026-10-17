@@ -155,6 +155,8 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
 ];
 
 
+INITIAL_CHARACTERS.push(...ADDITIONAL_CHARACTERS);
+
 export const INITIAL_PERSONAS: Persona[] = [
   {
     id: 'persona_siren',
