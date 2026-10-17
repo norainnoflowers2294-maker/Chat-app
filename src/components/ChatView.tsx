@@ -120,7 +120,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [regeneratingMsgId, setRegeneratingMsgId] = useState<string | null>(null);
   const [commandSuggestionIndex, setCommandSuggestionIndex] = useState(0);
 
-  // Dual Track Screen State (Left and Right Slide-over Panels)
+  // Chat navigation drawers and dual-track overlay
+  const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(false);
+  const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -480,6 +482,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Top Chat Bar */}
       <header className="relative px-3 sm:px-5 py-2.5 bg-[#140410]/95 backdrop-blur-md border-b border-[#ff3399]/40 flex items-center justify-between z-30 shadow-[0_0_25px_rgba(255,0,128,0.3)]">
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <button
+            type="button"
+            aria-label="Open chat navigation drawer"
+            aria-expanded={isLeftDrawerOpen}
+            onClick={() => { setIsDualTrackOpen(false); setIsRightDrawerOpen(false); setIsLeftDrawerOpen(true); }}
+            className="p-2 rounded-xl bg-white/10 hover:bg-[#ff007f] text-white transition-all"
+            title="Open chats and navigation"
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Open chat tools drawer"
+            aria-expanded={isRightDrawerOpen}
+            onClick={() => { setIsDualTrackOpen(false); setIsLeftDrawerOpen(false); setIsRightDrawerOpen(true); }}
+            className="p-2 rounded-xl bg-white/10 hover:bg-[#ff007f] text-white transition-all"
+            title="Open character and chat tools"
+          >
+            <PanelRight className="w-4 h-4" />
+          </button>
+
           {/* Back to Dashboard */}
           <button
             onClick={onBackToDashboard}
@@ -877,6 +900,98 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </button>
         </form>
       </div>
+
+      {(isLeftDrawerOpen || isRightDrawerOpen) && (
+        <div
+          className="fixed inset-0 z-[70]"
+          onClick={() => { setIsLeftDrawerOpen(false); setIsRightDrawerOpen(false); }}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chat navigation drawer"
+            onClick={(event) => event.stopPropagation()}
+            className={`absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-[#ff66b2]/60 bg-[#140410] shadow-[10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${isLeftDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <div className="flex items-center justify-between border-b border-[#ff3399]/30 p-4">
+              <div>
+                <h2 className="text-base font-bold text-white">Chats &amp; Navigation</h2>
+                <p className="text-[11px] text-[#ffd6eb]/65">Open a chat or go to a library</p>
+              </div>
+              <button type="button" aria-label="Close navigation drawer" onClick={() => setIsLeftDrawerOpen(false)} className="rounded-xl bg-white/10 p-2 text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="space-y-2 border-b border-[#ff3399]/25 p-3">
+              <button type="button" onClick={() => { setIsLeftDrawerOpen(false); onBackToDashboard(); }} className="w-full rounded-xl bg-[#ff007f]/20 p-3 text-left text-sm font-semibold text-white hover:bg-[#ff007f]/35">Home</button>
+              <button type="button" onClick={() => { setIsLeftDrawerOpen(false); onOpenCharacterModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Character Library</button>
+              <button type="button" onClick={() => { setIsLeftDrawerOpen(false); onOpenPersonaModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Persona Library</button>
+              <button type="button" onClick={() => { setIsLeftDrawerOpen(false); onOpenLorebookModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Lorebooks</button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              <h3 className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Your chats</h3>
+              <div className="space-y-1.5">
+                {allChats.length ? allChats.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-current={item.id === chat.id ? 'page' : undefined}
+                    onClick={() => { setIsLeftDrawerOpen(false); onSelectChat(item.id); }}
+                    className={`w-full rounded-xl border p-3 text-left transition-colors ${item.id === chat.id ? 'border-[#ff66b2]/70 bg-[#ff007f]/20' : 'border-transparent bg-white/5 hover:bg-white/10'}`}
+                  >
+                    <span className="block truncate text-sm font-semibold text-white">{item.title || 'Untitled chat'}</span>
+                    <span className="mt-1 block truncate text-[10px] text-[#ffd6eb]/60">{item.messages[item.messages.length - 1]?.content || 'No messages yet'}</span>
+                  </button>
+                )) : <p className="rounded-xl bg-white/5 p-3 text-xs text-[#ffd6eb]/65">Your chats will appear here.</p>}
+              </div>
+            </div>
+          </aside>
+
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chat tools drawer"
+            onClick={(event) => event.stopPropagation()}
+            className={`absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col border-l border-[#ff66b2]/60 bg-[#140410] shadow-[-10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${isRightDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            <div className="flex items-center justify-between border-b border-[#ff3399]/30 p-4">
+              <div>
+                <h2 className="text-base font-bold text-white">Chat Tools</h2>
+                <p className="text-[11px] text-[#ffd6eb]/65">Characters, settings, and extras</p>
+              </div>
+              <button type="button" aria-label="Close tools drawer" onClick={() => setIsRightDrawerOpen(false)} className="rounded-xl bg-white/10 p-2 text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <section className="rounded-xl border border-[#ff66b2]/30 bg-white/5 p-3">
+                <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Playing as</h3>
+                <select aria-label="Choose persona for this chat" value={chat.personaId || activePersona?.id || ''} onChange={(event) => onUpdateChat({ ...chat, personaId: event.target.value, updatedAt: new Date().toISOString() })} className="w-full rounded-lg border border-[#ff66b2]/40 bg-[#1e0818] p-2 text-sm text-white">
+                  {personas.map((persona) => <option key={persona.id} value={persona.id}>{persona.display_name || persona.name}</option>)}
+                </select>
+                <div className="mt-3 space-y-2">
+                  {activeCharacters.map((character) => (
+                    <div key={character.id} className="flex items-center gap-2 rounded-lg bg-black/20 p-2">
+                      <img src={resolveImageUrl(character.avatar)} alt="" className="h-9 w-9 rounded-full border border-[#ff66b2]/50 object-cover" />
+                      <span className="truncate text-xs font-semibold text-white">{character.name}</span>
+                    </div>
+                  ))}
+                  {!activeCharacters.length && <p className="text-xs text-[#ffd6eb]/60">No character selected.</p>}
+                </div>
+              </section>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); setIsChatSettingsOpen(true); }} className="w-full rounded-xl border border-[#ff66b2]/30 bg-[#ff007f]/15 p-3 text-left text-sm font-semibold text-white hover:bg-[#ff007f]/25">Chat reply settings</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenCharacterModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Character Library</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenPersonaModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Persona Library</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenLorebookModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Lorebooks</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenPlugins(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Plugins</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenStoryNotesModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Story Notes &amp; Memories</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenSavedMessagesModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Saved Messages</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenSceneGeneratorModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Scene Backgrounds</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenSettings(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Connection &amp; Diagnostics</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenWallet('dashboard'); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">Wallet</button>
+              <button type="button" onClick={() => { setIsRightDrawerOpen(false); onOpenGitHubSyncModal(); }} className="w-full rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10">GitHub Sync</button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* DUAL TRACK SCREEN OVERLAY (Pops up and slides over from both sides) */}
       <DualTrackOverlay
