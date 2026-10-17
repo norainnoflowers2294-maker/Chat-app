@@ -240,7 +240,8 @@ describe('parseCharacterFile', () => {
     expect(result.mes_example).toBe('Mira: Keep moving.');
     expect(result.tags).toEqual(['Mystery']);
   });
-\n  it('marks PNGs without embedded card data as image-only imports', async () => {
+
+  it('marks PNGs without embedded card data as image-only imports', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
     const result = await parseCharacterFile(file);
 
