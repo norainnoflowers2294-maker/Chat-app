@@ -104,6 +104,7 @@ const LOCAL_DB_NAME = 'pretty-little-fantasies-local';
 const LOCAL_DB_STORE = 'snapshots';
 const LOCAL_DB_KEY = 'app-data';
 let localWriteQueue: Promise<void> = Promise.resolve();
+let lastLocalSavedAt = 0;
 
 interface LocalDataSnapshot {
   savedAt: number;
@@ -206,13 +207,15 @@ export async function loadLocalDataAsync(): Promise<StorageData> {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) localParsed = JSON.parse(raw);
     localSavedAt = Number(localStorage.getItem(STORAGE_META_KEY)) || 0;
+    lastLocalSavedAt = Math.max(lastLocalSavedAt, localSavedAt);
   } catch (err) {
     console.warn('Failed to read local storage snapshot:', err);
   }
 
   try {
     const snapshot = await readLocalSnapshot();
-    if (snapshot && snapshot.savedAt >= localSavedAt) return normalizeStoredData(snapshot.data);
+    if (snapshot) lastLocalSavedAt = Math.max(lastLocalSavedAt, snapshot.savedAt);
+    if (snapshot && snapshot.savedAt > localSavedAt) return normalizeStoredData(snapshot.data);
   } catch (err) {
     console.warn('Could not read IndexedDB snapshot:', err);
   }
@@ -220,7 +223,8 @@ export async function loadLocalDataAsync(): Promise<StorageData> {
 }
 
 export function saveLocalData(data: StorageData): Promise<void> {
-  const savedAt = Date.now();
+  const savedAt = Math.max(Date.now(), lastLocalSavedAt + 1);
+  lastLocalSavedAt = savedAt;
   let localSaved = false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
