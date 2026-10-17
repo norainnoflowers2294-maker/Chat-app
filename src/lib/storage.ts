@@ -77,14 +77,14 @@ export const DEFAULT_SAVED_MSGS = [
   },
 ];
 
-export function loadLocalData(): StorageData {
+export function mergeDefaultCharacters(characters: Character[] | undefined): Character[] {\n  const saved = Array.isArray(characters) ? characters : [];\n  const savedIds = new Set(saved.map((character) => character.id));\n  return [...saved, ...INITIAL_CHARACTERS.filter((character) => !savedIds.has(character.id))];\n}\n\nexport function loadLocalData(): StorageData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
         appPreferences: normalizePreferences(parsed.appPreferences),
-        characters: parsed.characters?.length ? parsed.characters : INITIAL_CHARACTERS,
+        characters: mergeDefaultCharacters(parsed.characters?.length ? parsed.characters : INITIAL_CHARACTERS),
         lorebooks: parsed.lorebooks?.length ? parsed.lorebooks : INITIAL_LOREBOOKS,
         personas: parsed.personas?.length ? parsed.personas : INITIAL_PERSONAS,
         plugins: parsed.plugins?.length ? parsed.plugins : INITIAL_PLUGINS,
