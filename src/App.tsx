@@ -38,6 +38,7 @@ import { CharacterPhoneModal } from './components/CharacterPhoneModal';
 import { getWalletForScope, type StoryWallet } from './lib/wallet';
 import { DEFAULT_SOCIAL_WORLD, formatSocialWorldContext } from './lib/socialMedia';
 import { formatPhoneStoryContext, mergePhoneSystemData } from './lib/phoneSystem';
+import { mergeStoryMemories } from './lib/storyMemory';
 
 import {
   Character,
@@ -252,7 +253,7 @@ export default function App() {
           lorebooks: mergeById(remote?.lorebooks, current.lorebooks),
           personas: mergeById(remote?.personas, current.personas),
           plugins: mergeById(remote?.plugins, current.plugins),
-          storyMemories: mergeById(remote?.storyMemories, current.storyMemories),
+          storyMemories: mergeStoryMemories(remote?.storyMemories, current.storyMemories),
           savedMessages: mergeById(remote?.savedMessages, current.savedMessages),
           wallets: mergeById(remote?.wallets, current.wallets),
           activeChatId: current.activeChatId || remote?.activeChatId,
@@ -503,15 +504,19 @@ export default function App() {
 
   // Story Memory Handlers
   const handleSaveMemory = (memory: StoryMemory) => {
+    const savedMemory: StoryMemory = { ...memory, updatedAt: new Date().toISOString(), deletedAt: undefined };
     const existing = data.storyMemories || [];
-    const updated = existing.some((item) => item.id === memory.id)
-      ? existing.map((item) => item.id === memory.id ? memory : item)
-      : [memory, ...existing];
+    const updated = existing.some((item) => item.id === savedMemory.id)
+      ? existing.map((item) => item.id === savedMemory.id ? savedMemory : item)
+      : [savedMemory, ...existing];
     updateData({ ...data, storyMemories: updated });
   };
 
   const handleDeleteMemory = (id: string) => {
-    const updated = (data.storyMemories || []).filter((m) => m.id !== id);
+    const deletedAt = new Date().toISOString();
+    const updated = (data.storyMemories || []).map((memory) => memory.id === id
+      ? { ...memory, deletedAt, updatedAt: deletedAt }
+      : memory);
     updateData({ ...data, storyMemories: updated });
   };
 
