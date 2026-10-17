@@ -124,8 +124,10 @@ async function sendCheckedCharacterReply(
   messages: Array<{ role: string; content: string }>,
   characters: Character[],
   persona: Persona | null,
+  skipCheck = false,
 ): Promise<string> {
   let reply = await sendOpenRouterChat(config, messages);
+  if (skipCheck) return reply;
   let violations = checkGeneratedReply(reply, characters, persona);
   if (!violations.length) return reply;
 
@@ -307,11 +309,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const maxTokens = replyLength === 'short'
         ? Math.min(openRouterConfig.maxTokens, 512)
         : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
-      const botReply = await sendOpenRouterChat({
+      const botReply = await sendCheckedCharacterReply({
         ...openRouterConfig,
         temperature: chat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages);
+      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode));
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
       const replyMessage: ChatMessage = {
         id: `msg_continue_${Date.now()}`,
@@ -466,7 +468,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
           content: 'The user explicitly tagged @assistant. Reply as the Pretty Little Fantasies in-chat assistant, a helpful out-of-character participant who can answer questions about the scene, offer ideas, and help the user steer the roleplay. Speak directly to the user, keep character actions and dialogue under the user’s control, and do not impersonate a roleplay character. Do not continue as the roleplay character in this reply.',
         });
       }
-      const botReply = await sendOpenRouterChat({ ...openRouterConfig, temperature: updatedChat.creativity ?? openRouterConfig.temperature, maxTokens }, apiMessages);
+      const botReply = await sendCheckedCharacterReply(
+        { ...openRouterConfig, temperature: updatedChat.creativity ?? openRouterConfig.temperature, maxTokens },
+        apiMessages,
+        activeCharacters,
+        activePersona,
+        assistantWasTagged || Boolean(updatedChat.oocMode),
+      );
       const responder = assistantWasTagged
         ? { id: 'assistant', name: 'Pretty Little Fantasies Assistant', avatar: '/colorpop_hero.jpg' }
         : activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
@@ -679,11 +687,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const maxTokens = replyLength === 'short'
         ? Math.min(openRouterConfig.maxTokens, 512)
         : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
-      const replacement = await sendOpenRouterChat({
+      const replacement = await sendCheckedCharacterReply({
         ...openRouterConfig,
         temperature: chat.creativity ?? openRouterConfig.temperature,
         maxTokens,
-      }, apiMessages);
+      }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode) || msg.senderId === 'assistant');
 
       const versions = msg.swipes?.length ? [...msg.swipes] : [msg.content];
       const activeIndex = Math.min(msg.currentSwipeIndex ?? versions.length - 1, versions.length - 1);
