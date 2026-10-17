@@ -236,6 +236,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   useEffect(() => {
     if (existingCharacter) {
       populateFromCharacter(existingCharacter);
+      if (existingCharacter.customFields?.importWarning) showToast(existingCharacter.customFields.importWarning);
       setDraftStatus('saved');
     } else {
       // Check if draft exists in localStorage
@@ -528,7 +529,8 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
       const parsed = await parseCharacterFile(file);
       populateFromCharacter(parsed);
       markUnsaved();
-      showToast(`Successfully imported card: ${parsed.name || 'Character'}`);
+      const importWarning = parsed.customFields?.importWarning;
+      showToast(importWarning || `Successfully imported card: ${parsed.name || 'Character'}`);
     } catch (err: any) {
       console.error('Import error:', err);
       showToast(`⚠ Failed to import character: ${err.message || 'Invalid format'}`);
