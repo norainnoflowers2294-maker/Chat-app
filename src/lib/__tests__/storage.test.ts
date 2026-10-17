@@ -199,7 +199,7 @@ describe('loadFromFirebase', () => {
     expect(result).toBeNull();
   });
 
-  it('should return null and log warning if error occurs during fetch', async () => {
+  it('should surface Firebase read errors so local data is not written over cloud data', async () => {
     Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
@@ -208,11 +208,10 @@ describe('loadFromFirebase', () => {
     const mockError = new Error('Network error');
     (getDoc as any).mockRejectedValue(mockError);
 
-    const result = await loadFromFirebase();
+    await expect(loadFromFirebase()).rejects.toThrow('Network error');
 
     expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-user-id');
     expect(getDoc).toHaveBeenCalledWith(mockDocRef);
-    expect(result).toBeNull();
     expect(consoleWarnMock).toHaveBeenCalledWith('Could not load from Firebase Firestore:', mockError);
   });
 });
