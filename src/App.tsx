@@ -37,7 +37,7 @@ import { WalletModal } from './components/WalletModal';
 import { CharacterPhoneModal } from './components/CharacterPhoneModal';
 import { getWalletForScope, type StoryWallet } from './lib/wallet';
 import { DEFAULT_SOCIAL_WORLD, formatSocialWorldContext } from './lib/socialMedia';
-import { formatPhoneStoryContext } from './lib/phoneSystem';
+import { formatPhoneStoryContext, mergePhoneSystemData } from './lib/phoneSystem';
 
 import {
   Character,
@@ -252,6 +252,7 @@ export default function App() {
           },
           supabaseConfig: current.supabaseConfig,
           socialWorld: remote?.socialWorld || current.socialWorld,
+          phoneSystem: mergePhoneSystemData(remote?.phoneSystem, current.phoneSystem),
         };
         dataRef.current = merged;
         setData(merged);
