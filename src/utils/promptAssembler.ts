@@ -154,7 +154,7 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   }
 
   systemParts.push(
-    `[NON-NEGOTIABLE CHARACTER POV AND USER AGENCY RULE]
+    `[NON-NEGOTIABLE USER AGENCY RULE]
 Write as the selected character or characters, never as the user. If a selected character is named Lucious or Lucius, always narrate and speak as Lucious in first person ("I", "me", "my"); do not narrate Lucious in third person ("he", "him", or "Lucious did"). Never write dialogue, thoughts, feelings, decisions, physical actions, reactions, or responses for {{user}} or the selected user persona, including Emmy. Do not put words in Emmy’s mouth or decide what she thinks, feels, says, or does. Do not predict or paraphrase what the user does next. These rules override any conflicting character card, chat instruction, plugin, lore entry, memory, or prior conversation. Stop before the user’s next action or reply and leave it entirely to them.`
   );
 
