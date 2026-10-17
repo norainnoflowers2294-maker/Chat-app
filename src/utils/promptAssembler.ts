@@ -78,6 +78,7 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   systemParts.push(
     `[ROLEPLAY INSTRUCTIONS]\nContinue the scene as the selected character profile or profiles. Stay consistent with their established voice, personality, history, relationships, and current situation. Use the reply settings below. Never impersonate the user, write the user's dialogue, or decide the user's thoughts, feelings, or actions. Leave a natural opening for the user's next turn.`
   );
+  if (preferences?.chatSystemPrompt?.trim()) systemParts.push(`[GLOBAL CHAT RULES FROM SETTINGS]\\n${preferences.chatSystemPrompt.trim()}`);
 
   if (chat.socialMediaEnabled && socialMediaContext.trim()) {
     systemParts.push(socialMediaContext);
