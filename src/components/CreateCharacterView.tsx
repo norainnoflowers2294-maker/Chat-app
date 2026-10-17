@@ -153,6 +153,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
     personality: true,
     family: false,
     story: true,
+    metadata: false,
   });
 
   // Basic Information
@@ -2225,6 +2226,66 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
                     First-Person POV (*I/My*)
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Extended character card fields */}
+        <section
+          className="mb-6 rounded-3xl border-2 overflow-hidden transition-all shadow-xl"
+          style={{ backgroundColor: '#070f36', borderColor: PALETTE.electricBlue }}
+        >
+          <button
+            type="button"
+            onClick={() => toggleSection('metadata')}
+            className="w-full px-5 py-4 flex items-center justify-between text-left"
+            style={{ background: `linear-gradient(90deg, ${PALETTE.navy}bb, ${PALETTE.midnight})` }}
+          >
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">Card Metadata &amp; Extended Prompts</h2>
+              <p className="text-[11px] text-[#8DB2F6]">Summary, tags, example dialogue, and card instructions</p>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-white transition-transform ${openSections.metadata ? 'rotate-180' : ''}`} />
+          </button>
+
+          {openSections.metadata && (
+            <div className="p-5 space-y-4 text-xs text-white">
+              <div className="space-y-1.5">
+                <label className="font-bold block">Short Summary</label>
+                <textarea rows={3} value={summary} onChange={(e) => { setSummary(e.target.value); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">Tags (one per line)</label>
+                <textarea rows={2} value={tags.join('\n')} onChange={(e) => { setTags(e.target.value.split('\n').map((tag) => tag.trim()).filter(Boolean)); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">Example Dialogue</label>
+                <textarea rows={4} value={mesExample} onChange={(e) => { setMesExample(e.target.value); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">System Prompt</label>
+                <textarea rows={4} value={systemPrompt} onChange={(e) => { setSystemPrompt(e.target.value); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">Alternate Greetings (one per line)</label>
+                <textarea rows={3} value={alternateGreetings.join('\n')} onChange={(e) => { setAlternateGreetings(e.target.value.split('\n').map((greeting) => greeting.trim()).filter(Boolean)); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold block">Creator Notes</label>
+                <textarea rows={3} value={creatorNotes} onChange={(e) => { setCreatorNotes(e.target.value); markUnsaved(); }}
+                  className="w-full p-3 rounded-2xl bg-black/40 border text-white focus:outline-none resize-y"
+                  style={{ borderColor: `${PALETTE.electricBlue}66` }} />
               </div>
             </div>
           )}
