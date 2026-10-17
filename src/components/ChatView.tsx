@@ -903,6 +903,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         onOpenSavedMessagesModal={onOpenSavedMessagesModal}
         onOpenSceneGeneratorModal={onOpenSceneGeneratorModal}
         onOpenGitHubSyncModal={onOpenGitHubSyncModal}
+        onOpenWallet={onOpenWallet}
         onTogglePlugin={onTogglePlugin}
         onBoostAffinity={() => {
           const updatedScore = Math.min(100, (chat.relationshipScore || 85) + 1);
