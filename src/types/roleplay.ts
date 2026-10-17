@@ -160,6 +160,7 @@ export interface Chat {
   weather?: string;
   timeOfDay?: string;
   promptInstructions?: string;
+  socialMediaEnabled?: boolean;
   replyStyle?: 'immersive' | 'dialogue' | 'balanced' | 'screenplay';
   replyLength?: 'short' | 'medium' | 'long';
   replyPointOfView?: 'character' | 'first_person' | 'third_person';
