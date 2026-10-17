@@ -31,7 +31,7 @@ export const ChatSettingsPanel: React.FC<Props> = ({ chat, characters, personas,
           <button type="button" onClick={onClose} aria-label="Close chat settings" className="rounded-lg p-2 text-white/70 hover:bg-white/10"><X className="h-4 w-4" /></button>
         </header>
 
-        <div className="space-y-5"><p className="text-xs text-white/60">These settings override app defaults for this chat only. The required rule against writing for {{user}} stays on.</p>
+        <div className="space-y-5"><p className="text-xs text-white/60">These settings override app defaults for this chat only. The required rule against writing for {'{{user}}'} stays on.</p>
           <fieldset>
             <legend className={labelClass}>Character profiles</legend>
             <p className="mb-2 mt-1 text-xs text-white/55">Selected profiles are sent to the AI with their saved details and instructions.</p>
