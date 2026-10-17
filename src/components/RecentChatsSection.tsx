@@ -21,6 +21,25 @@ interface RecentChatsSectionProps {
   onViewAllChats: () => void;
 }
 
+function chatActivityTime(chat: Chat): number {
+  const lastMessageTime = chat.messages[chat.messages.length - 1]?.timestamp || 0;
+  const updatedAtTime = new Date(chat.updatedAt).getTime();
+  return Math.max(lastMessageTime, Number.isFinite(updatedAtTime) ? updatedAtTime : 0);
+}
+
+function formatTimeAgo(timestamp: number): string {
+  if (!timestamp) return 'No messages yet';
+  const minutes = Math.floor(Math.max(0, Date.now() - timestamp) / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return minutes === 1 ? '1 min ago' : `${minutes} mins ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(timestamp);
+}
+
 export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
   chats,
   onSelectChat,
@@ -30,6 +49,9 @@ export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
   onOpenSavedMessages,
   onViewAllChats,
 }) => {
+  const recentChats = [...chats].sort((a, b) => chatActivityTime(b) - chatActivityTime(a));
+  const latestChat = recentChats[0];
+
   return (
     <div className="w-full px-4 sm:px-6 py-3">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -58,17 +80,10 @@ export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {chats.slice(0, 4).map((chat) => {
+            {recentChats.slice(0, 4).map((chat) => {
               const bgImg = chat.bgImage || '/penthouse.jpg';
-              const msgCount = chat.messages.length > 5 ? chat.messages.length : (chat.title === 'Lucious' ? 214 : chat.title === 'The Mansion' ? 87 : chat.title === 'Road Trip' ? 64 : 33);
-              const timeAgo =
-                chat.title === 'Lucious'
-                  ? 'Last message 2m ago'
-                  : chat.title === 'The Mansion'
-                  ? 'Last message 12m ago'
-                  : chat.title === 'Road Trip'
-                  ? 'Last message 1h ago'
-                  : 'Last message 3h ago';
+              const msgCount = chat.messages.length;
+              const timeAgo = formatTimeAgo(chatActivityTime(chat));
 
               return (
                 <div
@@ -100,7 +115,7 @@ export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
                     </div>
                     <p className="text-[10px] text-[#ffd6eb]/80 truncate flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 inline" />
-                      <span>{timeAgo}</span>
+                      <span>Last message {timeAgo}</span>
                     </p>
                   </div>
                 </div>
@@ -126,11 +141,12 @@ export const RecentChatsSection: React.FC<RecentChatsSectionProps> = ({
           <div className="space-y-3 my-auto">
             <button
               onClick={onContinueLastChat}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white font-bold text-xs shadow-[0_0_20px_rgba(255,0,128,0.7)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+              disabled={!latestChat}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white font-bold text-xs shadow-[0_0_20px_rgba(255,0,128,0.7)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center space-x-2.5">
                 <MessageSquare className="w-4 h-4" />
-                <span>Continue Last Chat</span>
+                <span className="truncate">{latestChat ? `Continue ${latestChat.title}` : 'No recent chat yet'}</span>
               </div>
               <ArrowRight className="w-4 h-4" />
             </button>
