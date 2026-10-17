@@ -196,7 +196,7 @@ export default function App() {
             ...local.openRouterConfig,
             apiKey: local.openRouterConfig.apiKey || remote?.openRouterConfig?.apiKey || '',
           },
-          supabaseConfig: local.supabaseConfig || remote?.supabaseConfig || local.supabaseConfig,
+          supabaseConfig: local.supabaseConfig,
           socialWorld: remote?.socialWorld || local.socialWorld,
         };
         dataRef.current = merged;
