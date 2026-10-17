@@ -63,6 +63,7 @@ export interface Character {
   summary: string;
   mes_example: string;
   system_prompt?: string;
+  post_history_instructions?: string;
   tags: string[];
   alternate_greetings?: string[];
   creator_notes?: string;
