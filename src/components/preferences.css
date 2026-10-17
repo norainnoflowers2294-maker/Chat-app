@@ -27,3 +27,5 @@ input,textarea,select{-webkit-text-fill-color:currentColor;caret-color:var(--cp-
 @media(prefers-reduced-motion:reduce){
   .cp-page-transition{animation:none}
 }
+
+.cp-setting-block{align-items:stretch;flex-direction:column;gap:8px}.cp-setting-block textarea{width:100%;box-sizing:border-box;min-height:150px;resize:vertical;background:#251327;color:#ffe5f1;border:1px solid #ffffff30;border-radius:12px;padding:12px;font:inherit;line-height:1.5}.cp-setting-block textarea:focus{outline:2px solid var(--cp-accent);outline-offset:1px}.cp-setting-block small{font-size:11px;opacity:.65;align-self:flex-end}
