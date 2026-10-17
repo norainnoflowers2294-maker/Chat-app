@@ -203,6 +203,7 @@ export interface OpenRouterConfig {
   presencePenalty: number;
   siteUrl: string;
   siteName: string;
+  supportedParameters?: string[];
 }
 
 export interface SupabaseConfig {
