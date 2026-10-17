@@ -52,6 +52,95 @@ import { getSlashCommandSuggestions, parseSlashCommand, type SlashCommand } from
 import { DualTrackOverlay } from './DualTrackOverlay';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 
+class GeneratedReplyRuleError extends Error {
+  suggestedFix: string;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeneratedReplyRuleError';
+    this.suggestedFix = 'Edit the character’s Post-History Instructions to state the point of view and user-agency rules clearly, then regenerate the reply.';
+  }
+}
+
+const ACTION_VERBS = 'says?|asks?|replies?|answers?|whispers?|shouts?|laughs?|smiles?|nods?|shakes?|looks?|glances?|walks?|moves?|steps?|reaches?|takes?|turns?|stands?|sits?|leans?|runs?|cries?|thinks?|feels?|decides?|chooses?|opens?|closes?|grabs?|holds?|pulls?|pushes?|follows?|leaves?|enters?|begins?|starts?|frowns?|blinks?|breathes?|watches?|stares?|tells?|murmurs?|sighs?|shrugs?|kneels?|rolls?';
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\interface ChatViewProps {');
+}
+
+function checkGeneratedReply(
+  reply: string,
+  characters: Character[],
+  persona: Persona | null,
+): string[] {
+  const violations: string[] = [];
+  const response = reply.trim();
+  const userNames = Array.from(new Set([
+    'Emmy',
+    '{{user}}',
+    persona?.name || '',
+    persona?.display_name || '',
+    persona?.name?.split(/\\s+/)[0] || '',
+  ].map((name) => name.trim()).filter(Boolean)));
+
+  for (const name of userNames) {
+    const escapedName = escapeRegex(name);
+    const actionAfterName = new RegExp('\\\\b' + escapedName + '\\\\b\\\\s+(?:' + ACTION_VERBS + ')\\\\b', 'i');
+    const dialogueLabel = new RegExp('(?:^|\\\\n)\\\\s*(?:[*_]*' + escapedName + '[*_]*|\\\\[?' + escapedName + '\\\\]?)\\\\s*[:—-]', 'i');
+    if (actionAfterName.test(response) || dialogueLabel.test(response)) {
+      violations.push(`The reply appears to speak or act for ${name}.`);
+    }
+  }
+
+  const firstPersonRequired = characters.some((character) =>
+    /lucious|lucius/i.test(character.name) ||
+    character.pov === 'first_person' ||
+    /first[- ]person/i.test(character.post_history_instructions || '')
+  );
+  if (firstPersonRequired) {
+    const respondingNames = characters
+      .map((character) => character.name)
+      .filter((name) => /lucious|lucius/i.test(name) || characters.some((item) => item.pov === 'first_person'));
+    const namePattern = respondingNames.length
+      ? respondingNames.map(escapeRegex).join('|')
+      : 'Lucious|Lucius';
+    const thirdPersonLead = new RegExp(
+      '(?:^|[.!?\\\\n]\\\\s*)[*_>"“”\\\\s]*(?:he|(?:' + namePattern + '))\\\\s+(?:' + ACTION_VERBS + ')\\\\b',
+      'i',
+    );
+    if (thirdPersonLead.test(response)) {
+      violations.push('The reply appears to narrate the responding character in third person instead of first person.');
+    }
+  }
+
+  return violations;
+}
+
+async function sendCheckedCharacterReply(
+  config: OpenRouterConfig,
+  messages: Array<{ role: string; content: string }>,
+  characters: Character[],
+  persona: Persona | null,
+): Promise<string> {
+  let reply = await sendOpenRouterChat(config, messages);
+  let violations = checkGeneratedReply(reply, characters, persona);
+  if (!violations.length) return reply;
+
+  const retryMessages = [
+    ...messages,
+    {
+      role: 'system',
+      content: `The previous draft was rejected by the app’s response check: ${violations.join(' ')} Rewrite the reply from scratch. Write only as the selected character, preserve the required point of view, and do not give Emmy or the user any words, thoughts, feelings, reactions, decisions, or actions.`,
+    },
+  ];
+  reply = await sendOpenRouterChat(config, retryMessages);
+  violations = checkGeneratedReply(reply, characters, persona);
+  if (violations.length) {
+    throw new GeneratedReplyRuleError(`I blocked a reply because it still appears to break the character rules: ${violations.join(' ')}`);
+  }
+  return reply;
+}
+
 interface ChatViewProps {
   preferences: AppPreferences;
   storyMemories: StoryMemory[];
