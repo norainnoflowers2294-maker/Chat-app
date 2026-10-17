@@ -241,37 +241,62 @@ export default function App() {
     }
   };
 
-  const handleStartChatWithCharacter = (char: Character) => {
-    let chat = data.chats.find((c) => c.characterIds.includes(char.id));
-    if (!chat) {
-      const activePersona = data.personas.find((p) => p.is_default) || data.personas[0];
-      chat = {
-        id: `chat_${Date.now()}`,
-        title: char.name,
-        characterIds: [char.id],
-        personaId: activePersona?.id || 'persona_siren',
-        lorebookIds: data.lorebooks.slice(0, 3).map((l) => l.id),
-        pluginIds: data.plugins.slice(0, 5).map((p) => p.id),
-        scenario: char.scenario || 'Late night encounters in the ColorPop universe.',
-        bgImage: char.avatar || '/penthouse.jpg',
-        relationshipScore: 88,
-        messages: [
-          {
-            id: `msg_first_${Date.now()}`,
-            senderId: char.id,
-            senderName: char.name,
-            avatar: char.avatar,
-            content: char.first_mes,
-            timestamp: Date.now(),
-          },
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      updateData({ ...data, chats: [chat, ...data.chats], activeChatId: chat.id });
-    }
+  const createChatForCharacterIds = (characterIds: string[]) => {
+    const selectedCharacters = characterIds
+      .map((id) => data.characters.find((character) => character.id === id))
+      .filter((character): character is Character => Boolean(character));
+    if (!selectedCharacters.length) return;
+
+    const activePersona = data.personas.find((persona) => persona.is_default) || data.personas[0];
+    const matchingChats = data.chats.filter((existing) =>
+      existing.characterIds.length === selectedCharacters.length &&
+      selectedCharacters.every((character) => existing.characterIds.includes(character.id))
+    );
+    const characterNames = selectedCharacters.map((character) => character.name);
+    const baseTitle = characterNames.join(' & ');
+    const title = matchingChats.length ? `${baseTitle} · Chat ${matchingChats.length + 1}` : baseTitle;
+    const now = new Date().toISOString();
+    const chat: Chat = {
+      id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      title,
+      characterIds: selectedCharacters.map((character) => character.id),
+      personaId: activePersona?.id || 'persona_siren',
+      lorebookIds: data.lorebooks.slice(0, 3).map((lorebook) => lorebook.id),
+      pluginIds: data.plugins.slice(0, 5).map((plugin) => plugin.id),
+      scenario: selectedCharacters[0].scenario || 'A new story in the Pretty Little Fantasies universe.',
+      bgImage: selectedCharacters[0].avatar || '/penthouse.jpg',
+      relationshipScore: 88,
+      messages: [{
+        id: `msg_first_${Date.now()}`,
+        senderId: selectedCharacters[0].id,
+        senderName: selectedCharacters[0].name,
+        avatar: selectedCharacters[0].avatar,
+        content: selectedCharacters[0].first_mes,
+        timestamp: Date.now(),
+      }],
+      createdAt: now,
+      updatedAt: now,
+    };
+    updateData({ ...data, chats: [chat, ...data.chats], activeChatId: chat.id });
     setActiveChat(chat);
     setInChatMode(true);
+  };
+
+  const handleStartChatWithCharacter = (char: Character) => {
+    const chat = [...data.chats]
+      .filter((existing) => existing.characterIds.includes(char.id))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+    if (chat) {
+      setActiveChat(chat);
+      setInChatMode(true);
+      updateData({ ...data, activeChatId: chat.id });
+      return;
+    }
+    createChatForCharacterIds([char.id]);
+  };
+
+  const handleStartNewChat = () => {
+    if (activeChat) createChatForCharacterIds(activeChat.characterIds);
   };
 
   const handleSaveCharacter = (char: Character) => {
@@ -486,6 +511,7 @@ export default function App() {
           socialMediaContext={formatSocialWorldContext(data.socialWorld || DEFAULT_SOCIAL_WORLD)}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
+          onStartNewChat={handleStartNewChat}
           onBackToDashboard={() => setInChatMode(false)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenPlugins={() => setIsPluginModalOpen(true)}
@@ -804,7 +830,10 @@ export default function App() {
               chats={data.chats}
               onSelectChat={handleSelectChat}
               onContinueLastChat={() => {
-                if (activeChat) setInChatMode(true);
+                const latestChat = [...data.chats].sort((a, b) =>
+                  new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                )[0];
+                if (latestChat) handleSelectChat(latestChat.id);
               }}
               onGenerateSceneImage={() => setIsSceneGeneratorOpen(true)}
               onOpenStoryNotes={() => setIsStoryNotesOpen(true)}
