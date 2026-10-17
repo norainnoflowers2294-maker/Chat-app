@@ -88,7 +88,8 @@ export async function testOpenRouterConnection(apiKey: string): Promise<Connecti
       status: 'error', lastChecked: Date.now(), latencyMs: Date.now() - start,
       statusCode: err.status, errorMessage: err.message, suggestedFix: err.suggestedFix,
       errorCategory: !apiKey.trim() ? 'missing_key' : err.status === 401 ? 'auth_failed'
-        : err.status === 402 ? 'no_credits' : err.status === 429 ? 'rate_limited' : 'network_error',
+        : err.status === 402 ? 'no_credits' : err.status === 404 ? 'model_unavailable'
+        : err.status === 429 ? 'rate_limited' : 'network_error',
     };
   }
 }
