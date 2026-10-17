@@ -1,4 +1,4 @@
-import { Character, FeatureMark, Lorebook } from '../types/roleplay';
+import { Character, FeatureMark, Lorebook, Persona } from '../types/roleplay';
 
 function decodeUtf8(bytes: Uint8Array): string {
   try {
@@ -162,10 +162,10 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
       : undefined;
 
   const consumed = new Set([
-    'name', 'nicknames', 'nickname', 'age', 'ethnicity', 'birthday', 'birthYear', 'birth_year', 'zodiacSign', 'zodiac_sign',
+    'name', 'nicknames', 'nickname', 'aliases', 'age', 'ethnicity', 'race', 'birthday', 'birth_date', 'birthYear', 'birth_year', 'zodiacSign', 'zodiac_sign',
     'avatar', 'image', 'height', 'bodyType', 'body_type', 'build', 'scars', 'birthmarks', 'tattoos',
     'hairColor', 'hair_color', 'eyeColor', 'eye_color', 'description', 'physical_description', 'appearance', 'looks',
-    'voiceDescription', 'voice_description', 'voice', 'voiceTags', 'voice_tags', 'personality', 'backstory', 'history', 'background', 'lore',
+    'voiceDescription', 'voice_description', 'voice', 'voiceTags', 'voice_tags', 'personality', 'backstory', 'history', 'background', 'lore', 'first_message', 'example', 'physicalDescription', 'creator_notes',
     'spouse', 'current_spouse', 'familyMembers', 'family_members', 'relatives', 'scenario', 'first_mes', 'greeting', 'firstMessage',
     'pov', 'summary', 'short_description', 'mes_example', 'example_dialogue', 'system_prompt', 'tags', 'alternate_greetings', 'creator_notes',
     'customFields', 'custom_fields', 'extensions', 'creator', 'character_version', 'spec', 'spec_version', 'post_history_instructions',
@@ -176,7 +176,7 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
 
   const tagsRaw = firstDefined(data, 'tags');
   const greetingsRaw = firstDefined(data, 'alternate_greetings', 'alternateGreetings');
-  const nicknamesRaw = firstDefined(data, 'nicknames', 'nickname');
+  const nicknamesRaw = firstDefined(data, 'nicknames', 'nickname', 'aliases');
   const rawPov = asString(firstDefined(data, 'pov', 'reply_pov'));
   const normalizedPov = /first/i.test(rawPov) ? 'first_person' : /third/i.test(rawPov) ? 'third_person' : rawPov;
   const description = asString(firstDefined(data, 'description', 'physical_description', 'appearance', 'looks'));
@@ -206,10 +206,10 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
     spouse,
     familyMembers,
     scenario: asString(firstDefined(data, 'scenario')),
-    first_mes: asString(firstDefined(data, 'first_mes', 'greeting', 'firstMessage'), 'Hello!'),
+    first_mes: asString(firstDefined(data, 'first_mes', 'greeting', 'firstMessage', 'first_message'), 'Hello!'),
     pov: normalizedPov,
     summary: cardSummary,
-    mes_example: asString(firstDefined(data, 'mes_example', 'example_dialogue')),
+    mes_example: asString(firstDefined(data, 'mes_example', 'example_dialogue', 'example')),
     system_prompt: asString(firstDefined(data, 'system_prompt', 'post_history_instructions')),
     tags: Array.isArray(tagsRaw) ? tagsRaw.map((v: unknown) => asString(v)).filter(Boolean) : (typeof tagsRaw === 'string' ? tagsRaw.split(',').map((v: string) => v.trim()).filter(Boolean) : []),
     alternate_greetings: Array.isArray(greetingsRaw) ? greetingsRaw.map((v: unknown) => asString(v)).filter(Boolean) : [],
@@ -219,14 +219,17 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
 }
 
 function decodeCardPayload(raw: string): any {
-  const candidates = [raw];
+  const normalized = raw.replace(/\u0000/g, '').trim();
+  const candidates = [normalized];
+  const encoded = normalized.replace(/-/g, '+').replace(/_/g, '/');
   try {
-    const binary = atob(raw.trim());
+    const binary = atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '='));
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    candidates.unshift(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    candidates.unshift(new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '').trim());
   } catch {}
   for (const candidate of candidates) {
     try { return JSON.parse(candidate); } catch {}
+    try { return JSON.parse(decodeURIComponent(candidate)); } catch {}
   }
   throw new Error('No valid character card data was found in this PNG.');
 }
@@ -238,15 +241,14 @@ export async function parseCharacterFile(file: File): Promise<Partial<Character>
   }
 
   const { textChunks, base64Image } = await parsePngMetadata(file);
-  const rawChara = Object.entries(textChunks).find(([key]) =>
-    ['chara', 'ccv3', 'description', 'comment'].includes(key.toLowerCase())
-  )?.[1];
-
-  if (rawChara) {
+  const metadataPriority = ['chara', 'ccv3', 'character', 'description', 'comment'];
+  for (const preferredKey of metadataPriority) {
+    const rawCard = Object.entries(textChunks).find(([key]) => key.toLowerCase() === preferredKey)?.[1];
+    if (!rawCard) continue;
     try {
-      return normalizeCharacterCard(decodeCardPayload(rawChara), fallbackName, base64Image);
+      return normalizeCharacterCard(decodeCardPayload(rawCard), fallbackName, base64Image);
     } catch (error) {
-      console.warn('Could not read embedded character card data:', error);
+      console.warn(`Could not read embedded ${preferredKey} character card data:`, error);
     }
   }
 
@@ -262,6 +264,59 @@ export async function parseCharacterFile(file: File): Promise<Partial<Character>
     tags: [],
     customFields: { importWarning: 'This PNG contains no readable character card metadata. Only its image was imported.' },
   };
+}
+
+function unwrapPersona(parsed: any): Record<string, any> {
+  let data = parsed?.data || parsed?.persona || parsed?.profile || parsed;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Persona card JSON must contain an object.');
+  if (data.data && typeof data.data === 'object') data = data.data;
+  return data;
+}
+
+function normalizePersonaCard(parsed: any, fallbackName: string, avatar?: string): Partial<Persona> {
+  const data = unwrapPersona(parsed);
+  const name = asString(firstDefined(data, 'name', 'full_name', 'username', 'display_name'), fallbackName);
+  const nicknamesRaw = firstDefined(data, 'nicknames', 'nickname', 'aliases');
+  const nicknames = Array.isArray(nicknamesRaw)
+    ? nicknamesRaw.map((v: unknown) => asString(v)).filter(Boolean).join(', ')
+    : asString(nicknamesRaw);
+  const traitRaw = firstDefined(data, 'traits', 'tags', 'personality_traits');
+  const traits = Array.isArray(traitRaw)
+    ? traitRaw.map((v: unknown) => asString(v)).filter(Boolean)
+    : typeof traitRaw === 'string' ? traitRaw.split(/[,;|]/).map((v: string) => v.trim()).filter(Boolean) : [];
+  return {
+    name,
+    display_name: asString(firstDefined(data, 'display_name', 'nickname', 'name', 'full_name'), name),
+    nicknames,
+    occupation: asString(firstDefined(data, 'occupation', 'job', 'role')),
+    avatar: avatar || asString(firstDefined(data, 'avatar', 'avatar_url', 'image')),
+    description: asString(firstDefined(data, 'description', 'personality_description', 'persona', 'personality')),
+    appearance: asString(firstDefined(data, 'appearance', 'physical_description', 'looks')),
+    backstory: asString(firstDefined(data, 'backstory', 'history', 'background', 'lore')),
+    speaking_style: asString(firstDefined(data, 'speaking_style', 'speakingStyle', 'voice_description', 'voice', 'style')),
+    traits,
+    is_default: Boolean(firstDefined(data, 'is_default', 'isDefault')),
+  };
+}
+
+export async function parsePersonaFile(file: File): Promise<Partial<Persona>> {
+  const fallbackName = file.name.replace(/\\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Unnamed Persona';
+  if (file.name.toLowerCase().endsWith('.json')) {
+    return normalizePersonaCard(JSON.parse(await file.text()), fallbackName);
+  }
+  if (!file.name.toLowerCase().endsWith('.png')) throw new Error('Choose a persona JSON or PNG card.');
+  const { textChunks, base64Image } = await parsePngMetadata(file);
+  const metadataPriority = ['persona', 'persona_card', 'profile', 'chara', 'ccv3', 'description', 'comment'];
+  for (const preferredKey of metadataPriority) {
+    const embedded = Object.entries(textChunks).find(([key]) => key.toLowerCase() === preferredKey)?.[1];
+    if (!embedded) continue;
+    try {
+      return normalizePersonaCard(decodeCardPayload(embedded), fallbackName, base64Image);
+    } catch (error) {
+      console.warn(`Could not read embedded ${preferredKey} persona card data:`, error);
+    }
+  }
+  return normalizePersonaCard({}, fallbackName, base64Image);
 }
 
 export async function parseLorebookFile(file: File): Promise<Partial<Lorebook>> {
