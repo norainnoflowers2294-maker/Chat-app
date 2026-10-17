@@ -15,6 +15,7 @@ import { ActionCards } from './components/ActionCards';
 import { CategoryPills, CategoryFilter } from './components/CategoryPills';
 import { RecentChatsSection } from './components/RecentChatsSection';
 import { ChatsLibraryView } from './components/ChatsLibraryView';
+import { SocialMediaView } from './components/SocialMediaView';
 import { ChatView } from './components/ChatView';
 import { CharacterModal } from './components/CharacterModal';
 import { CreateCharacterView } from './components/CreateCharacterView';
@@ -34,6 +35,7 @@ import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
 import { WalletModal } from './components/WalletModal';
 import { getWalletForScope, type StoryWallet } from './lib/wallet';
+import { DEFAULT_SOCIAL_WORLD, formatSocialWorldContext } from './lib/socialMedia';
 
 import {
   Character,
@@ -157,6 +159,7 @@ export default function App() {
             openRouterConfig: remote.openRouterConfig || prev.openRouterConfig,
             supabaseConfig: remote.supabaseConfig || prev.supabaseConfig,
             wallets: remote.wallets || prev.wallets,
+            socialWorld: remote.socialWorld || prev.socialWorld,
           }));
         }
       }
@@ -433,6 +436,7 @@ export default function App() {
           diagnostic={diagnostic}
           preferences={preferences}
           storyMemories={data.storyMemories}
+          socialMediaContext={formatSocialWorldContext(data.socialWorld || DEFAULT_SOCIAL_WORLD)}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
           onBackToDashboard={() => setInChatMode(false)}
@@ -445,6 +449,7 @@ export default function App() {
           onOpenSavedMessagesModal={() => setIsSavedMessagesOpen(true)}
           onOpenSceneGeneratorModal={() => setIsSceneGeneratorOpen(true)}
           onOpenGitHubSyncModal={() => setIsGitSyncOpen(true)}
+          onOpenSocialMedia={() => { setInChatMode(false); setActiveTab('social'); }}
           onOpenWallet={handleOpenWallet}
           onUpdatePreferences={handleSavePreferences}
           onTogglePlugin={handleTogglePlugin}
@@ -597,6 +602,7 @@ export default function App() {
           onOpenSavedMessages={() => setIsSavedMessagesOpen(true)}
           onOpenScenes={() => setIsSceneGeneratorOpen(true)}
           onOpenGitHubSync={() => setIsGitSyncOpen(true)}
+          onOpenSocialMedia={() => { setInChatMode(false); setActiveTab('social'); }}
         />
 
         {/* Prominent Track Screen Button on Dashboard */}
@@ -612,7 +618,18 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
-        {activeTab === 'chats' ? (
+        {activeTab === 'social' ? (
+          <SocialMediaView
+            world={data.socialWorld || DEFAULT_SOCIAL_WORLD}
+            characters={data.characters}
+            personas={data.personas}
+            activeChat={activeChat}
+            onUpdateWorld={(socialWorld) => updateData({ ...data, socialWorld })}
+            onToggleChat={(enabled) => {
+              if (activeChat) handleUpdateChat({ ...activeChat, socialMediaEnabled: enabled, updatedAt: new Date().toISOString() });
+            }}
+          />
+        ) : activeTab === 'chats' ? (
           <ChatsLibraryView chats={data.chats} characters={data.characters} onOpenChat={handleSelectChat} />
         ) : activeTab === 'characters' ? (
           <CharacterModal
