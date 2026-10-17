@@ -50,6 +50,7 @@ import {
   saveLocalData,
   syncToFirebase,
   loadFromFirebase,
+  mergeDefaultCharacters,
   StorageData,
 } from './lib/storage';
 import { auth } from './lib/firebase';
@@ -145,7 +146,7 @@ export default function App() {
           setData((prev) => ({
             ...prev,
             appPreferences: normalizePreferences(remote.appPreferences || prev.appPreferences),
-            characters: remote.characters || prev.characters,
+            characters: mergeDefaultCharacters(remote.characters || prev.characters),
             chats: remote.chats || prev.chats,
             lorebooks: remote.lorebooks || prev.lorebooks,
             personas: remote.personas || prev.personas,
