@@ -5,6 +5,7 @@ import type { Character, Persona, Lorebook, Plugin, Chat } from '../types/rolepl
 interface AssembleParams {
   preferences?: AppPreferences;
   storyMemories?: StoryMemory[];
+  socialMediaContext?: string;
   characters: Character[];
   persona: Persona | null;
   lorebooks: Lorebook[];
@@ -71,12 +72,16 @@ function formatCharacter(character: Character, index: number): string {
 }
 
 export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMessage[] {
-  const { characters, persona, lorebooks, plugins, chat, preferences, storyMemories = [] } = params;
+  const { characters, persona, lorebooks, plugins, chat, preferences, storyMemories = [], socialMediaContext = '' } = params;
   const systemParts: string[] = [];
 
   systemParts.push(
     `[ROLEPLAY INSTRUCTIONS]\nContinue the scene as the selected character profile or profiles. Stay consistent with their established voice, personality, history, relationships, and current situation. Use the reply settings below. Never impersonate the user, write the user's dialogue, or decide the user's thoughts, feelings, or actions. Leave a natural opening for the user's next turn.`
   );
+
+  if (chat.socialMediaEnabled && socialMediaContext.trim()) {
+    systemParts.push(socialMediaContext);
+  }
 
   if (persona) {
     const identity = [
