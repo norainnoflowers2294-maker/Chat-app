@@ -161,5 +161,17 @@ You may write only the selected characters’ words and actions and environmenta
   const resultMessages: OpenRouterApiMessage[] = [{ role: 'system', content: systemParts.join('\n\n---\n\n') }];
   const history = preferences ? chat.messages.slice(-preferences.contextMessages) : chat.messages;
   history.forEach((message) => resultMessages.push({ role: message.senderId === 'user' ? 'user' : 'assistant', content: message.content }));
+
+  const postHistoryInstructions = characters
+    .map((character) => character.post_history_instructions?.trim()
+      ? `[For ${clean(character.name) || 'this character'}]\n${character.post_history_instructions.trim()}`
+      : '')
+    .filter(Boolean);
+  if (postHistoryInstructions.length) {
+    resultMessages.push({
+      role: 'system',
+      content: `[POST-HISTORY INSTRUCTIONS — FOLLOW FOR THIS REPLY]\nThese instructions are attached to the selected character card and apply immediately before generating the reply. Follow them over conflicting style or point-of-view preferences. Never speak, act, think, or decide for the user or their persona.\n\n${postHistoryInstructions.join('\\n\\n')}`,
+    });
+  }
   return resultMessages;
 }
