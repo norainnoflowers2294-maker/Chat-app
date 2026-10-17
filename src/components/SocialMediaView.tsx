@@ -29,23 +29,33 @@ export const SocialMediaView: React.FC<SocialMediaViewProps> = ({
       kyla: ['kyla'],
     };
     const profileNames = new Set([normalize(profile.name), ...(aliases[profile.id] || [])]);
+    const matchesProfile = (candidateName: string) => {
+      const candidate = normalize(candidateName);
+      return [...profileNames].some((profileName) => candidate === profileName || candidate.startsWith(profileName));
+    };
     const character = characters.find((item) =>
-      [item.name, ...(item.nicknames || [])].some((name) => {\n        const candidate = normalize(name);\n        return [...profileNames].some((profileName) => candidate === profileName || candidate.startsWith(profileName));\n      })
+      [item.name, ...(item.nicknames || [])].some(matchesProfile)
     );
     if (character?.avatar) return character.avatar;
     const persona = personas.find((item) =>
-      [item.name, item.display_name || '', ...(item.nicknames || '').split(',')].some((name) => {\n        const candidate = normalize(name);\n        return [...profileNames].some((profileName) => candidate === profileName || candidate.startsWith(profileName));\n      })
+      [item.name, item.display_name || '', ...(item.nicknames || '').split(',')].some(matchesProfile)
     );
     if (persona?.avatar) return persona.avatar;
     const defaults: Record<string, string> = {
-      lucious: '/lucious.jpg',\n      emmy: '/characters/emmy.svg',
+      lucious: '/lucious.jpg',
+      emmy: '/characters/emmy.svg',
       vic: '/characters/vic.svg',
       abel: '/characters/abel.svg',
       reese: '/characters/reese.svg',
       ryker: '/characters/ryker.svg',
-      kaylynn: '/characters/kaylynn.svg',\n      kyla: '/characters/kyla.svg',\n      luca: '/characters/luca.svg',\n      kyle: '/characters/kyle.svg',\n      matt: '/characters/matt.svg',\n      val: '/characters/val.svg',
+      kaylynn: '/characters/kaylynn.svg',
       asha: '/characters/asha.svg',
       bri: '/characters/bri.svg',
+      kyla: '/characters/kyla.svg',
+      luca: '/characters/luca.svg',
+      kyle: '/characters/kyle.svg',
+      matt: '/characters/matt.svg',
+      val: '/characters/val.svg',
     };
     return profile.avatar || defaults[profile.id] || '/colorpop_hero.jpg';
   };
