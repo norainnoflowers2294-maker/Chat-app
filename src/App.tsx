@@ -13,6 +13,7 @@ import { ColorPopHero } from './components/ColorPopHero';
 import { ActionCards } from './components/ActionCards';
 import { CategoryPills, CategoryFilter } from './components/CategoryPills';
 import { RecentChatsSection } from './components/RecentChatsSection';
+import { ChatsLibraryView } from './components/ChatsLibraryView';
 import { ChatView } from './components/ChatView';
 import { CharacterModal } from './components/CharacterModal';
 import { CreateCharacterView } from './components/CreateCharacterView';
@@ -562,7 +563,7 @@ export default function App() {
             onChangeTab={(t) => {
               setActiveTab(t);
               if (t === 'chats') {
-                if (activeChat) setInChatMode(true);
+                setInChatMode(false);
               } else if (t === 'characters' || t === 'gallery' || t === 'files') {
                 setIsCreateCharacterOpen(false);
               } else if (t === 'lorebooks') {
@@ -589,7 +590,9 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
-        {activeTab === 'characters' ? (
+        {activeTab === 'chats' ? (
+          <ChatsLibraryView chats={data.chats} characters={data.characters} onOpenChat={handleSelectChat} />
+        ) : activeTab === 'characters' ? (
           <CharacterModal
             isOpen={true}
             fullPage
@@ -664,7 +667,8 @@ export default function App() {
                 setPersonaToEdit(null);
               }}
               onOpenChats={() => {
-                if (activeChat) setInChatMode(true);
+                setActiveTab('chats');
+                setInChatMode(false);
               }}
               onOpenPlugins={() => setIsPluginModalOpen(true)}
               onOpenSettings={() => setIsSettingsOpen(true)}
@@ -680,7 +684,8 @@ export default function App() {
                 setPersonaToEdit(null);
               }}
               onOpenMyChats={() => {
-                if (activeChat) setInChatMode(true);
+                setActiveTab('chats');
+                setInChatMode(false);
               }}
             />
 
@@ -717,7 +722,8 @@ export default function App() {
               onOpenStoryNotes={() => setIsStoryNotesOpen(true)}
               onOpenSavedMessages={() => setIsSavedMessagesOpen(true)}
               onViewAllChats={() => {
-                if (activeChat) setInChatMode(true);
+                setActiveTab('chats');
+                setInChatMode(false);
               }}
             />
           </>
