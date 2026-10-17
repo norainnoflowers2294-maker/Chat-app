@@ -25,6 +25,12 @@ test('narrator and NPC settings reach the actual system prompt',()=>{
  assert.match(system,/omit standalone narrator/);assert.match(system,/Do not introduce new NPC actions/);
 });
 
+test('global prompt instructions persist within the supported limit', () => {
+ const value='x'.repeat(7000);
+ const prefs=normalizePreferences({chatSystemPrompt:value});
+ assert.equal(prefs.chatSystemPrompt.length,6000);
+});
+
 test('roleplay defaults clamp to supported values and preserve the always-on agency rule', () => {
  const prefs=normalizePreferences({customResponseWords:5000,dialogueBalance:-10,scenePacing:'impossible',npcActivity:'high',neverSpeakForUser:false});
  assert.equal(prefs.customResponseWords,1500);
