@@ -181,7 +181,7 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
         content: 'Create one believable fictional incoming phone event for ' + ownerName + '’s phone: either an SMS or a call/voicemail from another character. Respect the current scene and character knowledge. Do not write any words, thoughts, feelings, actions, or decisions for Emmy or {{user}}. Return only JSON with keys kind ("text" or "call"), title, from, and body. Make body only the incoming sender’s message or voicemail.',
       });
       const raw = await sendOpenRouterChat(openRouterConfig, messages);
-      const json = raw.match(/\\{[\\s\\S]*\\}/)?.[0];
+      const json = raw.match(/\{[\s\S]*\}/)?.[0];
       let event: { kind?: string; title?: string; from?: string; body?: string } = {};
       if (json) {
         try { event = JSON.parse(json); } catch { /* Keep the model response as a plain fictional message. */ }
