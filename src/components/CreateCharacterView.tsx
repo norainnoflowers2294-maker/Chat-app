@@ -219,6 +219,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   const [createdSuccessChar, setCreatedSuccessChar] = useState<Character | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // Toggle Accordion Section
   const toggleSection = (sectionKey: string) => {
@@ -535,6 +536,9 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
     } catch (err: any) {
       console.error('Import error:', err);
       showToast(`⚠ Failed to import character: ${err.message || 'Invalid format'}`);
+    } finally {
+      // Allow importing the same card again after changing or correcting it.
+      e.target.value = '';
     }
   };
 
@@ -680,8 +684,29 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
           </div>
         </div>
 
-        {/* Right Section: Header Quick Save & Right Drawer Arrow */}
+        {/* Right Section: Import, Quick Save & Right Drawer Arrow */}
         <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-white transition-all flex items-center space-x-1 border shadow-md active:scale-95"
+            style={{
+              backgroundColor: `${PALETTE.orchid}55`,
+              borderColor: PALETTE.orchid,
+            }}
+            title="Import a character card from PNG or JSON"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Import</span>
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,.png,application/json,image/png"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
           {/* Quick Save Header Button */}
           <button
             onClick={handleSaveDraft}
