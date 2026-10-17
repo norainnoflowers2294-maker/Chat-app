@@ -192,7 +192,9 @@ ${qualityRules.join('\n')}`);
     systemParts.push(`[USER STORY PREFERENCES]\n${rules.join('\n')}`);
     if (preferences.memoryEnabled) {
       const limits = preferences.memoryDepth === 'light' ? [3, 500] : preferences.memoryDepth === 'deep' ? [15, 2000] : [8, 1000];
-      const notes = storyMemories.filter((memory) => !memory.chatId || memory.chatId === chat.id).slice(0, limits[0]);
+      const notes = storyMemories.filter((memory) => !memory.chatId || memory.chatId === chat.id)
+        .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limits[0]);
       if (notes.length) systemParts.push(`[SAVED STORY NOTES]\n${notes.map((memory) => `${memory.title}: ${memory.content.slice(0, limits[1])}`).join('\n')}`);
     }
   }
