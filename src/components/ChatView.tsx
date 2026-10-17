@@ -50,6 +50,7 @@ import { buildOpenRouterMessages } from '../utils/promptAssembler';
 import { getSlashCommandSuggestions, parseSlashCommand, type SlashCommand } from '../lib/slashCommands';
 import { DualTrackOverlay } from './DualTrackOverlay';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
+import { addPhoneThreadMessage, type PhoneSystemState } from '../lib/phoneSystem';
 
 class GeneratedReplyRuleError extends Error {
   suggestedFix: string;
@@ -153,6 +154,8 @@ interface ChatViewProps {
   socialMediaContext: string;
   phoneContext: string;
   onOpenPhone: () => void;
+  phoneSystem: PhoneSystemState;
+  onUpdatePhoneSystem: (state: PhoneSystemState) => void;
   chat: Chat;
   allChats: Chat[];
   characters: Character[];
@@ -182,7 +185,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  preferences, storyMemories, socialMediaContext, phoneContext, onOpenPhone,
+  preferences, storyMemories, socialMediaContext, phoneContext, onOpenPhone, phoneSystem, onUpdatePhoneSystem,
   chat,
   allChats,
   characters,
@@ -211,6 +214,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onBookmarkMessage,
 }) => {
   const [inputText, setInputText] = useState('');
+  const [textMode, setTextMode] = useState(false);
+  const phoneSystemRef = useRef(phoneSystem);
+  useEffect(() => { phoneSystemRef.current = phoneSystem; }, [phoneSystem]);
   const [loadingChatIds, setLoadingChatIds] = useState<Set<string>>(() => new Set());
   const loading = loadingChatIds.has(chat.id);
   const beginChatRequest = (chatId: string) => setLoadingChatIds((current) => new Set(current).add(chatId));
@@ -334,9 +340,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         senderId: responder.id,
         senderName: responder.name,
         avatar: responder.avatar,
-        content: botReply,
-        timestamp: Date.now(),
-        swipes: [botReply],
+        content: formattedReply,
+        timestamp: replyTimestamp,
+        swipes: [formattedReply],
         currentSwipeIndex: 0,
       };
       onUpdateChat({ ...chat, messages: [...chat.messages, replyMessage], updatedAt: new Date().toISOString() });
@@ -497,6 +503,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
     void executeSlashCommand(command);
   };
 
+  const savePhoneThreadMessage = (
+    participant: Character | { id: string; name: string },
+    senderId: string,
+    senderName: string,
+    content: string,
+    direction: 'outgoing' | 'incoming',
+    timestamp: number,
+  ) => {
+    const personaName = activePersona?.name || 'Emmy';
+    const phoneOwner = characters.find((character) => character.name.trim().toLowerCase() === personaName.trim().toLowerCase())
+      || characters.find((character) => character.id === 'emmy' || character.name.trim().toLowerCase() === 'emmy')
+      || { id: activePersona?.id || 'emmy', name: personaName };
+    const next = addPhoneThreadMessage(
+      phoneSystemRef.current, chat.id, phoneOwner.id, phoneOwner.name,
+      participant.id, participant.name,
+      { senderId, senderName, content, direction, timestamp },
+    );
+    phoneSystemRef.current = next;
+    onUpdatePhoneSystem(next);
+  };
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -512,13 +538,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     const userText = inputText.trim();
     const assistantWasTagged = /(^|\\s)@assistant\\b/i.test(userText);
+    const userDisplayName = activePersona ? activePersona.name : 'You';
+    const messageTimestamp = Date.now();
+    const formattedUserText = textMode ? userDisplayName + ' - ' + userText : userText;
     const userMessage: ChatMessage = {
       id: `msg_u_${Date.now()}`,
       senderId: 'user',
       senderName: activePersona ? activePersona.name : 'You',
       avatar: activePersona?.avatar || '/colorpop_hero.jpg',
-      content: chat.oocMode ? `[OOC] ${userText}` : userText,
-      timestamp: Date.now(),
+      content: chat.oocMode ? `[OOC] ${formattedUserText}` : formattedUserText,
+      timestamp: messageTimestamp,
     };
 
     const updatedMessages = [...chat.messages, userMessage];
@@ -530,6 +559,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     };
 
     onUpdateChat(updatedChat);
+    if (textMode) savePhoneThreadMessage(activeCharacters[0] || { id: 'roleplay', name: 'Roleplay' }, 'user', userDisplayName, userText, 'outgoing', messageTimestamp);
     setInputText('');
     beginChatRequest(chat.id);
 
@@ -542,6 +572,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat: updatedChat,
         preferences, storyMemories, socialMediaContext, phoneContext,
       });
+
+      if (textMode) {
+        apiMessages.unshift({
+          role: 'system',
+          content: 'Text mode is active. Reply as a natural fictional phone text from ' + (activeCharacters[0]?.name || 'the character') + '. Keep it suitable for a text message and do not narrate actions or write anything for Emmy or {{user}}. The app will label your message with the sender name.',
+        });
+      }
 
       if (updatedChat.oocMode) {
         apiMessages.unshift({
@@ -571,8 +608,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ? { id: 'assistant', name: 'Pretty Little Fantasies Assistant', avatar: '/colorpop_hero.jpg' }
         : activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
 
+      const replyTimestamp = Date.now();
+      const formattedReply = textMode ? responder.name + ' - ' + botReply : botReply;
       const replyMessage: ChatMessage = {
-        id: `msg_a_${Date.now()}`,
+        id: `msg_a_${replyTimestamp}`,
         senderId: responder.id,
         senderName: responder.name,
         avatar: responder.avatar,
@@ -581,6 +620,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         swipes: [botReply],
         currentSwipeIndex: 0,
       };
+
+      if (textMode && !assistantWasTagged) savePhoneThreadMessage(responder, responder.id, responder.name, botReply, 'incoming', replyTimestamp);
 
       if (preferences.notifyReplies && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
         try { new Notification('ColorPop', { body: 'A reply is ready.' }); } catch { /* Unsupported notification constructor on some mobile browsers. */ }
@@ -1298,6 +1339,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       <div className="relative z-20 p-3 sm:p-4 bg-[#140410]/95 backdrop-blur-md border-t border-[#ff3399]/40">
         <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
+          <button type="button" aria-pressed={textMode} title="Text mode saves messages in this chat’s phone thread" onClick={() => setTextMode((enabled) => !enabled)} className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-colors ${textMode ? 'bg-[#00877E] border-[#37B6A5] shadow-[0_0_14px_rgba(55,182,165,0.35)]' : 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'}`}>
+            Text{textMode ? ' ✓' : ''}
+          </button>
           {[
             ['OOC 💬', 'OOC', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
             ['Restart 🔄', 'Restart', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
