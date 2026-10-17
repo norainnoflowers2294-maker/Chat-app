@@ -34,8 +34,10 @@ import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { DualTrackOverlay } from './components/DualTrackOverlay';
 import { Columns } from 'lucide-react';
 import { WalletModal } from './components/WalletModal';
+import { CharacterPhoneModal } from './components/CharacterPhoneModal';
 import { getWalletForScope, type StoryWallet } from './lib/wallet';
 import { DEFAULT_SOCIAL_WORLD, formatSocialWorldContext } from './lib/socialMedia';
+import { formatPhoneStoryContext } from './lib/phoneSystem';
 
 import {
   Character,
@@ -105,6 +107,7 @@ export default function App() {
   const [isSceneGeneratorOpen, setIsSceneGeneratorOpen] = useState(false);
   const [isGitSyncOpen, setIsGitSyncOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [isPhoneOpen, setIsPhoneOpen] = useState(false);
   const [walletView, setWalletView] = useState<'dashboard' | 'activity'>('dashboard');
 
   // Persona Page & Creator Mode
@@ -571,6 +574,8 @@ export default function App() {
           preferences={preferences}
           storyMemories={data.storyMemories}
           socialMediaContext={formatSocialWorldContext(data.socialWorld || DEFAULT_SOCIAL_WORLD)}
+          phoneContext={formatPhoneStoryContext(data.phoneSystem, activeChat.id, activeChat.characterIds)}
+          onOpenPhone={() => setIsPhoneOpen(true)}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
           onStartNewChat={handleStartNewChat}
@@ -589,6 +594,20 @@ export default function App() {
           onUpdatePreferences={handleSavePreferences}
           onTogglePlugin={handleTogglePlugin}
           onBookmarkMessage={handleBookmarkMessage}
+        />
+
+        <CharacterPhoneModal
+          isOpen={isPhoneOpen}
+          onClose={() => setIsPhoneOpen(false)}
+          chat={activeChat}
+          characters={data.characters}
+          activeCharacters={data.characters.filter((character) => activeChat.characterIds.includes(character.id))}
+          personaName={activeWalletPersona?.name || 'Emmy'}
+          phoneSystem={data.phoneSystem}
+          onChange={(phoneSystem) => updateData({ ...dataRef.current, phoneSystem })}
+          wallet={activeWallet || undefined}
+          onSaveWallet={handleSaveWallet}
+          socialWorld={data.socialWorld || DEFAULT_SOCIAL_WORLD}
         />
 
         {/* Global Modals (Accessible from Chat View) */}
