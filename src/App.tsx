@@ -913,6 +913,7 @@ export default function App() {
         supabaseConfig={data.supabaseConfig}
         onSaveSupabaseConfig={handleSaveSupabaseConfig}
         firebaseUser={firebaseUser}
+        firebaseSyncMessage={firebaseSyncMessage}
       />
 
       <StoryNotesModal
