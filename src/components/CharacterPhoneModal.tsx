@@ -7,7 +7,6 @@ import type { Chat, Character, OpenRouterConfig, Persona, Lorebook, Plugin, Stor
 import type { AppPreferences } from '../lib/preferences';
 import { sendOpenRouterChat } from '../lib/openrouter';
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
-import { formatPhoneStoryContext } from '../lib/phoneSystem';
 
 type PhoneTab = 'texts' | 'calls' | 'photos' | 'contacts' | 'notifications' | 'money' | 'social' | 'notes' | 'scratchpad' | 'settings';
 const tabs: Array<{ id: PhoneTab; label: string; icon: React.ElementType; color: string }> = [
