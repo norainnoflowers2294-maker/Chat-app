@@ -74,6 +74,7 @@ function checkGeneratedReply(
   reply: string,
   characters: Character[],
   persona: Persona | null,
+  allowNarrator = false,
 ): string[] {
   const violations: string[] = [];
   const response = reply.trim();
@@ -99,7 +100,7 @@ function checkGeneratedReply(
     character.pov === 'first_person' ||
     /first[- ]person/i.test(character.post_history_instructions || '')
   );
-  if (firstPersonRequired) {
+  if (firstPersonRequired && !allowNarrator) {
     const respondingNames = characters
       .map((character) => character.name)
       .filter((name) => /lucious|lucius/i.test(name) || characters.some((item) => item.pov === 'first_person'));
@@ -124,10 +125,11 @@ async function sendCheckedCharacterReply(
   characters: Character[],
   persona: Persona | null,
   skipCheck = false,
+  allowNarrator = false,
 ): Promise<string> {
   let reply = await sendOpenRouterChat(config, messages);
   if (skipCheck) return reply;
-  let violations = checkGeneratedReply(reply, characters, persona);
+  let violations = checkGeneratedReply(reply, characters, persona, allowNarrator);
   if (!violations.length) return reply;
 
   const retryMessages = [
@@ -138,7 +140,7 @@ async function sendCheckedCharacterReply(
     },
   ];
   reply = await sendOpenRouterChat(config, retryMessages);
-  violations = checkGeneratedReply(reply, characters, persona);
+  violations = checkGeneratedReply(reply, characters, persona, allowNarrator);
   if (violations.length) {
     throw new GeneratedReplyRuleError(`I blocked a reply because it still appears to break the character rules: ${violations.join(' ')}`);
   }
@@ -608,6 +610,126 @@ export const ChatView: React.FC<ChatViewProps> = ({
       prev ? `${prev} *rolls d20: ${roll}*` : `*rolls d20 for charisma/action check: ${roll}*`
     );
     setTimeout(() => setDiceResult(null), 4000);
+  };
+
+  const handleChatQuickAction = async (action: string) => {
+    if (loading) return;
+
+    if (action === 'OOC') {
+      setInputText((current) => /^OOC:\s*/i.test(current) ? current : `OOC: ${current}`);
+      inputRef.current?.focus();
+      return;
+    }
+
+    if (action === 'Restart') {
+      if (!window.confirm('Restart this chat from the beginning? This clears its current messages.')) return;
+      openingGenerationStartedRef.current.delete(chat.id);
+      onUpdateChat({ ...chat, messages: [], openingPending: true, updatedAt: new Date().toISOString() });
+      return;
+    }
+
+    if (action === 'Remember') {
+      const detail = window.prompt('What story detail should this chat remember?');
+      if (!detail?.trim()) return;
+      const savedNote = `• ${detail.trim()}`;
+      const notes = chat.promptInstructions?.trim();
+      onUpdateChat({
+        ...chat,
+        promptInstructions: [notes, 'Long-term story details to remember:', savedNote].filter(Boolean).join('\n'),
+        updatedAt: new Date().toISOString(),
+      });
+      setCommandNotice('Story detail saved to this chat’s long-term memory.');
+      setTimeout(() => setCommandNotice(null), 3500);
+      return;
+    }
+
+    if (action === 'Continue') {
+      await handleContinueStory();
+      return;
+    }
+
+    let instruction = '';
+    let allowNarrator = false;
+    if (action === 'Time Skip') {
+      const duration = window.prompt('Jump forward by how much time? (minutes, hours, days, or weeks)', '1 hour');
+      if (!duration?.trim()) return;
+      instruction = `Advance the scene by ${duration.trim()}. Briefly bridge the elapsed time, keep established continuity, and begin at the next meaningful moment. Do not decide what {{user}} says, thinks, feels, or does.`;
+    } else if (action === 'Mood') {
+      const mood = window.prompt('Choose the scene mood: romantic, tense, dramatic, playful, suspenseful, or emotional', 'dramatic');
+      if (!mood?.trim()) return;
+      instruction = `Shift the scene atmosphere to feel ${mood.trim()}. Show the mood through dialogue, pacing, expressions, and surroundings while preserving continuity. Do not control {{user}}.`;
+    } else if (action === 'Location') {
+      const location = window.prompt('Where should the scene move?', 'the hotel lounge');
+      if (!location?.trim()) return;
+      instruction = `Move the scene to ${location.trim()}. Carry forward the characters, relationships, and unresolved events naturally. Do not decide what {{user}} does.`;
+    } else if (action === 'Roll') {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const result = roll === 20 ? 'critical success' : roll === 1 ? 'critical failure' : roll >= 11 ? 'success' : 'failure';
+      instruction = `Roll: d20 = ${roll} (${result}). Use this result to resolve the current uncertainty or introduce a fitting outcome in the scene. Keep it fair and do not choose actions for {{user}}.`;
+    } else {
+      const prompts: Record<string, string> = {
+        'Chaos': 'Introduce a completely unexpected but story-fitting event or plot twist that changes the immediate situation. Preserve established continuity and do not control {{user}}.',
+        'Phone': 'Introduce an incoming text message or phone call from another character. Make the sender and message feel natural to the current story, then leave room for {{user}} to respond.',
+        'Scribe': 'Write a detailed, cinematic description of the current room and surroundings, the characters present, their clothing and expressions, and the atmosphere. Stay within the established scene and do not invent {{user}} actions.',
+        'Weather': 'Describe realistic weather for the current setting and time, and show how it affects the surroundings and the characters. Keep continuity; do not decide what {{user}} does.',
+        'House': 'Describe the current house or building, the room layout and furniture, and where each character is located. Use established details where available and avoid contradicting prior scenes.',
+        'NPC': 'Introduce another fitting character into the scene naturally. Establish who they are through their entrance or first words, while leaving {{user}} in control of their own response.',
+        'Narrator': 'Write the next beat as a third-person narrator, describing the scene and character actions without changing the established character point of view in dialogue. Never write {{user}}’s dialogue, thoughts, feelings, decisions, reactions, or actions.',
+        'Outfit': 'Describe what each character currently present is wearing, including details that fit the setting, weather, and established characterization. Do not assign clothing or actions to {{user}} unless already established.',
+        'Thoughts': 'Reveal the roleplay character’s private internal thoughts as clearly marked inner monologue, without having the character speak them aloud. Never invent {{user}}’s thoughts, feelings, decisions, dialogue, or actions.',
+        'Flashback': 'Generate a brief, vivid flashback from the characters’ shared or relevant past. Keep it consistent with established story facts and return naturally to the present scene. Do not speak or act for {{user}}.',
+        'Surprise': 'Introduce an unexpected visitor, gift, discovery, or situation that fits the story. Make it surprising but plausible, then leave {{user}} room to respond.',
+        'Group Chat': 'Write a fictional group text conversation among relevant non-user characters. Format it with each NPC’s name and message, keep voices distinct, and never include a message or action on behalf of {{user}}.',
+      };
+      instruction = prompts[action] || '';
+    }
+
+    if (!instruction) return;
+    beginChatRequest(chat.id);
+    setErrorDetails(null);
+    try {
+      const apiMessages = buildOpenRouterMessages({
+        characters: activeCharacters,
+        persona: activePersona,
+        lorebooks: activeLorebooks,
+        plugins: activePlugins,
+        chat,
+        preferences,
+        storyMemories,
+        socialMediaContext,
+      });
+      apiMessages.push({ role: 'user', content: instruction });
+      const replyLength = chat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const reply = await sendCheckedCharacterReply({
+        ...openRouterConfig,
+        temperature: chat.creativity ?? openRouterConfig.temperature,
+        maxTokens,
+      }, apiMessages, activeCharacters, activePersona, false, allowNarrator);
+      const responder = action === 'Group Chat'
+        ? { id: 'assistant', name: 'Group Chat', avatar: '/colorpop_hero.jpg' }
+        : activeCharacters[0] || { id: 'char_bot', name: 'Narrator' };
+      const message: ChatMessage = {
+        id: `msg_quick_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        senderId: responder.id,
+        senderName: responder.name,
+        avatar: responder.avatar,
+        content: reply,
+        timestamp: Date.now(),
+        swipes: [reply],
+        currentSwipeIndex: 0,
+      };
+      onUpdateChat({ ...chat, messages: [...chat.messages, message], updatedAt: new Date().toISOString() });
+    } catch (err: any) {
+      setErrorDetails({
+        message: err.message || `Could not run the ${action} quick action.`,
+        suggestedFix: err.suggestedFix || 'Check your OpenRouter connection and try again.',
+      });
+    } finally {
+      finishChatRequest(chat.id);
+    }
   };
 
   const handleSaveQuote = (msg: ChatMessage) => {
@@ -1166,15 +1288,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
           {[
-            ['Continue', '/continue', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
+            ['OOC 💬', 'OOC', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
+            ['Restart 🔄', 'Restart', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
+            ['Chaos 🎲', 'Chaos', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
+            ['Phone 📱', 'Phone', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
+            ['Scribe ✍️', 'Scribe', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
+            ['Weather 🌦️', 'Weather', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
+            ['House 🏠', 'House', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
+            ['Continue ▶️', 'Continue', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
+            ['Time Skip ⏰', 'Time Skip', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
+            ['NPC 👥', 'NPC', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
+            ['Mood 🎭', 'Mood', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
+            ['Remember 📌', 'Remember', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
+            ['Roll 🎲', 'Roll', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
+            ['Narrator 🎬', 'Narrator', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
+            ['Location 📍', 'Location', 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'],
+            ['Outfit 👗', 'Outfit', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
+            ['Thoughts 🧠', 'Thoughts', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
+            ['Flashback ⏪', 'Flashback', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
+            ['Surprise 🎁', 'Surprise', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
+            ['Group Chat 💌', 'Group Chat', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
             ['Rewind', '/rewind', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
             ['Narrator', '/nar', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
             ['Wallet', '/cash', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
             ['Cash App', '/cashapp', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
-            ['Roll', '/roll', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
             ['Read Aloud', '/tts', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
           ].map(([label, command, colorClass]) => (
-            <button key={command} type="button" disabled={loading} onClick={() => runQuickCommand(command)} className={`min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors ${colorClass} disabled:opacity-40`}>
+            <button key={command} type="button" disabled={loading} onClick={() => command.startsWith('/') ? runQuickCommand(command) : void handleChatQuickAction(command)} className={`min-h-11 shrink-0 rounded-full border px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition-colors ${colorClass} disabled:opacity-40`}>
               {label}
             </button>
           ))}
