@@ -146,7 +146,18 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   const suggestedGeneral = (entry: OpenRouterModelInfo) => /gpt|llama|gemini|deepseek|mistral|qwen/i.test(entry.id + ' ' + (entry.name || ''));
   const displayPrice = (value: string | undefined) => {
     const amount = Number(value);
-    return Number.isFinite(amount) ? '
+    return Number.isFinite(amount) ? `$${(amount * 1_000_000).toFixed(amount < 0.000001 ? 3 : 2)} / 1M tokens` : 'Pricing not listed';
+  };
+  const visibleModels = availableModels.filter((entry) => {
+    const query = modelSearch.trim().toLowerCase();
+    const matchesQuery = !query || `${entry.id} ${entry.name || ''}`.toLowerCase().includes(query);
+    const matchesCategory = modelCategory === 'all' ||
+      (modelCategory === 'free' && isFreeModel(entry)) ||
+      (modelCategory === 'budget' && isBudgetModel(entry)) ||
+      (modelCategory === 'roleplay' && suggestedRoleplay(entry)) ||
+      (modelCategory === 'general' && suggestedGeneral(entry));
+    return matchesQuery && matchesCategory;
+  });
 
   const handleSave = () => {
     onSaveConfig({
@@ -193,17 +204,6 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     }
   };
 
-  const popularModels = [
-    { id: 'gryphe/mythomax-l2-13b', label: 'Mythomax L2 13B (Recommended for Roleplay)', badge: 'Gold Standard' },
-    { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', badge: 'Smart & Affordable' },
-    { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo', badge: 'Fast & Lightweight' },
-    { id: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash', badge: 'Fast & Affordable' },
-    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B', badge: 'Open & Versatile' },
-    { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2', badge: 'Balanced & Affordable' },
-    { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini', badge: 'Fast & Affordable' },
-    { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', badge: 'Best for Roleplay' },
-  ];
-
   if (showPreferences) return <PreferencesPanel
     value={preferences}
     onSave={onSavePreferences}
@@ -243,16 +243,16 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
             </div>
             <div>
               <h2 className="break-words text-base font-bold text-white tracking-wide sm:text-lg">
-                Settings &amp; OpenRouter Diagnostics
+                Pretty Little Fantasies Settings
               </h2>
               <p className="text-xs text-[#ffd6eb]/70">
-                Connect OpenRouter AI, Firebase storage, and sync to GitHub
+                AI connections, Firebase sync, and data backups
               </p>
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 text-[#ffd6eb]/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+            onClick={requestClose}
+            className="min-h-11 min-w-11 p-2 text-[#ffd6eb]/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -395,47 +395,41 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   <Sliders className="w-3.5 h-3.5 text-[#ff3399]" />
                   <span>Roleplay AI Model / Router</span>
                 </label>
-                <select
-                  aria-label="Choose an OpenRouter model"
-                  value={model}
-                  onChange={(event) => setModel(event.target.value)}
-                  className="w-full rounded-xl border border-[#ff3399]/50 bg-[#12040e] px-3 py-3 text-sm font-semibold text-white focus:border-[#ff007f] focus:outline-none"
-                >
-                  {popularModels.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.id}</option>)}
-                  {!popularModels.some((option) => option.id === model) && model && <option value={model}>Custom model · {model}</option>}
-                </select>
-                <p className="text-[11px] text-[#ffd6eb]/70">Choose the exact provider/model ID that will receive chat requests. The tags below describe speed and roleplay fit.</p>
-                <div className="space-y-1.5" aria-label="Available models">
-                  {popularModels.map((m) => (
-                    <div
-                      key={m.id}
-                      onClick={() => setModel(m.id)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                        model === m.id
-                          ? 'bg-[#ff007f]/20 border-[#ff007f] shadow-[0_0_12px_rgba(255,0,128,0.4)]'
-                          : 'bg-[#1a0515] border-[#ff3399]/20 hover:border-[#ff3399]/50'
-                      }`}
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="break-words font-bold text-white">{m.label}</div>
-                        <div className="break-all font-mono text-[10px] text-[#8AABF4]/80">{m.id}</div>
-                      </div>
-                      <span className="max-w-[45%] shrink-0 whitespace-normal break-words text-center text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#B12FA7]/25 text-[#ffd6eb] border border-[#B879C2]/50">
-                        {m.badge}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="min-w-0 break-words text-[11px] text-[#ffd6eb]/70">Choose an exact OpenRouter model ID. Catalog details come from OpenRouter and refresh on request.</p>
+                  <button type="button" onClick={refreshModels} disabled={modelsLoading || !apiKey.trim()} className="min-h-11 shrink-0 rounded-xl border border-[#079AF0]/50 bg-[#0B168C]/40 px-3 text-xs font-bold text-white disabled:opacity-50">{modelsLoading ? 'Loading…' : 'Refresh model list'}</button>
                 </div>
-
-                <div className="pt-2">
-                  <input
-                    type="text"
-                    placeholder="Or enter custom model ID (e.g. anthropic/claude-3-haiku)"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white placeholder-white/30 font-mono focus:outline-none"
-                  />
+                {modelsError && <p role="alert" className="rounded-xl border border-[#FF3B04]/50 bg-[#FF3B04]/10 p-3 text-xs text-white">{modelsError}</p>}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="min-w-0 space-y-1"><span className="text-[11px] font-semibold text-white">Search models</span><input value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} aria-label="Search OpenRouter models" placeholder="Provider or model name" className="min-h-11 w-full min-w-0 rounded-xl border border-[#8AABF4]/40 bg-[#12040e] px-3 text-sm text-white" /></label>
+                  <label className="min-w-0 space-y-1"><span className="text-[11px] font-semibold text-white">Suggested category</span><select value={modelCategory} onChange={(event) => setModelCategory(event.target.value as typeof modelCategory)} aria-label="Filter OpenRouter model category" className="min-h-11 w-full min-w-0 rounded-xl border border-[#8AABF4]/40 bg-[#12040e] px-3 text-sm text-white"><option value="all">All available</option><option value="roleplay">Best for roleplay (suggested)</option><option value="general">General chat (suggested)</option><option value="budget">Budget (catalog pricing)</option><option value="free">Free (catalog pricing)</option></select></label>
                 </div>
+                <div className="min-w-0 space-y-2" aria-label="Available OpenRouter models">
+                  {!availableModels.length && <p className="rounded-xl border border-[#8AABF4]/25 bg-white/5 p-3 text-[11px] text-[#ffd6eb]/75">Refresh the model list to load the current catalog. You can still enter an exact model ID below.</p>}
+                  {availableModels.length > 0 && !visibleModels.length && <p className="text-[11px] text-[#ffd6eb]/70">No catalog entries match this search and category.</p>}
+                  {visibleModels.slice(0, 100).map((entry) => {
+                    const free = isFreeModel(entry);
+                    const roleplay = suggestedRoleplay(entry);
+                    const general = suggestedGeneral(entry);
+                    return <button type="button" key={entry.id} onClick={() => chooseModel(entry)} className={`block min-h-11 w-full min-w-0 rounded-xl border p-3 text-left transition-colors ${model === entry.id ? 'border-[#FF1493] bg-[#FF1493]/15' : 'border-[#8AABF4]/30 bg-white/5 hover:border-[#079AF0]/60'}`}>
+                      <span className="block break-words font-bold text-white">{entry.name || entry.id}</span><span className="block break-all font-mono text-[10px] text-[#8AABF4]">{entry.id}</span>
+                      <span className="mt-1 block break-words text-[10px] text-[#ffd6eb]/75">{entry.context_length ? `Context ${entry.context_length.toLocaleString()} tokens · ` : ''}Input: {displayPrice(entry.pricing?.prompt)} · Output: {displayPrice(entry.pricing?.completion)}{free ? ' · Free per catalog' : ''}{roleplay ? ' · Roleplay suggestion' : ''}{!roleplay && general ? ' · General chat suggestion' : ''}</span>
+                    </button>;
+                  })}
+                </div>
+                <label className="block min-w-0 space-y-1"><span className="text-[11px] font-semibold text-white">Exact model ID</span><input type="text" aria-label="Exact OpenRouter model ID" placeholder="provider/model-id" value={model} onChange={(event) => { setModel(event.target.value); setSupportedParameters(undefined); }} className="min-h-11 w-full min-w-0 rounded-xl border border-[#8AABF4]/40 bg-[#12040e] px-3 text-xs font-mono text-white placeholder-white/40" /></label>
+                {selectedModelInfo && <p className="break-words text-[11px] text-[#ffd6eb]/75">Selected: {selectedModelInfo.name || selectedModelInfo.id}. OpenRouter model ID: <code className="break-all">{selectedModelInfo.id}</code></p>}
+                <button type="button" onClick={async () => {
+                  if (!apiKey.trim() || !model.trim()) { setModelTestResult('Add an API key and model ID first.'); return; }
+                  if (!window.confirm('Send a short test prompt to this model? The provider may charge for this request.')) return;
+                  setTestingModel(true); setModelTestResult('');
+                  try {
+                    const result = await sendOpenRouterChatDetailed([{ role: 'user', content: 'Reply with the single word: connected' }], { ...config, apiKey: apiKey.trim(), model: model.trim(), temperature: 0, maxTokens: 16, supportedParameters });
+                    setModelTestResult(`Response received from ${result.model}${result.provider ? ` via ${result.provider}` : ''}: ${result.content}`);
+                  } catch (error) { setModelTestResult(error instanceof Error ? error.message : 'The test model request failed.'); }
+                  finally { setTestingModel(false); }
+                }} disabled={testingModel} className="min-h-11 rounded-xl border border-[#37B6A5]/50 bg-[#00877E]/25 px-4 text-xs font-bold text-white disabled:opacity-50">{testingModel ? 'Testing model…' : 'Test model response (may incur cost)'}</button>
+                {modelTestResult && <p role="status" className="break-words rounded-xl bg-white/5 p-3 text-[11px] text-[#ffd6eb]">{modelTestResult}</p>}
               </div>
 
               <div className="space-y-3 border-t border-[#ff3399]/20 pt-3">
@@ -642,7 +636,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#8AABF4]/30 bg-[#0d020b] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6">
           <div className="text-[11px] text-[#ffd6eb]/60">
-            OpenRouter AI &bull; Firebase &bull; Supabase &bull; ColorPop
+            OpenRouter AI &bull; Firebase &bull; Pretty Little Fantasies
           </div>
 
           <div className="flex items-center space-x-3">
