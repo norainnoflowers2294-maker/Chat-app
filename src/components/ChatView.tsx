@@ -5,6 +5,7 @@ import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
+  CornerDownLeft,
   Sparkles,
   ArrowLeft,
   Settings,
@@ -155,6 +156,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }, [elevenLabsApiKey, customTtsVoices, selectedTtsVoiceId]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
 
@@ -987,6 +989,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               ))}
             </div>}
             <textarea
+              ref={inputRef}
               rows={1}
               placeholder={`Reply to ${activeCharacters.map((c) => c.name).join(' & ')} as ${
                 activePersona?.name || 'yourself'
@@ -1018,10 +1021,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
             />
           </div>
 
+          {/* Insert a line break without sending */}
+          <button
+            type="button"
+            onClick={() => {
+              const textarea = inputRef.current;
+              if (!textarea) {
+                setInputText((current) => `${current}\n`);
+                return;
+              }
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const nextText = `${inputText.slice(0, start)}\n${inputText.slice(end)}`;
+              setInputText(nextText);
+              requestAnimationFrame(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + 1, start + 1);
+              });
+            }}
+            aria-label="Insert new line"
+            title="Insert new line"
+            className="p-3.5 bg-white/10 hover:bg-white/20 text-[#ffd6eb] rounded-2xl border border-[#ff3399]/40 transition-all hover:scale-105"
+          >
+            <CornerDownLeft className="w-5 h-5" />
+          </button>
+
           {/* Send Button */}
           <button
             type="submit"
             disabled={loading || !inputText.trim()}
+            aria-label="Send message"
+            title="Send message"
             className="p-3.5 bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white rounded-2xl shadow-[0_0_20px_rgba(255,0,128,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
           >
             <Send className="w-5 h-5" />
