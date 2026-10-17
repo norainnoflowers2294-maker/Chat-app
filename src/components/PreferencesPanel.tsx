@@ -110,15 +110,19 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData, onImpor
           const spec = (field as readonly unknown[])[2];
           const current = draft[key as keyof AppPreferences];
           if (key === 'customResponseWords' && draft.responseLengthTarget !== 'custom') return null;
+          if (key === 'neverSpeakForUser') return <label className="cp-setting cp-setting-block" key={key}><span>{label}</span><div className="flex items-center gap-3"><input type="checkbox" checked disabled aria-label="Never speak for the user is always enabled" /><small>This rule is always enforced for Emmy and {{user}}; the setting cannot be disabled.</small></div></label>;
           if (key === 'chatSystemPrompt') return <label className="cp-setting cp-setting-block" key={key}><span>{label}</span><textarea value={String(current || '')} maxLength={6000} rows={7} placeholder="Example: Keep character voices distinct. Never write dialogue, thoughts, or actions for {{user}}." onChange={e => update(key, e.target.value)} /><small>{String(current || '').length}/6000 characters. Added to the global system prompt; character canon and non-negotiable user-agency rules remain higher priority.</small></label>;
           return <label className="cp-setting" key={key}><span>{label}</span>{!spec ? <input type="checkbox" checked={Boolean(current)} onChange={e => update(key, e.target.checked)} />
             : spec === 'color' ? <input type="color" value={String(current)} onChange={e => update(key, e.target.value)} />
-            : typeof (spec as any)[0] === 'number' ? <span className="cp-range"><input type="range" min={(spec as number[])[0]} max={(spec as number[])[1]} step={(spec as number[])[2]} value={Number(current)} onChange={e => update(key, Number(e.target.value))} /><output>{current}</output></span>
-            : <select value={String(current)} onChange={e => update(key, e.target.value)}>{(spec as string[]).map(v => <option key={v}>{v}</option>)}</select>}</label>;
+            : typeof (spec as any)[0] === 'number' ? <span className="cp-range"><input aria-label={String(label)} type="range" min={(spec as number[])[0]} max={(spec as number[])[1]} step={(spec as number[])[2]} value={Number(current)} onChange={e => update(key, Number(e.target.value))} /><output>{current}</output></span>
+            : <select aria-label={String(label)} value={String(current)} onChange={e => update(key, e.target.value)}>{(spec as string[]).map(v => <option key={v} value={v}>{({
+              slow_burn: 'Slow-burn', balanced: 'Balanced', fast: 'Fast',
+              first_person: 'First person', third_person: 'Third person',
+            } as Record<string, string>)[v] || v.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())}</option>)}</select>}</label>;
         })}
         {tab === 1 && <p>Chat controls here affect app behavior. Chat-specific instructions can be added in Chat Settings. Notifications show only “A reply is ready,” without chat text.</p>}
         {tab === 2 && <>
-          <p>These roleplay values guide chats unless a chat has its own override. New chats start from these defaults. The global instructions are sent in the system prompt; character-card rules are separate and take precedence over style preferences.</p>
+          <p>These roleplay values are saved as defaults for new chats. The OpenRouter AI tab controls temperature and the maximum output-token limit; this prose target is separate. Global instructions are sent in the system prompt. Character canon and required user-agency rules stay higher priority.</p>
           {activeChatTitle && onApplyRoleplayDefaults && <button type="button" onClick={() => { onApplyRoleplayDefaults(draft); setStatus('AI and roleplay defaults applied to ' + activeChatTitle + '.'); }}>Apply AI defaults to current chat: {activeChatTitle}</button>}
         </>}
         {tab === 3 && <p>Continuity and narrator preferences guide AI replies. Saved notes come from Story Notes; phone discoveries stay limited to characters who actually saw them. No automatic background recap is running.</p>}
