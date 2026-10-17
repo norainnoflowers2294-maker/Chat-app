@@ -324,9 +324,19 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
               <div className="space-y-2">
                 <label className="font-bold text-white flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-[#ff3399]" />
-                  <span>Roleplay AI Model</span>
+                  <span>Roleplay AI Model / Router</span>
                 </label>
-                <div className="space-y-1.5">
+                <select
+                  aria-label="Choose an OpenRouter model"
+                  value={model}
+                  onChange={(event) => setModel(event.target.value)}
+                  className="w-full rounded-xl border border-[#ff3399]/50 bg-[#12040e] px-3 py-3 text-sm font-semibold text-white focus:border-[#ff007f] focus:outline-none"
+                >
+                  {popularModels.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.id}</option>)}
+                  {!popularModels.some((option) => option.id === model) && model && <option value={model}>Custom model · {model}</option>}
+                </select>
+                <p className="text-[11px] text-[#ffd6eb]/70">Choose the exact provider/model ID that will receive chat requests. The tags below describe speed and roleplay fit.</p>
+                <div className="space-y-1.5" aria-label="Available models">
                   {popularModels.map((m) => (
                     <div
                       key={m.id}
