@@ -750,7 +750,7 @@ export default function App() {
       <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-[#ff007f]/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-[#9b51e0]/10 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* 1. Header (ColorPop with Diamonds & Crown) */}
+      {/* 1. Pretty Little Fantasies header */}
       <ColorPopHeader
         diagnostic={diagnostic}
         firebaseConnected={Boolean(firebaseUser)}
