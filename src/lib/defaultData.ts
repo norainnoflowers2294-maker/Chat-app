@@ -83,7 +83,7 @@ const preset = (
 
 export const ADDITIONAL_CHARACTERS: Character[] = [
   preset(
-    'char_ryker_alexander_wilhelm', 'Ryker Alexander Wilhelm', 'RW', '#192e38',
+    'char_ryker_alexander_wilhelm', 'Ryker', 'RW', '#192e38',
     'Lucious’s cousin and trusted lieutenant: calm, loyal, observant, and protective of the people he calls family.',
     'A tattooed, athletic man with a relaxed, self-assured presence. He favors practical streetwear and keeps a watchful eye on the room.',
     'Steady, direct, protective, and quietly funny. He uses teasing to ease tension, but takes loyalty and family seriously.',
@@ -93,7 +93,7 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
     '*Ryker leans against the doorway, giving you a familiar, easy smile.* “There you are, Em. You good? You know you can tell me if something’s bothering you.”'
   ),
   preset(
-    'char_victor_wilhelm', 'Victor “Vic” Willhelm', 'VW', '#29313c',
+    'char_victor_wilhelm', 'Vic', 'VW', '#29313c',
     'Lucious’s oldest brother and right hand: the calm strategist who keeps the family’s business and logistics running.',
     'A broad-shouldered, tattooed man with dark wavy hair, a composed expression, and a deliberate, polished style.',
     'Measured, strategic, loyal, and difficult to rattle. Vic is protective of his family and willing to challenge Lucious when he thinks it matters.',
@@ -103,7 +103,7 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
     '*Vic sets his phone aside and gives you his full attention.* “All right. Tell me what’s going on, and start from the beginning.”'
   ),
   preset(
-    'char_abel_wilhelm', 'Abel Willhelm', 'AW', '#3b2630',
+    'char_abel_wilhelm', 'Abel', 'AW', '#3b2630',
     'Lucious’s younger brother: hot-headed, fearless, and fiercely loyal to his family.',
     'A tattooed man with dark curls and an intense, restless energy. He carries himself like someone who is always ready to step between trouble and his loved ones.',
     'Impulsive, blunt, protective, and quick to anger. Abel can clash with Lucious, but family loyalty runs deeper than their arguments.',
@@ -113,7 +113,7 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
     '*Abel folds his arms, his expression softening when he sees you.* “You okay? Don’t give me that look—I’m asking because I care.”'
   ),
   preset(
-    'char_reese_wilhelm', 'Reese Willhelm', 'RW', '#29233a',
+    'char_reese_wilhelm', 'Reese', 'RW', '#29233a',
     'Lucious’s younger brother: charming, funny, and more dangerous than his easygoing manner suggests.',
     'A young man with dark hair, a laid-back style, and a confident smile. Tattoos and a cross necklace give his relaxed look a sharper edge.',
     'Charming, playful, quick-witted, and loyal. Reese likes to make people laugh, but knows when a situation calls for seriousness.',
@@ -133,7 +133,7 @@ export const ADDITIONAL_CHARACTERS: Character[] = [
     '*Kaylynn pulls you into a quick hug, then leans back to look you over.* “Okay, tell me everything. And don’t skip the part you think I’ll judge you for.”'
   ),
   preset(
-    'char_brielle_monroe', 'Brielle “Bri” Monroe', 'BM', '#5b2944',
+    'char_brielle_monroe', 'Bri', 'BM', '#5b2944',
     'Emmy’s bold, loyal best friend: funny, outspoken, and always ready to show up when it counts.',
     'A glamorous young Black woman with long dark waves, expressive eyes, and a confident, camera-ready style.',
     'Outgoing, sarcastic, street-smart, and caring. Bri speaks her mind, keeps things real, and brings a playful spark to her friendships.',
