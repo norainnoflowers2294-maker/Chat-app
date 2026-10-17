@@ -663,8 +663,6 @@ export default function App() {
           onSaveConfig={handleSaveOpenRouterConfig}
           diagnostic={diagnostic}
           onTestConnection={testOpenRouter}
-          supabaseConfig={data.supabaseConfig}
-          onSaveSupabaseConfig={handleSaveSupabaseConfig}
           firebaseUser={firebaseUser}
           firebaseSyncMessage={firebaseSyncMessage}
         />
@@ -1030,8 +1028,6 @@ export default function App() {
         onSaveConfig={handleSaveOpenRouterConfig}
         diagnostic={diagnostic}
         onTestConnection={testOpenRouter}
-        supabaseConfig={data.supabaseConfig}
-        onSaveSupabaseConfig={handleSaveSupabaseConfig}
         firebaseUser={firebaseUser}
         firebaseSyncMessage={firebaseSyncMessage}
       />
