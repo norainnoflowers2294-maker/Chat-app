@@ -144,11 +144,13 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
 
   const popularModels = [
     { id: 'gryphe/mythomax-l2-13b', label: 'Mythomax L2 13B (Recommended for Roleplay)', badge: 'Gold Standard' },
-    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct', badge: 'High Intelligence' },
-    { id: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet', badge: 'Ultra Vivid Prose' },
-    { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', badge: 'Fast & Rich' },
-    { id: 'mistralai/mistral-large-2411', label: 'Mistral Large 2411', badge: 'Complex Dialogues' },
-    { id: 'nousresearch/hermes-3-llama-3.1-405b', label: 'Hermes 3 Llama 3.1 405B', badge: 'Masterclass' },
+    { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', badge: 'DeepSeek' },
+    { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo', badge: 'Mistral' },
+    { id: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash', badge: 'Google' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B', badge: 'Meta' },
+    { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2', badge: 'Mistral' },
+    { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini', badge: 'OpenAI' },
+    { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', badge: 'Anthropic' },
   ];
 
   if (showPreferences) return <PreferencesPanel value={preferences} onSave={onSavePreferences} onClose={() => setShowPreferences(false)} onExportData={onExportData} />;
