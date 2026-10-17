@@ -335,8 +335,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
         maxTokens,
       }, apiMessages, activeCharacters, activePersona, Boolean(chat.oocMode));
       const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
+      const replyTimestamp = Date.now();
+      const formattedReply = textMode ? responder.name + ' - ' + botReply : botReply;
       const replyMessage: ChatMessage = {
-        id: `msg_continue_${Date.now()}`,
+        id: `msg_continue_${replyTimestamp}`,
         senderId: responder.id,
         senderName: responder.name,
         avatar: responder.avatar,
@@ -345,6 +347,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         swipes: [formattedReply],
         currentSwipeIndex: 0,
       };
+      if (textMode) savePhoneThreadMessage(responder, responder.id, responder.name, botReply, 'incoming', replyTimestamp);
       onUpdateChat({ ...chat, messages: [...chat.messages, replyMessage], updatedAt: new Date().toISOString() });
     } catch (err: any) {
       setErrorDetails({
