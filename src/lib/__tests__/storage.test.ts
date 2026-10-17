@@ -16,8 +16,20 @@ mock.module('../firebase', () => ({
 
 import { doc, getDoc } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { loadFromFirebase, loadLocalData, DEFAULT_OPENROUTER_CONFIG, DEFAULT_SUPABASE_CONFIG, DEFAULT_MEMORIES, DEFAULT_SAVED_MSGS } from '../storage';
-import { INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from '../defaultData';
+import { loadFromFirebase, loadLocalData, mergeDefaultCharacters, DEFAULT_OPENROUTER_CONFIG, DEFAULT_SUPABASE_CONFIG, DEFAULT_MEMORIES, DEFAULT_SAVED_MSGS } from '../storage';
+import { ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS, INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from '../defaultData';
+
+describe('mergeDefaultCharacters', () => {
+  it('replaces only the old generated placeholder avatar with the bundled portrait', () => {
+    const ryker = INITIAL_CHARACTERS.find((character) => character.id === 'char_ryker_alexander_wilhelm')!;
+    const previousPlaceholder = ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS[ryker.id];
+    const migrated = mergeDefaultCharacters([{ ...ryker, avatar: previousPlaceholder }]);
+    expect(migrated.find((character) => character.id === ryker.id)?.avatar).toBe('/characters/ryker.svg');
+
+    const customized = mergeDefaultCharacters([{ ...ryker, avatar: 'https://example.com/custom-ryker.png' }]);
+    expect(customized.find((character) => character.id === ryker.id)?.avatar).toBe('https://example.com/custom-ryker.png');
+  });
+});
 
 describe('loadLocalData', () => {
   let consoleWarnMock: any;
