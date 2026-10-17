@@ -206,6 +206,10 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   const [tagInput, setTagInput] = useState('');
   const [summary, setSummary] = useState('');
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
+  const [mesExample, setMesExample] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [alternateGreetings, setAlternateGreetings] = useState<string[]>([]);
+  const [creatorNotes, setCreatorNotes] = useState('');
 
   // Draft & UI status
   const [draftStatus, setDraftStatus] = useState<'saved' | 'unsaved' | 'restored'>('saved');
@@ -250,45 +254,40 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   }, [existingCharacter]);
 
   const populateFromCharacter = (char: Partial<Character>) => {
-    if (char.name) setName(char.name);
-    if (char.nicknames) setNicknames(char.nicknames);
-    if (char.age) setAge(char.age);
-    if (char.ethnicity) setEthnicity(char.ethnicity);
-    if (char.birthday) setBirthday(char.birthday);
-    if (char.birthYear) setBirthYear(char.birthYear);
-    if (char.zodiacSign) setZodiacSign(char.zodiacSign);
-    if (char.avatar) setAvatar(char.avatar);
-
-    if (char.height) setHeight(char.height);
-    if (char.bodyType) setBodyType(char.bodyType);
-    if (char.scars) setScars(char.scars);
-    if (char.birthmarks) setBirthmarks(char.birthmarks);
-    if (char.tattoos) setTattoos(char.tattoos);
-    if (char.hairColor) setHairColor(char.hairColor);
-    if (char.eyeColor) setEyeColor(char.eyeColor);
-    if (char.description) setPhysicalDescription(char.description);
-
-    if (char.voiceDescription) setVoiceDescription(char.voiceDescription);
-    if (char.voiceTags) setSelectedVoiceTags(char.voiceTags);
-
-    if (char.personality) setPersonality(char.personality);
-    if (char.backstory) setBackstory(char.backstory);
-
-    if (char.spouse) {
-      setSpouseName(char.spouse.name || '');
-      setSpouseStatus(char.spouse.relationshipStatus || 'Married');
-      setSpouseCharacterId(char.spouse.characterId || '');
-    }
-
-    if (char.familyMembers) setFamilyMembers(char.familyMembers);
-
-    if (char.scenario) setScenario(char.scenario);
-    if (char.first_mes) setFirstMes(char.first_mes);
-    if (char.pov) setPov(char.pov === 'first_person' ? 'first_person' : 'third_person');
-
-    if (char.tags) setTags(char.tags);
-    if (char.summary) setSummary(char.summary);
-    if (char.customFields) setCustomFields(char.customFields);
+    setName(char.name || '');
+    setNicknames(char.nicknames || []);
+    setAge(char.age || '');
+    setEthnicity(char.ethnicity || '');
+    setBirthday(char.birthday || '');
+    setBirthYear(char.birthYear || '');
+    setZodiacSign(char.zodiacSign || '');
+    setAvatar(char.avatar || '/lucious.jpg');
+    setHeight(char.height || '');
+    setBodyType(char.bodyType || '');
+    setScars(char.scars || []);
+    setBirthmarks(char.birthmarks || []);
+    setTattoos(char.tattoos || []);
+    setHairColor(char.hairColor || '');
+    setEyeColor(char.eyeColor || '');
+    setPhysicalDescription(char.description || '');
+    setVoiceDescription(char.voiceDescription || '');
+    setSelectedVoiceTags(char.voiceTags || []);
+    setPersonality(char.personality || '');
+    setBackstory(char.backstory || '');
+    setSpouseName(char.spouse?.name || '');
+    setSpouseStatus(char.spouse?.relationshipStatus || 'Married');
+    setSpouseCharacterId(char.spouse?.characterId || '');
+    setFamilyMembers(char.familyMembers || []);
+    setScenario(char.scenario || '');
+    setFirstMes(char.first_mes || '');
+    setPov(char.pov === 'first_person' ? 'first_person' : 'third_person');
+    setTags(char.tags || []);
+    setSummary(char.summary || '');
+    setCustomFields(char.customFields || {});
+    setMesExample(char.mes_example || '');
+    setSystemPrompt(char.system_prompt || '');
+    setAlternateGreetings(char.alternate_greetings || []);
+    setCreatorNotes(char.creator_notes || '');
   };
 
   // ---------------------------------------------------------------------------
@@ -466,7 +465,10 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
       pov,
 
       summary: summary.trim() || physicalDescription.slice(0, 150) || 'Character in ColorPop Universe',
-      mes_example: '',
+      mes_example: mesExample,
+      system_prompt: systemPrompt,
+      alternate_greetings: alternateGreetings,
+      creator_notes: creatorNotes,
       tags: tags.length ? tags : ['Original'],
       customFields,
       createdAt: existingCharacter?.createdAt || new Date().toISOString(),
