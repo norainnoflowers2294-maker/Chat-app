@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   BookOpen, FileText, FolderOpen, Home, Image, MessageSquare,
   PanelLeft, PanelRight, Puzzle, Settings, Sparkles, Users, UserRound, WalletCards, X,
-  Bookmark, GitBranch,
+  Bookmark, GitBranch, AtSign,
 } from 'lucide-react';
 import type { Chat } from '../types/roleplay';
 import type { NavTab } from './TopNavPill';
@@ -20,6 +20,7 @@ interface AppDrawersProps {
   onOpenSavedMessages: () => void;
   onOpenScenes: () => void;
   onOpenGitHubSync: () => void;
+  onOpenSocialMedia: () => void;
 }
 
 const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
@@ -31,6 +32,7 @@ const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
   { id: 'gallery', label: 'Gallery', icon: <Image className="h-4 w-4" /> },
   { id: 'files', label: 'Files', icon: <FolderOpen className="h-4 w-4" /> },
   { id: 'perchance', label: 'Perchance AI', icon: <Sparkles className="h-4 w-4" /> },
+  { id: 'social', label: 'Social Media', icon: <AtSign className="h-4 w-4" /> },
 ];
 
 export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
@@ -111,9 +113,7 @@ export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
                 className="flex w-full items-center gap-3 rounded-xl border border-[#ff66b2]/30 bg-gradient-to-r from-[#ff007f]/15 to-[#9b51e0]/15 p-3 text-left text-white enabled:hover:bg-[#ff007f]/25 disabled:cursor-not-allowed disabled:opacity-45">
                 <WalletCards className="h-5 w-5 text-[#ff99cc]" /><span><strong className="block text-sm">Money system · Story Wallet</strong><small className="text-[10px] text-[#ffd6eb]/65">{props.activeChat ? 'Balances and character transfers' : 'Open a chat to use its wallet'}</small></span>
               </button>
-              <p className="rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] leading-relaxed text-[#ffd6eb]/65">
-                Social Media is not currently implemented in this app. This drawer lists the working sections available in the current build.
-              </p>
+              <button type="button" onClick={() => run(props.onOpenSocialMedia)} className="flex w-full items-center gap-3 rounded-xl border border-[#ff66b2]/25 bg-[#ff007f]/10 p-3 text-left text-sm text-white hover:bg-[#ff007f]/20"><AtSign className="h-4 w-4 text-pink-300" />Social Media world</button>
               <button type="button" onClick={() => run(props.onOpenStoryNotes)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><FileText className="h-4 w-4 text-indigo-300" />Story Notes &amp; Memories</button>
               <button type="button" onClick={() => run(props.onOpenSavedMessages)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Bookmark className="h-4 w-4 text-emerald-300" />Saved Messages</button>
               <button type="button" onClick={() => run(props.onOpenScenes)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Image className="h-4 w-4 text-cyan-300" />Scene Gallery</button>
