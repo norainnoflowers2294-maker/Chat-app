@@ -62,7 +62,7 @@ class GeneratedReplyRuleError extends Error {
   }
 }
 
-const ACTION_VERBS = 'says?|asks?|replies?|answers?|whispers?|shouts?|laughs?|smiles?|nods?|shakes?|looks?|glances?|walks?|moves?|steps?|reaches?|takes?|turns?|stands?|sits?|leans?|runs?|cries?|thinks?|feels?|decides?|chooses?|opens?|closes?|grabs?|holds?|pulls?|pushes?|follows?|leaves?|enters?|begins?|starts?|frowns?|blinks?|breathes?|watches?|stares?|tells?|murmurs?|sighs?|shrugs?|kneels?|rolls?';
+const ACTION_VERBS = 'says?|said|asks?|asked|replies?|replied|answers?|answered|whispers?|whispered|shouts?|shouted|laughs?|laughed|smiles?|smiled|nods?|nodded|shakes?|shook|looks?|looked|glances?|glanced|walks?|walked|moves?|moved|steps?|stepped|reaches?|reached|takes?|took|turns?|turned|stands?|stood|sits?|sat|leans?|leaned|runs?|ran|cries?|cried|thinks?|thought|feels?|felt|decides?|decided|chooses?|chose|opens?|opened|closes?|closed|grabs?|grabbed|holds?|held|pulls?|pulled|pushes?|pushed|follows?|followed|leaves?|left|enters?|entered|begins?|began|starts?|started|frowns?|frowned|blinks?|blinked|breathes?|breathed|watches?|watched|stares?|stared|tells?|told|murmurs?|murmured|sighs?|sighed|shrugs?|shrugged|kneels?|knelt|rolls?|rolled';
 
 function escapeRegex(value: string): string {
   const specialCharacters = '.^$*+?()[]{}|\\';
