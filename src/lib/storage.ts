@@ -1,9 +1,10 @@
 import { DEFAULT_PREFERENCES, normalizePreferences, type AppPreferences } from './preferences';
 import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, SupabaseConfig, StoryMemory } from '../types/roleplay';
 import { ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS, INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
-import { db, auth } from './firebase';
+import { db, auth, storage } from './firebase';
 import { DEFAULT_WALLETS, type StoryWallet } from './wallet';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDownloadURL, ref as storageRef, uploadString } from 'firebase/storage';
 import { DEFAULT_SOCIAL_WORLD, type SocialMediaWorld } from './socialMedia';
 
 export interface StorageData {
@@ -148,34 +149,63 @@ export function saveLocalData(data: StorageData): void {
   }
 }
 
+async function storeEmbeddedImages(value: unknown, userId: string, path = 'app-data'): Promise<unknown> {
+  if (typeof value === 'string' && value.startsWith('data:image/')) {
+    const safePath = path.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 180);
+    const imageRef = storageRef(
+      storage,
+      `users/${userId}/app-images/${safePath}.img`
+    );
+    await uploadString(imageRef, value, 'data_url');
+    return getDownloadURL(imageRef);
+  }
+  if (Array.isArray(value)) {
+    const result: unknown[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const entry = value[index] as { id?: unknown } | null;
+      const stableId = entry && typeof entry === 'object' && entry.id ? String(entry.id) : String(index);
+      result.push(await storeEmbeddedImages(value[index], userId, `${path}_${stableId}`));
+    }
+    return result;
+  }
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      result[key] = await storeEmbeddedImages(child, userId, `${path}_${key}`);
+    }
+    return result;
+  }
+  return value;
+}
+
 export async function syncToFirebase(data: StorageData): Promise<void> {
   const user = auth.currentUser;
   if (!user || data.appPreferences?.cloudSync === false) return;
 
   try {
-    const userDocRef = doc(db, 'users', user.uid);
-    await setDoc(
-      userDocRef,
-      {
-        appPreferences: data.appPreferences || DEFAULT_PREFERENCES,
-        characters: data.characters,
-        lorebooks: data.lorebooks,
-        personas: data.personas,
-        plugins: data.plugins,
-        chats: data.chats,
-        activeChatId: data.activeChatId || '',
-        storyMemories: data.storyMemories || [],
-        savedMessages: data.savedMessages || [],
-        wallets: data.wallets || DEFAULT_WALLETS,
-        socialWorld: data.socialWorld || DEFAULT_SOCIAL_WORLD,
-        openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
-        supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    // Firestore documents have a 1 MiB limit. Keep imported PNGs and other
+    // embedded images in Storage and store their URLs in the user document.
+    const cloudData = await storeEmbeddedImages({
+      appPreferences: data.appPreferences || DEFAULT_PREFERENCES,
+      characters: data.characters,
+      lorebooks: data.lorebooks,
+      personas: data.personas,
+      plugins: data.plugins,
+      chats: data.chats,
+      activeChatId: data.activeChatId || '',
+      storyMemories: data.storyMemories || [],
+      savedMessages: data.savedMessages || [],
+      wallets: data.wallets || DEFAULT_WALLETS,
+      socialWorld: data.socialWorld || DEFAULT_SOCIAL_WORLD,
+      openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
+      supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
+      updatedAt: new Date().toISOString(),
+    }, user.uid);
+
+    await setDoc(doc(db, 'users', user.uid), cloudData, { merge: true });
   } catch (err) {
     console.warn('Could not sync to Firebase Firestore:', err);
+    throw err;
   }
 }
 
