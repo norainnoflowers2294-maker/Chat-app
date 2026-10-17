@@ -135,7 +135,10 @@ function mergePhoneThreads(remoteThreads: PhoneConversationThread[], localThread
       continue;
     }
     const messages = new Map(remoteThread.messages.map((message) => [message.id, message]));
-    for (const message of localThread.messages) messages.set(message.id, { ...messages.get(message.id), ...message });
+    for (const message of localThread.messages) {
+      const remoteMessage = messages.get(message.id);
+      messages.set(message.id, remoteMessage ? { ...remoteMessage, ...message } : message);
+    }
     byId.set(localThread.id, {
       ...remoteThread, ...localThread,
       messages: [...messages.values()].sort((a, b) => a.timestamp - b.timestamp),
