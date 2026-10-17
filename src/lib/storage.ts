@@ -80,7 +80,11 @@ export const DEFAULT_SAVED_MSGS = [
 export function mergeDefaultCharacters(characters: Character[] | undefined): Character[] {
   const saved = Array.isArray(characters) ? characters : [];
   const savedIds = new Set(saved.map((character) => character.id));
-  return [...saved, ...INITIAL_CHARACTERS.filter((character) => !savedIds.has(character.id))];
+  const savedNames = new Set(saved.map((character) => character.name.trim().toLocaleLowerCase()));
+  const missingDefaults = INITIAL_CHARACTERS.filter((character) =>
+    !savedIds.has(character.id) && !savedNames.has(character.name.trim().toLocaleLowerCase())
+  );
+  return [...saved, ...missingDefaults];
 }
 
 export function loadLocalData(): StorageData {
