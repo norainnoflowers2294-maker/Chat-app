@@ -636,7 +636,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       if (textMode && !assistantWasTagged) savePhoneThreadMessage(responder, responder.id, responder.name, botReply, 'incoming', replyTimestamp);
 
       if (preferences.notifyReplies && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-        try { new Notification('ColorPop', { body: 'A reply is ready.' }); } catch { /* Unsupported notification constructor on some mobile browsers. */ }
+        try { new Notification('Pretty Little Fantasies', { body: 'A reply is ready.' }); } catch { /* Unsupported notification constructor on some mobile browsers. */ }
       }
       onUpdateChat({
         ...updatedChat,
@@ -1349,7 +1349,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Chat Input Bar */}
       <div className="relative z-20 p-3 sm:p-4 bg-[#140410]/95 backdrop-blur-md border-t border-[#ff3399]/40">
-        <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
+        {lastModelUsed && <p className="mx-auto mb-2 max-w-4xl break-all text-[10px] text-[#ffd6eb]/55">Last reply routed through OpenRouter · {lastModelUsed.model}{lastModelUsed.provider ? ` · ${lastModelUsed.provider}` : ''}</p>}
+      <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
           <button type="button" aria-pressed={textMode} title="Text mode saves messages in this chat’s phone thread" onClick={() => setTextMode((enabled) => !enabled)} className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-colors ${textMode ? 'bg-[#00877E] border-[#37B6A5] shadow-[0_0_14px_rgba(55,182,165,0.35)]' : 'bg-[#0B168C] border-[#8AABF4] hover:bg-[#079AF0]'}`}>
             Text{textMode ? ' ✓' : ''}
