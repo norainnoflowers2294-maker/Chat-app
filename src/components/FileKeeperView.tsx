@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, FileArchive, FileText, Folder, FolderOpen, FolderPlus, Search, Trash2, Upload, X, MoveRight, ArchiveRestore } from 'lucide-react';
+import { ArrowLeft, Download, FileArchive, FileText, Folder, FolderOpen, FolderPlus, Search, Trash2, Upload, X, MoveRight, ArchiveRestore } from 'lucide-react';
 import { unzipSync, zipSync } from 'fflate';
 import { onAuthStateChanged } from 'firebase/auth';
 import { deleteObject, getBytes, getDownloadURL, getMetadata, listAll, ref, updateMetadata, uploadBytes } from 'firebase/storage';
@@ -47,13 +47,16 @@ const makeId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toSt
 const safeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-export const FileKeeperView: React.FC = () => {
+interface FileKeeperViewProps { onBack?: () => void; }
+
+export const FileKeeperView: React.FC<FileKeeperViewProps> = ({ onBack }) => {
   const [files, setFiles] = useState<KeptFile[]>([]);
   const [folders, setFolders] = useState<KeptFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState('all');
   const [query, setQuery] = useState('');
   const [folderName, setFolderName] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [moveFolderId, setMoveFolderId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,8 +141,14 @@ export const FileKeeperView: React.FC = () => {
     catch { setError('Some files could not be deleted from Firebase. The list has been refreshed so you can retry.'); await refresh(); }
     finally { setBusy(false); }
   };
-  const moveSelected = async (folderId: string) => {
-    const targets = visible.filter((file) => selectedIds.includes(file.id)); setBusy(true); setError('');
+  const moveSelected = async () => {
+    const targets = visible.filter((file) => selectedIds.includes(file.id));
+    if (!targets.length || !moveFolderId) {
+      setError('Select one or more files and choose a destination folder first.');
+      return;
+    }
+    const folderId = moveFolderId;
+    setBusy(true); setError('');
     try {
       for (const file of targets) {
         const destinationFolderId = folderId === 'all' ? undefined : folderId || undefined;
@@ -147,7 +156,7 @@ export const FileKeeperView: React.FC = () => {
         if (file.cloudPath) await updateMetadata(ref(storage, file.cloudPath), { customMetadata: { id: file.id, originalName: file.name, savedAt: String(file.savedAt), folderId: moved.folderId || '' } });
         await putRecord(FILES_STORE, { ...moved, blob: file.blob });
       }
-      setSelectedIds([]); await refresh();
+      setSelectedIds([]); setMoveFolderId(''); await refresh();
     } catch { setError('Files were not all moved. Check Firebase permissions and try again.'); await refresh(); }
     finally { setBusy(false); }
   };
@@ -207,6 +216,7 @@ export const FileKeeperView: React.FC = () => {
   return <main className="max-w-6xl mx-auto px-4 py-6">
     <section className="rounded-3xl border border-[#ff3399]/50 bg-[#140410] p-5 sm:p-7 text-[#ffd6eb] shadow-[0_0_35px_rgba(255,51,153,0.18)]">
       <header className="flex flex-wrap items-center gap-3 border-b border-[#ff3399]/25 pb-5 mb-5">
+        {onBack && <button type="button" onClick={onBack} className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Back to app"><ArrowLeft className="w-5 h-5" /></button>}
         <span className="rounded-2xl p-3 bg-[#00b4db]/20 text-cyan-200"><FolderOpen className="w-6 h-6" /></span>
         <div className="mr-auto"><h1 className="text-2xl font-bold text-white">File Keeper</h1><p className="text-sm text-white/60">Store, organize, compress, and extract files.</p></div>
         <button disabled={busy} onClick={() => inputRef.current?.click()} className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] text-white font-bold text-sm flex items-center gap-2 disabled:opacity-50"><Upload className="w-4 h-4" /> Add files</button>
@@ -222,7 +232,7 @@ export const FileKeeperView: React.FC = () => {
         {activeFolder && <button disabled={busy} onClick={() => void deleteFolder()} className="px-3 py-2 rounded-xl bg-red-500/10 text-red-200 text-xs flex items-center gap-1"><Trash2 className="w-4 h-4" />Delete folder</button>}
         <label className="relative mb-0 ml-auto w-full sm:w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" /><input value={query} onChange={(event) => { setQuery(event.target.value); setSelectedIds([]); }} placeholder="Search saved files" className="w-full rounded-xl bg-[#0d030b] border border-white/10 py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-[#ff3399]/60" /></label>
       </div>
-      {selectedCount > 0 && <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#00b4db]/10 border border-cyan-300/15 p-3 mb-4"><span className="text-xs text-cyan-100 mr-auto">{selectedCount} selected</span><select aria-label="Move selected files to folder" defaultValue="" onChange={(event) => { if (event.target.value !== '') void moveSelected(event.target.value); event.currentTarget.value = ''; }} className="bg-[#12040e] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"><option value="" disabled>Move to folder…</option><option value="all">All Files</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><button disabled={busy} onClick={() => void compressSelected()} className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 text-cyan-100 text-xs flex gap-1"><FileArchive className="w-3.5 h-3.5" />Compress ZIP</button><button disabled={busy} onClick={() => void deleteSelected()} className="px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-200 text-xs flex gap-1"><Trash2 className="w-3.5 h-3.5" />Delete selected</button><button onClick={() => setSelectedIds([])} className="p-1.5 rounded-lg hover:bg-white/10" title="Clear selection"><X className="w-4 h-4" /></button></div>}
+      {selectedCount > 0 && <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#00b4db]/10 border border-cyan-300/15 p-3 mb-4"><span className="text-xs text-cyan-100 mr-auto">{selectedCount} selected</span><select aria-label="Destination folder" value={moveFolderId} onChange={(event) => setMoveFolderId(event.target.value)} className="bg-[#12040e] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"><option value="">Choose folder…</option><option value="all">All Files</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><button disabled={busy || !moveFolderId} onClick={() => void moveSelected()} className="px-3 py-1.5 rounded-lg bg-pink-600 text-white text-xs font-semibold disabled:opacity-40"><MoveRight className="w-3.5 h-3.5 inline mr-1" />Move</button><button disabled={busy} onClick={() => void compressSelected()} className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 text-cyan-100 text-xs flex gap-1"><FileArchive className="w-3.5 h-3.5" />Compress ZIP</button><button disabled={busy} onClick={() => void deleteSelected()} className="px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-200 text-xs flex gap-1"><Trash2 className="w-3.5 h-3.5" />Delete selected</button><button onClick={() => setSelectedIds([])} className="p-1.5 rounded-lg hover:bg-white/10" title="Clear selection"><X className="w-4 h-4" /></button></div>}
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 border border-red-400/20 p-3 text-sm text-red-200">{error}</p>}
       {visible.length ? <><div className="mb-2"><label className="inline-flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={visible.length > 0 && selectedCount === visible.length} onChange={(event) => setSelectedIds(event.target.checked ? [...new Set([...selectedIds, ...visible.map((file) => file.id)])] : selectedIds.filter((id) => !visible.some((file) => file.id === id)))} />Select all in this view</label></div><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{visible.map((file) => <article key={file.id} className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-3"><input aria-label={`Select ${file.name}`} type="checkbox" checked={selectedIds.includes(file.id)} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, file.id] : selectedIds.filter((id) => id !== file.id))} /><span className="shrink-0 rounded-xl bg-[#ff007f]/15 p-3 text-pink-200">{file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip') ? <FileArchive className="w-5 h-5" /> : <FileText className="w-5 h-5" />}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-white" title={file.name}>{file.name}</h2><p className="text-xs text-white/50">{formatSize(file.size)} · {new Date(file.savedAt).toLocaleDateString()} · {file.cloudPath ? 'Firebase + device' : 'Device copy'}</p></div>{file.name.toLowerCase().endsWith('.zip') && <button disabled={busy} onClick={() => void unzipFile(file)} className="p-2 rounded-lg hover:bg-white/10 text-pink-200" title="Unzip here"><ArchiveRestore className="w-4 h-4" /></button>}<button onClick={() => download(file)} className="p-2 rounded-lg hover:bg-white/10 text-cyan-200" title="Download"><Download className="w-4 h-4" /></button><button disabled={busy} onClick={async () => { if (window.confirm(`Remove “${file.name}” from File Keeper?`)) { try { await removeKeptFile(file); setSelectedIds((ids) => ids.filter((id) => id !== file.id)); await refresh(); } catch { setError('Could not delete the file from Firebase. Check Storage rules and try again.'); } } }} className="p-2 rounded-lg hover:bg-red-500/15 text-red-200" title="Delete"><Trash2 className="w-4 h-4" /></button></article>)}</div></> : <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-white/55"><FolderOpen className="w-9 h-9 mx-auto mb-2 opacity-40" /><p>{query ? 'No files match that search.' : activeFolder ? `No files in ${activeFolder.name} yet.` : 'No files saved yet. Add files or create folders to start.'}</p></div>}
       <p className="mt-5 text-xs text-white/40">Files and folders are stored on this device and backed up to Firebase for signed-in users. ZIPs can be created from selected files and extracted into the open folder.</p>
