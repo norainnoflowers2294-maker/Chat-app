@@ -37,6 +37,7 @@ interface OpenRouterSettingsModalProps {
   supabaseConfig: SupabaseConfig;
   onSaveSupabaseConfig: (cfg: SupabaseConfig) => void;
   firebaseUser: User | null;
+  firebaseSyncMessage?: string;
 }
 
 export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = ({
@@ -50,6 +51,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   supabaseConfig,
   onSaveSupabaseConfig,
   firebaseUser,
+  firebaseSyncMessage = '',
 }) => {
   const [showPreferences, setShowPreferences] = useState(false);
   const [frequencyPenalty, setFrequencyPenalty] = useState(config.frequencyPenalty);
@@ -467,6 +469,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                     </button>
                   </div>
                 )}
+                {firebaseSyncMessage && <p role="status" className="mt-3 rounded-lg bg-white/5 px-3 py-2 text-[11px] text-[#ffd6eb]/80">{firebaseSyncMessage}</p>}
               </div>
             </div>
           )}
