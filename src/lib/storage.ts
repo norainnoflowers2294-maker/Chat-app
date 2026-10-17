@@ -212,7 +212,7 @@ export async function loadLocalDataAsync(): Promise<StorageData> {
 
   try {
     const snapshot = await readLocalSnapshot();
-    if (snapshot && snapshot.savedAt > localSavedAt) return normalizeStoredData(snapshot.data);
+    if (snapshot && snapshot.savedAt >= localSavedAt) return normalizeStoredData(snapshot.data);
   } catch (err) {
     console.warn('Could not read IndexedDB snapshot:', err);
   }
