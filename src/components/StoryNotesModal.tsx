@@ -54,6 +54,7 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
   };
 
   const filtered = memories.filter((m) => {
+    if (m.deletedAt) return false;
     if (filterType === 'all') return true;
     return m.type === filterType;
   });
