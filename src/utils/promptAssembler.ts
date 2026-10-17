@@ -111,6 +111,7 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
   } else {
     systemParts.push('[CHARACTER PROFILE STATUS]\nNo character profiles were attached to this chat. Do not pretend to know a specific character card.');
   }
+  systemParts.push('[ESTABLISHED CHARACTER CANON]\nLucious is white and Emmy is Black. Preserve these established identities and do not change their ethnicity or appearance.');
 
   const style = chat.replyStyle || 'immersive';
   const length = chat.replyLength || preferences?.responseLengthTarget || 'medium';
