@@ -77,7 +77,13 @@ export const DEFAULT_SAVED_MSGS = [
   },
 ];
 
-export function mergeDefaultCharacters(characters: Character[] | undefined): Character[] {\n  const saved = Array.isArray(characters) ? characters : [];\n  const savedIds = new Set(saved.map((character) => character.id));\n  return [...saved, ...INITIAL_CHARACTERS.filter((character) => !savedIds.has(character.id))];\n}\n\nexport function loadLocalData(): StorageData {
+export function mergeDefaultCharacters(characters: Character[] | undefined): Character[] {
+  const saved = Array.isArray(characters) ? characters : [];
+  const savedIds = new Set(saved.map((character) => character.id));
+  return [...saved, ...INITIAL_CHARACTERS.filter((character) => !savedIds.has(character.id))];
+}
+
+export function loadLocalData(): StorageData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
