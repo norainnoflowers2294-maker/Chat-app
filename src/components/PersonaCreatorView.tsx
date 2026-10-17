@@ -242,7 +242,7 @@ export const PersonaCreatorView: React.FC<PersonaCreatorViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-6 animate-in fade-in duration-300">
+    <div className="cp-page-transition w-full max-w-4xl mx-auto px-4 py-6 animate-in fade-in duration-300">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 px-4 py-2.5 bg-gradient-to-r from-[#ff007f] to-[#9b51e0] text-white text-xs font-bold rounded-2xl shadow-[0_0_25px_rgba(255,0,128,0.7)] flex items-center space-x-2 animate-bounce">

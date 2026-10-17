@@ -316,9 +316,12 @@ export default function App() {
       : [...data.wallets, wallet];
     updateData({ ...data, wallets });
   };
-  const handleExportData = () => {
+  const createBackupPayload = () => {
     const { openRouterConfig, supabaseConfig, ...backup } = data;
-    downloadJson('ColorPop_Backup.json', { version: 1, exportedAt: new Date().toISOString(), ...backup });
+    return { version: 1, exportedAt: new Date().toISOString(), ...backup };
+  };
+  const handleExportData = () => {
+    downloadJson('ColorPop_Backup.json', createBackupPayload());
   };
 
   const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
@@ -544,7 +547,7 @@ export default function App() {
 
   // Dashboard View (Faithfully matching the uploaded image + Dual Track System)
   return (
-    <div className="min-h-screen bg-[#0d020b] text-[#ffd6eb] flex flex-col font-sans selection:bg-[#ff007f]/40 relative overflow-x-hidden">
+    <div className="cp-app-shell min-h-screen bg-[#0d020b] text-[#ffd6eb] flex flex-col font-sans selection:bg-[#ff007f]/40 relative overflow-x-hidden">
       {/* Background Neon Glow Orbs */}
       <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-[#ff007f]/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-[#9b51e0]/10 rounded-full blur-[140px] pointer-events-none" />
@@ -617,7 +620,7 @@ export default function App() {
       </div>
 
       {/* Main Dashboard Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
+      <main key={activeTab} className="cp-page-transition flex-1 max-w-7xl w-full mx-auto pb-12 space-y-4">
         {activeTab === 'social' ? (
           <SocialMediaView
             world={data.socialWorld || DEFAULT_SOCIAL_WORLD}

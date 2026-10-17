@@ -560,7 +560,7 @@ export const CreateCharacterView: React.FC<CreateCharacterViewProps> = ({
   // RENDER UI
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#010925] text-white flex flex-col font-sans selection:bg-[#FF007E]/40 relative overflow-x-hidden">
+    <div className="cp-page-transition min-h-screen bg-[#010925] text-white flex flex-col font-sans selection:bg-[#FF007E]/40 relative overflow-x-hidden">
       {/* Background Decorative Gloss Orbs with Palette Colors */}
       <div
         className="fixed top-0 left-1/4 w-[450px] h-[450px] rounded-full blur-[140px] pointer-events-none opacity-20"

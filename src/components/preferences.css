@@ -9,3 +9,21 @@ html[data-cp-motion=reduce] *,html[data-cp-motion=reduce] *::before,html[data-cp
 html[data-cp-theme=dark] .cp-chat,html[data-cp-theme=dark] .cp-preferences-card{background:#121215!important}html[data-cp-theme=dark] .cp-chat header,html[data-cp-theme=dark] .cp-message-bubble:not(.cp-bubble-user){background:#202026!important}
 html[data-cp-theme=light] .cp-preferences-card,html[data-cp-theme=light] .cp-chat{background:#fff4fa!important;color:#352333!important}html[data-cp-theme=light] .cp-chat>div[class*="absolute"],html[data-cp-theme=light] .cp-chat>div[class*="bg-gradient-to-b"]{display:none}html[data-cp-theme=light] .cp-chat header,html[data-cp-theme=light] .cp-chat>div[class*="relative"],html[data-cp-theme=light] .cp-message-bubble:not(.cp-bubble-user){background:#ffe7f2!important;color:#352333!important}html[data-cp-theme=light] .cp-chat .text-white:not(.cp-bubble-user *),html[data-cp-theme=light] .cp-chat textarea{color:#352333!important}html[data-cp-theme=light] .cp-chat textarea,html[data-cp-theme=light] .cp-preferences select{background:white!important;color:#352333!important}html[data-cp-theme=light] .cp-bubble-user,html[data-cp-theme=light] .cp-bubble-user *{color:white!important}html[data-cp-theme=light] .cp-preferences .cp-setting,html[data-cp-theme=light] .cp-preferences button{border-color:#54223433}
 @media(max-width:420px){.cp-setting{gap:12px;font-size:13px}.cp-range{width:120px}.cp-range input{width:85px}.cp-preferences main{padding:8px 14px 16px}}
+
+
+html,body,#root{min-height:100%;min-width:320px}
+body{margin:0;overflow-x:hidden}
+#root{min-height:100dvh}
+.cp-app-shell{min-height:100vh;min-height:100dvh}
+.cp-page-transition{animation:cp-page-enter .22s cubic-bezier(.2,.75,.25,1) both}
+@keyframes cp-page-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+input,textarea,select{-webkit-text-fill-color:currentColor;caret-color:var(--cp-accent)}
+@media(max-width:767px){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
+  textarea,select{font-size:16px!important;line-height:1.35}
+  .cp-chat textarea{min-height:44px;max-height:28dvh}
+  .cp-chat{padding-bottom:env(safe-area-inset-bottom)}
+}
+@media(prefers-reduced-motion:reduce){
+  .cp-page-transition{animation:none}
+}

@@ -21,12 +21,13 @@ import {
 import { OpenRouterConfig, ConnectionDiagnostic, SupabaseConfig } from '../types/roleplay';
 import { signInWithGoogle, logOutFirebase } from '../lib/firebase';
 import { User } from 'firebase/auth';
-import { DEFAULT_GITHUB_REPO_URL } from '../config/github';
+import { saveGitHubDataBackup } from '../utils/githubBackup';
 
 interface OpenRouterSettingsModalProps {
   preferences: AppPreferences;
   onSavePreferences: (value: AppPreferences) => void;
   onExportData: () => void;
+  backupData: unknown;
   isOpen: boolean;
   onClose: () => void;
   config: OpenRouterConfig;
@@ -39,7 +40,7 @@ interface OpenRouterSettingsModalProps {
 }
 
 export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = ({
-  preferences, onSavePreferences, onExportData,
+  preferences, onSavePreferences, onExportData, backupData,
   isOpen,
   onClose,
   config,
@@ -65,6 +66,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   const [activeTab, setActiveTab] = useState<'openrouter' | 'firebase' | 'supabase' | 'github'>('openrouter');
   const [testing, setTesting] = useState(false);
 
+  const [githubToken, setGithubToken] = useState(() => { try { return localStorage.getItem('plf_github_backup_token') || ''; } catch { return ''; } });
+  const [rememberGitToken, setRememberGitToken] = useState(() => { try { return localStorage.getItem('plf_github_backup_token_remember') === 'true'; } catch { return false; } });
   const [pushingGit, setPushingGit] = useState(false);
   const [gitPushResult, setGitPushResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
 
@@ -108,31 +111,30 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   };
 
   const handleGitPush = async () => {
+    if (!githubToken.trim()) {
+      setGitPushResult({ success: false, message: 'Paste a GitHub token with Contents read and write permission first.' });
+      return;
+    }
     setPushingGit(true);
     setGitPushResult(null);
     try {
-      const res = await fetch('/api/git/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repoUrl: DEFAULT_GITHUB_REPO_URL,
-          commitMsg: `Update Pretty Little Fantasies & OpenRouter - ${new Date().toLocaleTimeString()}`,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to push to GitHub');
-
+      const result = await saveGitHubDataBackup(backupData, githubToken);
+      try {
+        if (rememberGitToken) {
+          localStorage.setItem('plf_github_backup_token', githubToken.trim());
+          localStorage.setItem('plf_github_backup_token_remember', 'true');
+        } else {
+          localStorage.removeItem('plf_github_backup_token');
+          localStorage.removeItem('plf_github_backup_token_remember');
+        }
+      } catch {}
       setGitPushResult({
         success: true,
-        message: 'All applet code and roleplay systems successfully pushed to norainnoflowers2294-maker/Chat-app!',
-        output: data.output,
+        message: 'Your app data backup was saved to GitHub.',
+        output: result.url,
       });
     } catch (err: any) {
-      setGitPushResult({
-        success: false,
-        message: err.message || 'Push failed. Please verify your token permissions.',
-      });
+      setGitPushResult({ success: false, message: err.message || 'Could not save the backup to GitHub.' });
     } finally {
       setPushingGit(false);
     }
@@ -520,7 +522,31 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                 </div>
 
                 <p className="text-[11px] text-[#ffd6eb]/80 leading-relaxed">
-                  Click below to automatically commit and push the entire ColorPop roleplay application, OpenRouter backend, and Firebase blueprints to your target repository.
+                  Save a backup of your characters, chats, personas, social profiles, and settings to your GitHub repository. API keys and database credentials are excluded. This browser-hosted app cannot push its own source code.
+                </p>
+
+                <label className="block space-y-1.5">
+                  <span className="font-semibold text-[#ffd6eb]">GitHub token</span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={githubToken}
+                    onChange={(event) => setGithubToken(event.target.value)}
+                    placeholder="Paste a fine-grained token for Chat-app"
+                    className="w-full rounded-xl border border-[#ff3399]/40 bg-[#10040d] px-3 py-2 text-white placeholder-white/45 focus:border-[#ff3399] focus:outline-none"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-[11px] text-[#ffd6eb]/80">
+                  <input
+                    type="checkbox"
+                    checked={rememberGitToken}
+                    onChange={(event) => setRememberGitToken(event.target.checked)}
+                    className="accent-pink-500"
+                  />
+                  Remember this token on this device
+                </label>
+                <p className="text-[10px] text-[#ffd6eb]/65">
+                  Create a fine-grained GitHub token limited to this repository with Contents: read and write. The token stays in this browser unless you choose to remember it.
                 </p>
 
                 <button
@@ -531,12 +557,12 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   {pushingGit ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Pushing code to GitHub...</span>
+                      <span>Saving app data backup...</span>
                     </>
                   ) : (
                     <>
                       <GitBranch className="w-4 h-4" />
-                      <span>Push All to norainnoflowers2294-maker/Chat-app</span>
+                      <span>Save app data backup to GitHub</span>
                     </>
                   )}
                 </button>

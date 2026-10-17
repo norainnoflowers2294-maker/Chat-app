@@ -599,7 +599,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div data-compact={preferences.compactMode} data-bubble-motion={preferences.messageAnimations && !preferences.reducedMotion} className="cp-chat relative w-full h-screen max-h-screen flex flex-col bg-[#0d020b] text-[#ffd6eb] overflow-hidden select-none">
+    <div data-compact={preferences.compactMode} data-bubble-motion={preferences.messageAnimations && !preferences.reducedMotion} className="cp-chat cp-page-transition relative w-full h-[100dvh] max-h-[100dvh] flex flex-col bg-[#0d020b] text-[#ffd6eb] overflow-hidden select-none">
       {/* Background Ambience with chat.bgImage */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-15 pointer-events-none filter blur-sm transition-all duration-700"
