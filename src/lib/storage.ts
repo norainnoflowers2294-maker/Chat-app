@@ -6,6 +6,7 @@ import { DEFAULT_WALLETS, type StoryWallet } from './wallet';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef, uploadString } from 'firebase/storage';
 import { DEFAULT_SOCIAL_WORLD, type SocialMediaWorld } from './socialMedia';
+import { DEFAULT_PHONE_SYSTEM, type PhoneSystemState } from './phoneSystem';
 
 export interface StorageData {
   appPreferences: AppPreferences;
@@ -20,6 +21,7 @@ export interface StorageData {
   storyMemories: StoryMemory[];
   wallets: StoryWallet[];
   socialWorld?: SocialMediaWorld;
+  phoneSystem: PhoneSystemState;
   savedMessages: Array<{
     id: string;
     chatId: string;
@@ -125,6 +127,7 @@ function defaultLocalData(): StorageData {
     storyMemories: DEFAULT_MEMORIES,
     wallets: DEFAULT_WALLETS,
     socialWorld: DEFAULT_SOCIAL_WORLD,
+    phoneSystem: DEFAULT_PHONE_SYSTEM,
     savedMessages: DEFAULT_SAVED_MSGS,
   };
 }
@@ -143,6 +146,7 @@ function normalizeStoredData(parsed: any): StorageData {
     storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
     wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
     socialWorld: parsed.socialWorld?.profiles ? parsed.socialWorld : DEFAULT_SOCIAL_WORLD,
+    phoneSystem: parsed.phoneSystem && Array.isArray(parsed.phoneSystem.phones) ? parsed.phoneSystem : DEFAULT_PHONE_SYSTEM,
     savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
   };
 }
@@ -300,6 +304,7 @@ export async function syncToFirebase(data: StorageData): Promise<void> {
       savedMessages: data.savedMessages || [],
       wallets: data.wallets || DEFAULT_WALLETS,
       socialWorld: data.socialWorld || DEFAULT_SOCIAL_WORLD,
+      phoneSystem: data.phoneSystem || DEFAULT_PHONE_SYSTEM,
       openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
       supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
       updatedAt: new Date().toISOString(),
