@@ -207,7 +207,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onBookmarkMessage,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingChatIds, setLoadingChatIds] = useState<Set<string>>(() => new Set());
+  const loading = loadingChatIds.has(chat.id);
+  const beginChatRequest = (chatId: string) => setLoadingChatIds((current) => new Set(current).add(chatId));
+  const finishChatRequest = (chatId: string) => setLoadingChatIds((current) => {
+    const next = new Set(current);
+    next.delete(chatId);
+    return next;
+  });
   const [errorDetails, setErrorDetails] = useState<{ message: string; suggestedFix?: string } | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -254,6 +261,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const openingGenerationStartedRef = useRef(new Set<string>());
+  const currentChatIdRef = useRef(chat.id);
+  currentChatIdRef.current = chat.id;
 
   // Active entities in this chat
   const activeCharacters = characters.filter((c) => chat.characterIds.includes(c.id));
@@ -288,7 +298,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const handleContinueStory = async () => {
     if (loading) return;
     setErrorDetails(null);
-    setLoading(true);
+    beginChatRequest(chat.id);
     try {
       const apiMessages = buildOpenRouterMessages({
         characters: activeCharacters,
@@ -331,9 +341,86 @@ export const ChatView: React.FC<ChatViewProps> = ({
         suggestedFix: err.suggestedFix || 'Check your OpenRouter connection and try again.',
       });
     } finally {
-      setLoading(false);
+      finishChatRequest(chat.id);
     }
   };
+
+  const handleGenerateChatOpening = async () => {
+    const openingChat = chat;
+    if (!openingChat.openingPending || openingChat.messages.length > 0) return;
+    beginChatRequest(openingChat.id);
+    setErrorDetails(null);
+    try {
+      const apiMessages = buildOpenRouterMessages({
+        characters: activeCharacters,
+        persona: activePersona,
+        lorebooks: activeLorebooks,
+        plugins: activePlugins,
+        chat: openingChat,
+        preferences,
+        storyMemories,
+        socialMediaContext,
+      });
+      apiMessages.push({
+        role: 'user',
+        content: `Write a fresh opening message for this new roleplay thread. Read and use the selected character card's scenario and the current chat scenario as the scene setup. Begin directly in character, establish the moment naturally, and give {{user}} a clear opening to respond. Do not copy the sample greeting verbatim. Never write or decide {{user}}'s dialogue, thoughts, feelings, or actions.`,
+      });
+      const replyLength = openingChat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const openingText = await sendCheckedCharacterReply({
+        ...openRouterConfig,
+        temperature: openingChat.creativity ?? openRouterConfig.temperature,
+        maxTokens,
+      }, apiMessages, activeCharacters, activePersona, Boolean(openingChat.oocMode));
+      const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
+      const openingMessage: ChatMessage = {
+        id: `msg_opening_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        senderId: responder.id,
+        senderName: responder.name,
+        avatar: responder.avatar,
+        content: openingText,
+        timestamp: Date.now(),
+        swipes: [openingText],
+        currentSwipeIndex: 0,
+      };
+      onUpdateChat({
+        ...openingChat,
+        messages: [openingMessage],
+        openingPending: false,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      onUpdateChat({
+        ...openingChat,
+        openingPending: false,
+        updatedAt: new Date().toISOString(),
+      });
+      if (currentChatIdRef.current === openingChat.id) {
+        setErrorDetails({
+          message: err.message || 'Could not generate the opening message.',
+          suggestedFix: err.suggestedFix || 'Check your OpenRouter connection, then start a new chat or send a message manually.',
+        });
+      }
+    } finally {
+      finishChatRequest(openingChat.id);
+    }
+  };
+
+  useEffect(() => {
+    if (!chat.openingPending || chat.messages.length > 0 || openingGenerationStartedRef.current.has(chat.id)) return;
+    openingGenerationStartedRef.current.add(chat.id);
+    void handleGenerateChatOpening();
+  }, [chat.id, chat.openingPending, chat.messages.length]);
+
+  useEffect(() => {
+    setInputText('');
+    setErrorDetails(null);
+    setEditingMsgId(null);
+    setEditContent('');
+    setCommandNotice(null);
+  }, [chat.id]);
 
   const executeSlashCommand = async (command: SlashCommand) => {
     if (command.type === 'wallet') {
@@ -438,7 +525,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     onUpdateChat(updatedChat);
     setInputText('');
-    setLoading(true);
+    beginChatRequest(chat.id);
 
     try {
       const apiMessages = buildOpenRouterMessages({
@@ -503,7 +590,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         suggestedFix: err.suggestedFix || 'Verify your internet connection and openrouter.ai server status.',
       });
     } finally {
-      setLoading(false);
+      finishChatRequest(chat.id);
     }
   };
 
@@ -668,7 +755,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (messageIndex < 0) return;
 
     setErrorDetails(null);
-    setLoading(true);
+    beginChatRequest(chat.id);
     setRegeneratingMsgId(msg.id);
     try {
       const contextChat = { ...chat, messages: chat.messages.slice(0, messageIndex) };
@@ -710,7 +797,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         suggestedFix: err.suggestedFix || 'Check your OpenRouter connection and try again.',
       });
     } finally {
-      setLoading(false);
+      finishChatRequest(chat.id);
       setRegeneratingMsgId(null);
     }
   };
