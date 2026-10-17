@@ -48,7 +48,6 @@ import {
   ChatMessage,
   OpenRouterConfig,
   ConnectionDiagnostic,
-  SupabaseConfig,
   StoryMemory,
 } from './types/roleplay';
 import {
@@ -132,7 +131,7 @@ export default function App() {
       if (revision !== firebaseSyncRevisionRef.current) return;
       await syncToFirebase(snapshot);
       if (revision === firebaseSyncRevisionRef.current) {
-        setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.');
+        setFirebaseSyncMessage('Firebase sync complete · ' + new Date().toLocaleString());
       }
     });
     firebaseSyncQueueRef.current = operation;
@@ -433,8 +432,8 @@ export default function App() {
     updateData({ ...data, plugins: updated });
   };
 
-  const handleSaveOpenRouterConfig = (cfg: OpenRouterConfig, supabaseCfg?: SupabaseConfig) => {
-    updateData({ ...data, openRouterConfig: cfg, supabaseConfig: supabaseCfg ?? data.supabaseConfig });
+  const handleSaveOpenRouterConfig = (cfg: OpenRouterConfig) => {
+    updateData({ ...data, openRouterConfig: cfg });
     testOpenRouter(cfg.apiKey);
   };
 
@@ -460,12 +459,35 @@ export default function App() {
     return { version: 1, exportedAt: new Date().toISOString(), ...backup };
   };
   const handleExportData = () => {
-    downloadJson('ColorPop_Backup.json', createBackupPayload());
+    downloadJson('Pretty_Little_Fantasies_Backup.json', createBackupPayload());
+  };
+  const handleImportBackup = (backupValue: unknown) => {
+    if (!backupValue || typeof backupValue !== 'object' || Array.isArray(backupValue)) return;
+    const source = backupValue as Record<string, any>;
+    const current = dataRef.current;
+    const restored = {
+      ...current,
+      ...source,
+      appPreferences: normalizePreferences(source.appPreferences ?? current.appPreferences),
+      openRouterConfig: current.openRouterConfig,
+      supabaseConfig: current.supabaseConfig,
+      characters: Array.isArray(source.characters) ? mergeDefaultCharacters(source.characters) : current.characters,
+      chats: Array.isArray(source.chats) ? source.chats : current.chats,
+      personas: Array.isArray(source.personas) ? source.personas : current.personas,
+      lorebooks: Array.isArray(source.lorebooks) ? source.lorebooks : current.lorebooks,
+      plugins: Array.isArray(source.plugins) ? source.plugins : current.plugins,
+      storyMemories: Array.isArray(source.storyMemories) ? source.storyMemories : current.storyMemories,
+      wallets: Array.isArray(source.wallets) ? source.wallets : current.wallets,
+      savedMessages: Array.isArray(source.savedMessages) ? source.savedMessages : current.savedMessages,
+      phoneSystem: source.phoneSystem ? mergePhoneSystemData(current.phoneSystem, source.phoneSystem) : current.phoneSystem,
+      activeChatId: typeof source.activeChatId === 'string' ? source.activeChatId : current.activeChatId,
+    };
+    updateData(restored);
+    const restoredActiveChat = restored.chats.find((chat: Chat) => chat.id === restored.activeChatId) || restored.chats[0] || null;
+    setActiveChat(restoredActiveChat);
+    setFirebaseSyncMessage('Backup restored locally. Firebase sync will save it if signed in and enabled.');
   };
 
-  const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
-    updateData({ ...data, supabaseConfig: cfg });
-  };
 
   // Story Memory Handlers
   const handleSaveMemory = (memory: StoryMemory) => {
@@ -671,6 +693,7 @@ export default function App() {
         preferences={preferences}
         onSavePreferences={handleSavePreferences}
         onExportData={handleExportData}
+        onImportBackup={handleImportBackup}
         backupData={createBackupPayload()}
           onSaveConfig={handleSaveOpenRouterConfig}
           diagnostic={diagnostic}
