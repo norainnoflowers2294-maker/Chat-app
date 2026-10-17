@@ -4,7 +4,7 @@ import { unzipSync, zipSync } from 'fflate';
 import { onAuthStateChanged } from 'firebase/auth';
 import { deleteObject, getBytes, getDownloadURL, getMetadata, listAll, ref, updateMetadata, uploadBytes } from 'firebase/storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, storage } from '../lib/firebase';
+import { auth, db, storage, signInWithGoogle } from '../lib/firebase';
 
 interface KeptFile { id: string; name: string; type: string; size: number; savedAt: number; folderId?: string; blob?: Blob; cloudPath?: string; downloadURL?: string; }
 interface KeptFolder { id: string; name: string; createdAt: number; }
@@ -59,6 +59,8 @@ export const FileKeeperView: React.FC<FileKeeperViewProps> = ({ onBack }) => {
   const [moveFolderId, setMoveFolderId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
+  const [signingIn, setSigningIn] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const saveFolderList = async (nextFolders: KeptFolder[]) => {
@@ -99,7 +101,24 @@ export const FileKeeperView: React.FC<FileKeeperViewProps> = ({ onBack }) => {
       setError('Firebase could not sync. Your device copies are still available; check sign-in, Firestore rules, Storage rules, and connection.');
     }
   };
-  useEffect(() => onAuthStateChanged(auth, () => { void refresh(); }), []);
+  const handleFirebaseSignIn = async () => {
+    setSigningIn(true);
+    setError('');
+    try {
+      await signInWithGoogle();
+      setFirebaseUser(auth.currentUser);
+      await refresh();
+    } catch (signInError) {
+      setError(signInError instanceof Error ? `Firebase sign-in did not finish: ${signInError.message}` : 'Firebase sign-in did not finish. Please try again.');
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  useEffect(() => onAuthStateChanged(auth, (user) => {
+    setFirebaseUser(user);
+    void refresh();
+  }), []);
 
   const uploadKeptFile = async (file: File | Blob, name: string, folderId?: string, id = makeId('file')) => {
     const kept: KeptFile = { id, name, type: file.type || 'application/octet-stream', size: file.size, savedAt: Date.now(), folderId, blob: file };
@@ -219,6 +238,7 @@ export const FileKeeperView: React.FC<FileKeeperViewProps> = ({ onBack }) => {
         {onBack && <button type="button" onClick={onBack} className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Back to app"><ArrowLeft className="w-5 h-5" /></button>}
         <span className="rounded-2xl p-3 bg-[#00b4db]/20 text-cyan-200"><FolderOpen className="w-6 h-6" /></span>
         <div className="mr-auto"><h1 className="text-2xl font-bold text-white">File Keeper</h1><p className="text-sm text-white/60">Store, organize, compress, and extract files.</p></div>
+        {!firebaseUser && <button type="button" disabled={signingIn} onClick={() => void handleFirebaseSignIn()} className="px-3 py-2.5 rounded-xl border border-[#8BAEF2]/40 bg-[#07128F]/35 text-white font-bold text-xs sm:text-sm disabled:opacity-50">{signingIn ? 'Opening Google…' : 'Sign in to Firebase'}</button>}
         <button disabled={busy} onClick={() => inputRef.current?.click()} className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] text-white font-bold text-sm flex items-center gap-2 disabled:opacity-50"><Upload className="w-4 h-4" /> Add files</button>
         <input ref={inputRef} type="file" multiple onChange={addFiles} className="hidden" />
       </header>
