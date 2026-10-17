@@ -149,15 +149,22 @@ export function saveLocalData(data: StorageData): void {
   }
 }
 
+const embeddedImageUrlCache = new Map<string, { source: string; url: string }>();
+
 async function storeEmbeddedImages(value: unknown, userId: string, path = 'app-data'): Promise<unknown> {
   if (typeof value === 'string' && value.startsWith('data:image/')) {
     const safePath = path.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 180);
+    const cacheKey = `${userId}/${safePath}`;
+    const cached = embeddedImageUrlCache.get(cacheKey);
+    if (cached?.source === value) return cached.url;
     const imageRef = storageRef(
       storage,
       `users/${userId}/app-images/${safePath}.img`
     );
     await uploadString(imageRef, value, 'data_url');
-    return getDownloadURL(imageRef);
+    const url = await getDownloadURL(imageRef);
+    embeddedImageUrlCache.set(cacheKey, { source: value, url });
+    return url;
   }
   if (Array.isArray(value)) {
     const result: unknown[] = [];
