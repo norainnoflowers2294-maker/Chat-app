@@ -5,7 +5,6 @@ import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
-  CornerDownLeft,
   Sparkles,
   ArrowLeft,
   Settings,
@@ -1133,44 +1132,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   setCommandSuggestionIndex((index) => (index - 1 + slashSuggestions.length) % slashSuggestions.length);
                   return;
                 }
-                if (preferences.enterToSend && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  if (slashSuggestions.length > 0 && inputText.trim() !== slashSuggestions[commandSuggestionIndex]?.usage) {
-                    e.preventDefault();
-                    setInputText(slashSuggestions[commandSuggestionIndex].usage + ' ');
-                    return;
-                  }
-                  e.preventDefault();
-                  handleSendMessage();
-                }
               }}
               className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none resize-none shadow-inner"
             />
           </div>
-
-          {/* Insert a line break without sending */}
-          <button
-            type="button"
-            onClick={() => {
-              const textarea = inputRef.current;
-              if (!textarea) {
-                setInputText((current) => `${current}\n`);
-                return;
-              }
-              const start = textarea.selectionStart;
-              const end = textarea.selectionEnd;
-              const nextText = `${inputText.slice(0, start)}\n${inputText.slice(end)}`;
-              setInputText(nextText);
-              requestAnimationFrame(() => {
-                textarea.focus();
-                textarea.setSelectionRange(start + 1, start + 1);
-              });
-            }}
-            aria-label="Insert new line"
-            title="Insert new line"
-            className="p-3.5 bg-white/10 hover:bg-white/20 text-[#ffd6eb] rounded-2xl border border-[#ff3399]/40 transition-all hover:scale-105"
-          >
-            <CornerDownLeft className="w-5 h-5" />
-          </button>
 
           {/* Send Button */}
           <button
