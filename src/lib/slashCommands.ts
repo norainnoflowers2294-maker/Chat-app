@@ -2,6 +2,7 @@ export type NarratorFrequency = 'quiet' | 'balanced' | 'active';
 export type SlashCommand =
   | { type: 'wallet'; view: 'dashboard' | 'activity' }
   | { type: 'narrator'; enabled?: boolean; frequency?: NarratorFrequency }
+  | { type: 'ooc'; enabled?: boolean }
   | { type: 'roll' }
   | { type: 'continue' }
   | { type: 'rewind' }
@@ -18,6 +19,8 @@ export const SLASH_COMMAND_SUGGESTIONS: SlashCommandSuggestion[] = [
   { name: 'continue', usage: '/continue', description: 'Continue the scene without adding a user message' },
   { name: 'rewind', usage: '/rewind', description: 'Remove the latest character reply' },
   { name: 'nar', usage: '/nar', description: 'Toggle the narrator' },
+  { name: 'ooc', usage: '/ooc', description: 'Toggle out-of-character mode' },
+  { name: 'ic', usage: '/ic', description: 'Return to in-character mode' },
   { name: 'cash', usage: '/cash', description: 'Open the story wallet' },
   { name: 'cashapp', usage: '/cashapp', description: 'Open wallet activity' },
   { name: 'roll', usage: '/roll', description: 'Roll a d20' },
@@ -42,6 +45,13 @@ export function parseSlashCommand(input: string): SlashCommand | null {
   if (name === 'cash' && !argument) return { type: 'wallet', view: 'dashboard' };
   if ((name === 'cashapp' || name === 'cash-app') && !argument) return { type: 'wallet', view: 'activity' };
   if (name === 'roll' && !argument) return { type: 'roll' };
+  if ((name === 'ic' || name === 'incharacter') && !argument) return { type: 'ooc', enabled: false };
+  if (name === 'ooc') {
+    if (!argument || argument === 'toggle') return { type: 'ooc' };
+    if (argument === 'on' || argument === 'enable' || argument === 'enabled') return { type: 'ooc', enabled: true };
+    if (argument === 'off' || argument === 'disable' || argument === 'disabled') return { type: 'ooc', enabled: false };
+    return null;
+  }
   if ((name === 'continue' || name === 'cont') && !argument) return { type: 'continue' };
   if ((name === 'rewind' || name === 'undo') && !argument) return { type: 'rewind' };
   if (name === 'help' && !argument) return { type: 'help' };
