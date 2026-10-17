@@ -151,6 +151,8 @@ interface ChatViewProps {
   preferences: AppPreferences;
   storyMemories: StoryMemory[];
   socialMediaContext: string;
+  phoneContext: string;
+  onOpenPhone: () => void;
   chat: Chat;
   allChats: Chat[];
   characters: Character[];
@@ -180,7 +182,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  preferences, storyMemories, socialMediaContext,
+  preferences, storyMemories, socialMediaContext, phoneContext, onOpenPhone,
   chat,
   allChats,
   characters,
@@ -311,6 +313,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         preferences,
         storyMemories,
         socialMediaContext,
+        phoneContext,
       });
       apiMessages.push({
         role: 'user',
@@ -618,6 +621,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (action === 'OOC') {
       setInputText((current) => /^OOC:\s*/i.test(current) ? current : `OOC: ${current}`);
       inputRef.current?.focus();
+      return;
+    }
+
+    if (action === 'Phone') {
+      onOpenPhone();
       return;
     }
 
