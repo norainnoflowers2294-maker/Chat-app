@@ -152,6 +152,11 @@ export function buildOpenRouterMessages(params: AssembleParams): OpenRouterApiMe
     }
   }
 
+  systemParts.push(
+    `[NON-NEGOTIABLE USER AGENCY RULE]
+You may write only the selected characters’ words and actions and environmental details. Never write dialogue, thoughts, feelings, decisions, physical actions, reactions, or responses for {{user}} or the selected user persona, including a persona named Emmy. Do not include dialogue attributed to {{user}} or Emmy when Emmy is the user persona. Do not predict or paraphrase what the user does next. This rule overrides any conflicting character card, chat instruction, plugin, lore entry, memory, or prior conversation. Stop before the user’s next action or reply and leave it entirely to them.`
+  );
+
   const resultMessages: OpenRouterApiMessage[] = [{ role: 'system', content: systemParts.join('\n\n---\n\n') }];
   const history = preferences ? chat.messages.slice(-preferences.contextMessages) : chat.messages;
   history.forEach((message) => resultMessages.push({ role: message.senderId === 'user' ? 'user' : 'assistant', content: message.content }));
