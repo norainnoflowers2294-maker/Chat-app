@@ -168,7 +168,7 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
     'voiceDescription', 'voice_description', 'voice', 'voiceTags', 'voice_tags', 'personality', 'backstory', 'history', 'background', 'lore', 'first_message', 'example', 'physicalDescription', 'creator_notes',
     'spouse', 'current_spouse', 'familyMembers', 'family_members', 'relatives', 'scenario', 'first_mes', 'greeting', 'firstMessage',
     'pov', 'summary', 'short_description', 'mes_example', 'example_dialogue', 'system_prompt', 'tags', 'alternate_greetings', 'creator_notes',
-    'customFields', 'custom_fields', 'extensions', 'creator', 'character_version', 'spec', 'spec_version', 'post_history_instructions',
+    'customFields', 'custom_fields', 'extensions', 'creator', 'character_version', 'spec', 'spec_version', 'post_history_instructions', 'postHistoryInstructions',
   ]);
   const rawCustom = firstDefined(data, 'customFields', 'custom_fields', 'extensions');
   const unknownFields = Object.fromEntries(Object.entries(data).filter(([key]) => !consumed.has(key)));
@@ -210,7 +210,8 @@ function normalizeCharacterCard(parsed: any, fallbackName: string, avatar?: stri
     pov: normalizedPov,
     summary: cardSummary,
     mes_example: asString(firstDefined(data, 'mes_example', 'example_dialogue', 'example')),
-    system_prompt: asString(firstDefined(data, 'system_prompt', 'post_history_instructions')),
+    system_prompt: asString(firstDefined(data, 'system_prompt')),
+    post_history_instructions: asString(firstDefined(data, 'post_history_instructions', 'postHistoryInstructions') ?? firstDefined(rawCustom || {}, 'post_history_instructions', 'postHistoryInstructions')),
     tags: Array.isArray(tagsRaw) ? tagsRaw.map((v: unknown) => asString(v)).filter(Boolean) : (typeof tagsRaw === 'string' ? tagsRaw.split(',').map((v: string) => v.trim()).filter(Boolean) : []),
     alternate_greetings: Array.isArray(greetingsRaw) ? greetingsRaw.map((v: unknown) => asString(v)).filter(Boolean) : [],
     creator_notes: asString(firstDefined(data, 'creator_notes')),
@@ -414,6 +415,7 @@ export function exportCharacterJson(character: Character) {
       mes_example: character.mes_example,
       creator_notes: character.creator_notes || 'Created with Pretty Little Fantasies',
       system_prompt: character.system_prompt || '',
+      post_history_instructions: character.post_history_instructions || '',
       tags: character.tags,
       alternate_greetings: character.alternate_greetings || [],
       customFields: character.customFields || {},
