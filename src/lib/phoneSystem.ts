@@ -10,6 +10,22 @@ export interface FictionalPhoneItem {
   locked?: boolean;
   discoveredBy: string[];
 }
+export interface PhoneThreadMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  direction: 'outgoing' | 'incoming';
+  timestamp: number;
+}
+export interface PhoneConversationThread {
+  id: string;
+  chatId: string;
+  participantId: string;
+  participantName: string;
+  messages: PhoneThreadMessage[];
+  updatedAt: number;
+}
 export interface FictionalPhone {
   id: string;
   chatId: string;
@@ -17,6 +33,7 @@ export interface FictionalPhone {
   ownerName: string;
   pin: string;
   items: FictionalPhoneItem[];
+  threads?: PhoneConversationThread[];
 }
 export interface PhoneScratchpadEntry {
   id: string;
@@ -39,7 +56,7 @@ export function ensureFictionalPhone(state: PhoneSystemState | undefined, chatId
   return {
     ...current,
     phones: [...current.phones, {
-      id: idFor(chatId, ownerId), chatId, ownerId, ownerName, pin: '0420', items: [],
+      id: idFor(chatId, ownerId), chatId, ownerId, ownerName, pin: '0420', items: [], threads: [],
     }],
   };
 }
@@ -49,6 +66,38 @@ export function addPhoneItem(state: PhoneSystemState, phoneId: string, item: Omi
     createdAt: Date.now(), discoveredBy: [],
   };
   return { ...state, phones: state.phones.map((phone) => phone.id === phoneId ? { ...phone, items: [newItem, ...phone.items] } : phone) };
+}
+
+export function addPhoneThreadMessage(
+  state: PhoneSystemState,
+  chatId: string,
+  ownerId: string,
+  ownerName: string,
+  participantId: string,
+  participantName: string,
+  message: Omit<PhoneThreadMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number },
+): PhoneSystemState {
+  const withPhone = ensureFictionalPhone(state, chatId, ownerId, ownerName);
+  const phoneId = idFor(chatId, ownerId);
+  const phone = withPhone.phones.find((item) => item.id === phoneId)!;
+  const threadId = `phone-thread:${chatId}:${ownerId}:${participantId}`;
+  const existing = (phone.threads || []).find((thread) => thread.id === threadId);
+  const newMessage: PhoneThreadMessage = {
+    ...message,
+    id: message.id || `phone-message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: message.timestamp || Date.now(),
+  };
+  const thread: PhoneConversationThread = {
+    id: threadId, chatId, participantId, participantName,
+    messages: [...(existing?.messages || []), newMessage],
+    updatedAt: newMessage.timestamp,
+  };
+  const threads = [...(phone.threads || []).filter((item) => item.id !== threadId), thread]
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return {
+    ...withPhone,
+    phones: withPhone.phones.map((item) => item.id === phoneId ? { ...item, threads } : item),
+  };
 }
 export function recordPhoneDiscovery(state: PhoneSystemState, chatId: string, viewerId: string, item: FictionalPhoneItem, ownerName: string): PhoneSystemState {
   if (item.discoveredBy.includes(viewerId)) return state;
@@ -77,6 +126,25 @@ export function formatPhoneStoryContext(state: PhoneSystemState | undefined, cha
   ].join('\n');
 }
 
+function mergePhoneThreads(remoteThreads: PhoneConversationThread[], localThreads: PhoneConversationThread[]): PhoneConversationThread[] {
+  const byId = new Map(remoteThreads.map((thread) => [thread.id, thread]));
+  for (const localThread of localThreads) {
+    const remoteThread = byId.get(localThread.id);
+    if (!remoteThread) {
+      byId.set(localThread.id, localThread);
+      continue;
+    }
+    const messages = new Map(remoteThread.messages.map((message) => [message.id, message]));
+    for (const message of localThread.messages) messages.set(message.id, { ...messages.get(message.id), ...message });
+    byId.set(localThread.id, {
+      ...remoteThread, ...localThread,
+      messages: [...messages.values()].sort((a, b) => a.timestamp - b.timestamp),
+      updatedAt: Math.max(remoteThread.updatedAt, localThread.updatedAt),
+    });
+  }
+  return [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 export function mergePhoneSystemData(remote?: Partial<PhoneSystemState> | null, local?: Partial<PhoneSystemState> | null): PhoneSystemState {
   const remotePhones = Array.isArray(remote?.phones) ? remote.phones : [];
   const localPhones = Array.isArray(local?.phones) ? local.phones : [];
@@ -98,6 +166,7 @@ export function mergePhoneSystemData(remote?: Partial<PhoneSystemState> | null, 
       ...remotePhone,
       ...localPhone,
       items: [...itemsById.values()].sort((a, b) => b.createdAt - a.createdAt),
+      threads: mergePhoneThreads(remotePhone.threads || [], localPhone.threads || []),
     });
   }
   const scratchpadById = new Map((remote?.scratchpad || []).map((entry) => [entry.id, entry]));
