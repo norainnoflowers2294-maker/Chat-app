@@ -178,6 +178,27 @@ describe('parseCharacterFile', () => {
     expect(result.customFields?.custom_setting).toBe('rainy city');
   });
 
+  it('parses a base64 encoded SillyTavern card from a PNG tEXt chunk', async () => {
+    const card = { spec: 'chara_card_v2', data: { name: 'Embedded Mira', personality: 'Bold', first_mes: 'Hello!' } };
+    const keywordBytes = new TextEncoder().encode('chara');
+    const payload = btoa(unescape(encodeURIComponent(JSON.stringify(card))));
+    const dataBytes = new TextEncoder().encode(payload);
+    const chunkData = new Uint8Array([...keywordBytes, 0, ...dataBytes]);
+    const length = chunkData.length;
+    const bytes = new Uint8Array([
+      ...PNG_SIGNATURE,
+      (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff,
+      0x74, 0x45, 0x58, 0x74,
+      ...chunkData, 0, 0, 0, 0,
+    ]);
+    const file = new File([bytes], 'embedded.png', { type: 'image/png' });
+    const result = await parseCharacterFile(file);
+
+    expect(result.name).toBe('Embedded Mira');
+    expect(result.personality).toBe('Bold');
+    expect(result.avatar).toBe('data:image/png;base64,mocked_base64');
+  });
+
   it('marks PNGs without embedded card data as image-only imports', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
     const result = await parseCharacterFile(file);
