@@ -1,6 +1,6 @@
 const OWNER = 'norainnoflowers2294-maker';
 const REPO = 'Chat-app';
-const BRANCH = 'main';
+const BRANCH = 'colorpop-data-backups';
 const BACKUP_PATH = 'backups/colorpop-user-data.json';
 
 function encodeBase64Utf8(value: string): string {
