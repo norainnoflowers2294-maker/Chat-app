@@ -23,16 +23,22 @@ interface AppDrawersProps {
   onOpenSocialMedia: () => void;
 }
 
-const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
-  { id: 'home', label: 'Home', icon: <Home className="h-4 w-4" /> },
-  { id: 'chats', label: 'Chats', icon: <MessageSquare className="h-4 w-4" /> },
-  { id: 'characters', label: 'Characters', icon: <Users className="h-4 w-4" /> },
-  { id: 'lorebooks', label: 'Lorebooks', icon: <BookOpen className="h-4 w-4" /> },
-  { id: 'personas', label: 'Personas', icon: <UserRound className="h-4 w-4" /> },
-  { id: 'gallery', label: 'Gallery', icon: <Image className="h-4 w-4" /> },
-  { id: 'files', label: 'Files', icon: <FolderOpen className="h-4 w-4" /> },
-  { id: 'perchance', label: 'Perchance AI', icon: <Sparkles className="h-4 w-4" /> },
-  { id: 'social', label: 'Social Media', icon: <AtSign className="h-4 w-4" /> },
+const drawerPalette = [
+  '#0B168C', '#079AF0', '#8AABF4', '#FF3B04', '#FE0088', '#FC76AA',
+  '#FFCEA8', '#FF9086', '#E60960', '#B40061', '#B12FA7', '#B879C2',
+  '#F49A00', '#FF5B43', '#F54950', '#37B6A5', '#00877E', '#03081F',
+];
+
+const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode; color: string }> = [
+  { id: 'home', label: 'Home', icon: <Home className="h-4 w-4" />, color: '#0B168C' },
+  { id: 'chats', label: 'Chats', icon: <MessageSquare className="h-4 w-4" />, color: '#079AF0' },
+  { id: 'characters', label: 'Characters', icon: <Users className="h-4 w-4" />, color: '#8AABF4' },
+  { id: 'lorebooks', label: 'Lorebooks', icon: <BookOpen className="h-4 w-4" />, color: '#FF3B04' },
+  { id: 'personas', label: 'Personas', icon: <UserRound className="h-4 w-4" />, color: '#FE0088' },
+  { id: 'gallery', label: 'Gallery', icon: <Image className="h-4 w-4" />, color: '#FC76AA' },
+  { id: 'files', label: 'Files', icon: <FolderOpen className="h-4 w-4" />, color: '#FFCEA8' },
+  { id: 'perchance', label: 'Perchance AI', icon: <Sparkles className="h-4 w-4" />, color: '#FF9086' },
+  { id: 'social', label: 'Social Media', icon: <AtSign className="h-4 w-4" />, color: '#E60960' },
 ];
 
 export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
@@ -41,6 +47,8 @@ export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
 
   useEffect(() => {
     if (!leftOpen && !rightOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setLeftOpen(false);
@@ -48,7 +56,10 @@ export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [leftOpen, rightOpen]);
 
   const close = () => { setLeftOpen(false); setRightOpen(false); };
@@ -70,56 +81,62 @@ export const AppDrawers: React.FC<AppDrawersProps> = (props) => {
       </div>
 
       {(leftOpen || rightOpen) && (
-        <div className="fixed inset-0 z-[80]" onClick={close}>
+        <div className="fixed inset-0 z-[80] overscroll-contain" onClick={close}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <aside role="dialog" aria-modal="true" aria-label="App navigation drawer"
+          <aside role="dialog" aria-modal={leftOpen} aria-hidden={!leftOpen} aria-label="App navigation drawer"
             onClick={(event) => event.stopPropagation()}
-            className={`absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-[#ff66b2]/60 bg-[#140410] shadow-[10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${leftOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            className={`absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-[#ff66b2]/60 bg-[#140410] shadow-[10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${leftOpen ? 'pointer-events-auto translate-x-0' : 'pointer-events-none -translate-x-full'}`}>
             <div className="flex items-center justify-between border-b border-[#ff3399]/30 p-4">
               <div><h2 className="font-bold text-white">App navigation</h2><p className="text-xs text-[#ffd6eb]/65">Go to any section</p></div>
-              <button type="button" aria-label="Close navigation drawer" onClick={() => setLeftOpen(false)} className="rounded-xl bg-white/10 p-2 text-white"><X className="h-4 w-4" /></button>
+              <button type="button" aria-label="Close navigation drawer" onClick={() => setLeftOpen(false)} className="rounded-xl border border-[#FC76AA]/60 bg-[#FC76AA]/20 p-2 text-white hover:brightness-125"><X className="h-4 w-4" /></button>
             </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain touch-pan-y p-3 [-webkit-overflow-scrolling:touch]">
               {navItems.map((item) => (
                 <button key={item.id} type="button" aria-current={props.activeTab === item.id ? 'page' : undefined}
                   onClick={() => run(() => props.onNavigate(item.id))}
-                  className={`flex w-full items-center gap-3 rounded-xl p-3 text-left text-sm ${props.activeTab === item.id ? 'bg-[#ff007f]/25 font-semibold text-white' : 'text-[#ffd6eb]/85 hover:bg-white/10'}`}>
+                  style={{ backgroundColor: props.activeTab === item.id ? `${item.color}55` : `${item.color}22`, borderColor: `${item.color}88` }}
+                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125 ${props.activeTab === item.id ? 'font-semibold shadow-lg' : ''}`}>
                   {item.icon}<span>{item.label}</span>
                 </button>
               ))}
               <div className="border-t border-white/10 pt-3">
                 <h3 className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Recent chats</h3>
-                {props.chats.length ? props.chats.map((chat) => (
+                {props.chats.length ? props.chats.map((chat, index) => (
+                  (() => { const color = drawerPalette[(index + navItems.length) % drawerPalette.length]; return (
                   <button key={chat.id} type="button"
                     onClick={() => run(() => props.onSelectChat(chat.id))}
-                    className={`mb-1 w-full rounded-xl p-3 text-left ${props.activeChat?.id === chat.id ? 'bg-[#ff007f]/20' : 'bg-white/5 hover:bg-white/10'}`}>
+                    aria-current={props.activeChat?.id === chat.id ? 'page' : undefined}
+                    style={{ backgroundColor: `${color}33`, borderColor: `${color}88` }}
+                    className="mb-1 w-full rounded-xl border p-3 text-left text-white transition hover:brightness-125">
                     <span className="block truncate text-sm font-semibold text-white">{chat.title || 'Untitled chat'}</span>
                     <span className="block truncate text-[10px] text-[#ffd6eb]/60">{chat.messages[chat.messages.length - 1]?.content || 'No messages yet'}</span>
                   </button>
+                  ); })()
                 )) : <p className="rounded-xl bg-white/5 p-3 text-xs text-[#ffd6eb]/60">Your chats will appear here.</p>}
               </div>
             </nav>
           </aside>
 
-          <aside role="dialog" aria-modal="true" aria-label="App tools drawer"
+          <aside role="dialog" aria-modal={rightOpen} aria-hidden={!rightOpen} aria-label="App tools drawer"
             onClick={(event) => event.stopPropagation()}
-            className={`absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col border-l border-[#ff66b2]/60 bg-[#140410] shadow-[-10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${rightOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            className={`absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col border-l border-[#ff66b2]/60 bg-[#140410] shadow-[-10px_0_40px_rgba(255,0,128,0.35)] transition-transform duration-300 ${rightOpen ? 'pointer-events-auto translate-x-0' : 'pointer-events-none translate-x-full'}`}>
             <div className="flex items-center justify-between border-b border-[#ff3399]/30 p-4">
               <div><h2 className="font-bold text-white">App tools</h2><p className="text-xs text-[#ffd6eb]/65">Your story systems and settings</p></div>
-              <button type="button" aria-label="Close tools drawer" onClick={() => setRightOpen(false)} className="rounded-xl bg-white/10 p-2 text-white"><X className="h-4 w-4" /></button>
+              <button type="button" aria-label="Close tools drawer" onClick={() => setRightOpen(false)} className="rounded-xl border border-[#B879C2]/60 bg-[#B879C2]/20 p-2 text-white hover:brightness-125"><X className="h-4 w-4" /></button>
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-3 [-webkit-overflow-scrolling:touch]">
               <button type="button" disabled={!props.activeChat} onClick={() => run(() => props.onOpenWallet('dashboard'))}
-                className="flex w-full items-center gap-3 rounded-xl border border-[#ff66b2]/30 bg-gradient-to-r from-[#ff007f]/15 to-[#9b51e0]/15 p-3 text-left text-white enabled:hover:bg-[#ff007f]/25 disabled:cursor-not-allowed disabled:opacity-45">
+                style={{ backgroundColor: '#37B6A533', borderColor: '#37B6A588' }}
+                className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-white transition enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-45">
                 <WalletCards className="h-5 w-5 text-[#ff99cc]" /><span><strong className="block text-sm">Money system · Story Wallet</strong><small className="text-[10px] text-[#ffd6eb]/65">{props.activeChat ? 'Balances and character transfers' : 'Open a chat to use its wallet'}</small></span>
               </button>
-              <button type="button" onClick={() => run(props.onOpenSocialMedia)} className="flex w-full items-center gap-3 rounded-xl border border-[#ff66b2]/25 bg-[#ff007f]/10 p-3 text-left text-sm text-white hover:bg-[#ff007f]/20"><AtSign className="h-4 w-4 text-pink-300" />Social Media world</button>
-              <button type="button" onClick={() => run(props.onOpenStoryNotes)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><FileText className="h-4 w-4 text-indigo-300" />Story Notes &amp; Memories</button>
-              <button type="button" onClick={() => run(props.onOpenSavedMessages)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Bookmark className="h-4 w-4 text-emerald-300" />Saved Messages</button>
-              <button type="button" onClick={() => run(props.onOpenScenes)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Image className="h-4 w-4 text-cyan-300" />Scene Gallery</button>
-              <button type="button" onClick={() => run(props.onOpenPlugins)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Puzzle className="h-4 w-4 text-fuchsia-300" />Plugins</button>
-              <button type="button" onClick={() => run(props.onOpenSettings)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><Settings className="h-4 w-4 text-[#ff99cc]" />Settings &amp; diagnostics</button>
-              <button type="button" onClick={() => run(props.onOpenGitHubSync)} className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left text-sm text-white hover:bg-white/10"><GitBranch className="h-4 w-4 text-sky-300" />GitHub backup</button>
+              <button type="button" onClick={() => run(props.onOpenSocialMedia)} style={{ backgroundColor: '#FE008833', borderColor: '#FE008899' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><AtSign className="h-4 w-4 text-pink-300" />Social Media world</button>
+              <button type="button" onClick={() => run(props.onOpenStoryNotes)} style={{ backgroundColor: '#B12FA733', borderColor: '#B12FA799' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><FileText className="h-4 w-4 text-indigo-300" />Story Notes &amp; Memories</button>
+              <button type="button" onClick={() => run(props.onOpenSavedMessages)} style={{ backgroundColor: '#37B6A533', borderColor: '#37B6A599' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><Bookmark className="h-4 w-4 text-emerald-300" />Saved Messages</button>
+              <button type="button" onClick={() => run(props.onOpenScenes)} style={{ backgroundColor: '#079AF033', borderColor: '#079AF099' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><Image className="h-4 w-4 text-cyan-300" />Scene Gallery</button>
+              <button type="button" onClick={() => run(props.onOpenPlugins)} style={{ backgroundColor: '#B4006133', borderColor: '#B4006199' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><Puzzle className="h-4 w-4 text-fuchsia-300" />Plugins</button>
+              <button type="button" onClick={() => run(props.onOpenSettings)} style={{ backgroundColor: '#FF908633', borderColor: '#FF908699' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><Settings className="h-4 w-4 text-[#ff99cc]" />Settings &amp; diagnostics</button>
+              <button type="button" onClick={() => run(props.onOpenGitHubSync)} style={{ backgroundColor: '#0B168C33', borderColor: '#0B168C99' }} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm text-white transition hover:brightness-125"><GitBranch className="h-4 w-4 text-sky-300" />GitHub backup</button>
             </div>
           </aside>
         </div>
