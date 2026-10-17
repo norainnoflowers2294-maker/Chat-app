@@ -14,6 +14,46 @@ const GALLERY_KEY = 'colorpop_gallery_items_v1';
 const readJson = <T,>(key: string, fallback: T): T => {
   try { const parsed = JSON.parse(localStorage.getItem(key) || 'null'); return parsed ?? fallback; } catch { return fallback; }
 };
+const GALLERY_DB_NAME = 'pretty-little-fantasies-gallery';
+const GALLERY_DB_STORE = 'pictures';
+const GALLERY_DB_KEY = 'saved-gallery';
+
+function openGalleryDatabase(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable.'));
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(GALLERY_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(GALLERY_DB_STORE)) request.result.createObjectStore(GALLERY_DB_STORE, { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Could not open gallery storage.'));
+  });
+}
+
+async function readGallerySnapshot(): Promise<Picture[] | null> {
+  const database = await openGalleryDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(GALLERY_DB_STORE, 'readonly').objectStore(GALLERY_DB_STORE).get(GALLERY_DB_KEY);
+      request.onsuccess = () => resolve(Array.isArray(request.result?.pictures) ? request.result.pictures : null);
+      request.onerror = () => reject(request.error || new Error('Could not read gallery storage.'));
+    });
+  } finally { database.close(); }
+}
+
+async function writeGallerySnapshot(pictures: Picture[]): Promise<void> {
+  const database = await openGalleryDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(GALLERY_DB_STORE, 'readwrite');
+      transaction.objectStore(GALLERY_DB_STORE).put({ id: GALLERY_DB_KEY, pictures });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error('Could not save gallery storage.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Gallery save was aborted.'));
+    });
+  } finally { database.close(); }
+}
+
 
 interface SceneGeneratorModalProps {
   isOpen: boolean; onClose: () => void; chats: Chat[]; activeChatId?: string;
@@ -25,6 +65,7 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen
   const [selectedChatId, setSelectedChatId] = useState(activeChatId || chats[0]?.id || '');
   const [selectedImage, setSelectedImage] = useState(homeImage || '');
   const [uploaded, setUploaded] = useState<Picture[]>(() => readJson(GALLERY_KEY, []));
+  const [galleryHydrated, setGalleryHydrated] = useState(false);
   const [albums, setAlbums] = useState<Album[]>(() => readJson(ALBUMS_KEY, []));
   const [activeAlbumId, setActiveAlbumId] = useState('all');
   const [albumName, setAlbumName] = useState('');
@@ -34,8 +75,26 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen
 
   const savePictures = (items: Picture[]) => {
     setUploaded(items);
-    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(items)); }
-    catch { window.alert('Gallery storage is full. Delete a few pictures and try again.'); }
+    let browserStorageSaved = false;
+    try {
+      localStorage.setItem(GALLERY_KEY, JSON.stringify(items));
+      browserStorageSaved = true;
+    } catch {
+      setCloudMessage('Browser storage is full. Saving the gallery to the larger local backup…');
+    }
+    void writeGallerySnapshot(items).then(() => {
+      if (!browserStorageSaved) {
+        setCloudMessage(auth.currentUser
+          ? 'Gallery saved to the local backup and ready to sync with Firebase Storage.'
+          : 'Gallery saved in this browser. Sign in to Firebase Cloud to back it up online.');
+      }
+    }).catch((error) => {
+      if (!browserStorageSaved) {
+        console.error('Could not persist the gallery:', error);
+        setCloudMessage('The gallery could not save on this device. Free up device storage and try again.');
+        window.alert('The gallery could not save because this browser is out of storage.');
+      }
+    });
   };
   const saveAlbums = (items: Album[]) => {
     setAlbums(items);
@@ -44,7 +103,23 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen
     const user = auth.currentUser;
     if (user) void setDoc(doc(db, 'users', user.uid), { galleryAlbums: items }, { merge: true }).catch(() => setCloudMessage('Albums are saved on this device, but Firebase could not sync them.'));
   };
-  useEffect(() => onAuthStateChanged(auth, async (user) => {
+  useEffect(() => {
+    let cancelled = false;
+    const localPicturesPromise = readGallerySnapshot().catch((error) => {
+      console.warn('Could not read the IndexedDB gallery backup:', error);
+      return null;
+    }).then((savedPictures) => {
+      const localPictures = savedPictures ?? readJson<Picture[]>(GALLERY_KEY, []);
+      if (!cancelled) {
+        setUploaded(localPictures);
+        setGalleryHydrated(true);
+      }
+      return localPictures;
+    });
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const browserPictures = await localPicturesPromise;
+    if (cancelled) return;
     if (!user) { setCloudMessage('Sign in to Firebase to back up your pictures and albums.'); return; }
     try {
       const albumDoc = await getDoc(doc(db, 'users', user.uid));
@@ -55,7 +130,7 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen
         const [metadata, url] = await Promise.all([getMetadata(item), getDownloadURL(item)]);
         return { id: metadata.customMetadata?.id || item.name, title: metadata.customMetadata?.title || item.name, url, albumId: metadata.customMetadata?.albumId || undefined };
       }));
-      let combined = [...uploaded];
+      let combined = [...browserPictures];
       for (const picture of cloudPictures) {
         const match = combined.findIndex((local) => local.id === picture.id);
         if (match >= 0) combined[match] = picture; else combined.push(picture);
@@ -68,10 +143,20 @@ export const SceneGeneratorModal: React.FC<SceneGeneratorModalProps> = ({ isOpen
         await uploadBytes(cloudRef, blob, { contentType: blob.type || 'image/jpeg', customMetadata: { id, title: local.title, albumId: local.albumId || '' } });
         local.id = id; local.url = await getDownloadURL(cloudRef);
       }
-      setUploaded(combined); localStorage.setItem(GALLERY_KEY, JSON.stringify(combined)); setCloudMessage('Pictures and albums are backed up to Firebase Storage.');
+      setUploaded(combined);
+      setGalleryHydrated(true);
+      try { localStorage.setItem(GALLERY_KEY, JSON.stringify(combined)); } catch { /* IndexedDB keeps the full gallery when localStorage is full. */ }
+      await writeGallerySnapshot(combined);
+      setCloudMessage('Pictures and albums are backed up to Firebase Storage.');
     } catch { setCloudMessage('Firebase backup could not load. Your browser copies are still here; check Firebase sign-in and Storage rules.'); }
-  }), []);
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
   const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!galleryHydrated) {
+      setCloudMessage('Loading your saved gallery. Try the upload again in a moment.');
+      return;
+    }
     const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith('image/'));
     const newPictures: Picture[] = [];
     for (const file of files) {
