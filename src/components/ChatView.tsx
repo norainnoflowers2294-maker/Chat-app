@@ -117,6 +117,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState(() => {
+    try { return typeof window !== 'undefined' ? window.localStorage.getItem('plf_elevenlabs_api_key') || '' : ''; } catch { return ''; }
+  });
+  const [elevenLabsKeyDraft, setElevenLabsKeyDraft] = useState('');
+  const [customTtsVoices, setCustomTtsVoices] = useState<Array<{ voice_id: string; name: string; description?: string }>>(() => {
+    try { return typeof window !== 'undefined' ? JSON.parse(window.localStorage.getItem('plf_custom_tts_voices') || '[]') : []; } catch { return []; }
+  });
+  const [selectedTtsVoiceId, setSelectedTtsVoiceId] = useState(() => {
+    try { return typeof window !== 'undefined' ? window.localStorage.getItem('plf_selected_tts_voice') || '' : ''; } catch { return ''; }
+  });
+  const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState(false);
+  const [voiceNameDraft, setVoiceNameDraft] = useState('');
+  const [voiceDescriptionDraft, setVoiceDescriptionDraft] = useState('');
+  const [voiceSampleFile, setVoiceSampleFile] = useState<File | null>(null);
+  const [isImportingVoice, setIsImportingVoice] = useState(false);
+  const [voiceImportError, setVoiceImportError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speechRequestRef = useRef(0);
   const [regeneratingMsgId, setRegeneratingMsgId] = useState<string | null>(null);
   const [commandSuggestionIndex, setCommandSuggestionIndex] = useState(0);
 
@@ -124,6 +142,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(false);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('plf_elevenlabs_api_key', elevenLabsApiKey);
+      window.localStorage.setItem('plf_custom_tts_voices', JSON.stringify(customTtsVoices));
+      window.localStorage.setItem('plf_selected_tts_voice', selectedTtsVoiceId);
+    } catch {}
+  }, [elevenLabsApiKey, customTtsVoices, selectedTtsVoiceId]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
@@ -153,6 +179,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   useEffect(() => () => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    speechRequestRef.current += 1;
+    audioRef.current?.pause();
+    audioRef.current = null;
   }, []);
 
 
@@ -239,6 +268,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
     } else if (command.type === 'tts') {
       if (command.action === 'stop') {
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        speechRequestRef.current += 1;
+        audioRef.current?.pause();
+        audioRef.current = null;
         setSpeakingMessageId(null);
         setCommandNotice('Reading stopped.');
       } else {
@@ -376,22 +408,113 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTimeout(() => setSavedSuccessMsg(null), 2500);
   };
 
-  const handleSpeakMessage = (msg: ChatMessage, restart = false) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+  const handleSpeakMessage = async (msg: ChatMessage, restart = false) => {
+    const usingCustomVoice = Boolean(selectedTtsVoiceId);
+    if (typeof window === 'undefined' || (!usingCustomVoice && (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined'))) {
       setCommandNotice('Text-to-speech is not available in this browser.');
       setTimeout(() => setCommandNotice(null), 3000);
       return;
     }
-    window.speechSynthesis.cancel();
     if (speakingMessageId === msg.id && !restart) {
+      speechRequestRef.current += 1;
+      window.speechSynthesis?.cancel();
+      audioRef.current?.pause();
+      audioRef.current = null;
       setSpeakingMessageId(null);
       return;
     }
+    speechRequestRef.current += 1;
+    const requestId = speechRequestRef.current;
+    window.speechSynthesis?.cancel();
+    audioRef.current?.pause();
+    audioRef.current = null;
+
+    if (usingCustomVoice) {
+      if (!elevenLabsApiKey.trim()) {
+        setVoiceImportError('Save your ElevenLabs API key in Voice Settings first.');
+        setIsVoiceManagerOpen(true);
+        return;
+      }
+      setSpeakingMessageId(msg.id);
+      try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(selectedTtsVoiceId)}?output_format=mp3_44100_128`, {
+          method: 'POST',
+          headers: { 'xi-api-key': elevenLabsApiKey.trim(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: msg.content, model_id: 'eleven_multilingual_v2' }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload?.detail?.message || payload?.detail || `ElevenLabs returned HTTP ${response.status}.`);
+        }
+        const audioUrl = URL.createObjectURL(await response.blob());
+        if (requestId !== speechRequestRef.current) {
+          URL.revokeObjectURL(audioUrl);
+          return;
+        }
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        const cleanup = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (audioRef.current === audio) audioRef.current = null;
+          setSpeakingMessageId(null);
+        };
+        audio.onended = cleanup;
+        audio.onerror = cleanup;
+        await audio.play();
+      } catch (error: any) {
+        if (requestId === speechRequestRef.current) {
+          setSpeakingMessageId(null);
+          setCommandNotice(error.message || 'Could not generate speech with the selected voice.');
+          setTimeout(() => setCommandNotice(null), 4500);
+        }
+      }
+      return;
+    }
+
     const utterance = new SpeechSynthesisUtterance(msg.content);
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     setSpeakingMessageId(msg.id);
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleImportVoiceSample = async () => {
+    setVoiceImportError(null);
+    if (!elevenLabsApiKey.trim()) {
+      setVoiceImportError('Add and save your ElevenLabs API key first.');
+      return;
+    }
+    if (!voiceNameDraft.trim() || !voiceSampleFile) {
+      setVoiceImportError('Enter a voice name and choose an audio sample.');
+      return;
+    }
+    setIsImportingVoice(true);
+    try {
+      const body = new FormData();
+      body.append('name', voiceNameDraft.trim());
+      body.append('files[]', voiceSampleFile, voiceSampleFile.name);
+      if (voiceDescriptionDraft.trim()) body.append('description', voiceDescriptionDraft.trim());
+      const response = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+        method: 'POST',
+        headers: { 'xi-api-key': elevenLabsApiKey.trim() },
+        body,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.voice_id) {
+        throw new Error(payload?.detail?.message || payload?.detail || `Voice import failed (HTTP ${response.status}).`);
+      }
+      const voice = { voice_id: payload.voice_id as string, name: voiceNameDraft.trim(), description: voiceDescriptionDraft.trim() };
+      setCustomTtsVoices((voices) => [...voices.filter((item) => item.voice_id !== voice.voice_id), voice]);
+      setSelectedTtsVoiceId(voice.voice_id);
+      setVoiceNameDraft('');
+      setVoiceDescriptionDraft('');
+      setVoiceSampleFile(null);
+      setVoiceImportError(null);
+    } catch (error: any) {
+      setVoiceImportError(error.message || 'Could not import this voice sample.');
+    } finally {
+      setIsImportingVoice(false);
+    }
   };
 
   const handleCopyMessage = async (msg: ChatMessage) => {
@@ -901,6 +1024,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </form>
       </div>
 
+      {isVoiceManagerOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={() => setIsVoiceManagerOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Custom text-to-speech voices" onClick={(event) => event.stopPropagation()} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-[#ff66b2]/50 bg-[#140410] p-5 text-white shadow-[0_0_35px_rgba(255,0,128,0.35)]">
+            <div className="mb-4 flex items-center justify-between">
+              <div><h2 className="text-lg font-bold">Custom TTS Voices</h2><p className="text-xs text-[#ffd6eb]/65">Import a voice sample and use its clone for Read Aloud.</p></div>
+              <button type="button" aria-label="Close voice settings" onClick={() => setIsVoiceManagerOpen(false)} className="rounded-xl bg-white/10 p-2"><X className="h-4 w-4" /></button>
+            </div>
+            <label className="mb-1 block text-xs font-semibold">ElevenLabs API key</label>
+            <input type="password" autoComplete="off" value={elevenLabsKeyDraft} onChange={(event) => setElevenLabsKeyDraft(event.target.value)} placeholder="Paste your API key" className="mb-2 w-full rounded-xl border border-[#ff66b2]/35 bg-[#1e0818] p-3 text-sm text-white placeholder:text-white/35" />
+            <button type="button" onClick={() => { setElevenLabsApiKey(elevenLabsKeyDraft.trim()); setVoiceImportError(null); }} className="mb-4 rounded-xl border border-[#ff66b2]/40 bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15">Save key on this device</button>
+            <p className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] leading-relaxed text-[#ffd6eb]/75">
+              Your key and voice list are stored in this browser. Voice samples are sent to ElevenLabs to create the clone, and Read Aloud sends message text there to generate audio. Usage may consume account credits. Only upload a voice you own or have permission to use; create a restricted API key with a usage limit when available.
+            </p>
+            <div className="space-y-3 rounded-xl border border-[#ff66b2]/25 bg-white/5 p-3">
+              <label className="block text-xs font-semibold">Name for this voice</label>
+              <input value={voiceNameDraft} onChange={(event) => setVoiceNameDraft(event.target.value)} placeholder="e.g. Lucious" className="w-full rounded-xl border border-[#ff66b2]/35 bg-[#1e0818] p-3 text-sm text-white placeholder:text-white/35" />
+              <label className="block text-xs font-semibold">Voice sample</label>
+              <input type="file" accept="audio/*" onChange={(event) => setVoiceSampleFile(event.target.files?.[0] || null)} className="block w-full text-xs text-[#ffd6eb] file:mr-3 file:rounded-lg file:border-0 file:bg-[#ff007f]/30 file:px-3 file:py-2 file:text-white" />
+              {voiceSampleFile && <p className="truncate text-[10px] text-[#ffd6eb]/60">Selected: {voiceSampleFile.name}</p>}
+              <label className="block text-xs font-semibold">Optional description</label>
+              <input value={voiceDescriptionDraft} onChange={(event) => setVoiceDescriptionDraft(event.target.value)} placeholder="Accent or voice notes" className="w-full rounded-xl border border-[#ff66b2]/35 bg-[#1e0818] p-3 text-sm text-white placeholder:text-white/35" />
+              {voiceImportError && <p role="alert" className="rounded-lg bg-rose-950/70 p-2 text-xs text-rose-200">{voiceImportError}</p>}
+              <button type="button" disabled={isImportingVoice || !elevenLabsApiKey.trim()} onClick={handleImportVoiceSample} className="w-full rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] p-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isImportingVoice ? 'Importing voice…' : 'Upload sample and create voice'}</button>
+            </div>
+            {customTtsVoices.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#ff99cc]">Imported voices</h3>
+                {customTtsVoices.map((voice) => (
+                  <div key={voice.voice_id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3">
+                    <button type="button" onClick={() => setSelectedTtsVoiceId(voice.voice_id)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{voice.name}</span><span className="text-[10px] text-[#ffd6eb]/55">{selectedTtsVoiceId === voice.voice_id ? 'Selected for Read Aloud' : 'Tap to select'}</span></button>
+                    <button type="button" onClick={() => { setCustomTtsVoices((voices) => voices.filter((item) => item.voice_id !== voice.voice_id)); if (selectedTtsVoiceId === voice.voice_id) setSelectedTtsVoiceId(''); }} className="rounded-lg bg-white/10 px-2 py-1 text-[10px] text-white/80 hover:bg-rose-900/60">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {(isLeftDrawerOpen || isRightDrawerOpen) && (
         <div
           className="fixed inset-0 z-[70]"
@@ -962,6 +1124,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button type="button" aria-label="Close tools drawer" onClick={() => setIsRightDrawerOpen(false)} className="rounded-xl bg-white/10 p-2 text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <section className="rounded-xl border border-[#ff66b2]/30 bg-white/5 p-3">
+                <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Text-to-speech voice</h3>
+                <select aria-label="Select text-to-speech voice" value={selectedTtsVoiceId} onChange={(event) => setSelectedTtsVoiceId(event.target.value)} className="w-full rounded-lg border border-[#ff66b2]/40 bg-[#1e0818] p-2 text-sm text-white">
+                  <option value="">Use device voice</option>
+                  {customTtsVoices.map((voice) => <option key={voice.voice_id} value={voice.voice_id}>{voice.name}</option>)}
+                </select>
+                <button type="button" onClick={() => { setIsRightDrawerOpen(false); setElevenLabsKeyDraft(elevenLabsApiKey); setVoiceImportError(null); setIsVoiceManagerOpen(true); }} className="mt-2 w-full rounded-lg bg-[#ff007f]/20 p-2 text-left text-xs font-semibold text-white hover:bg-[#ff007f]/35">Import or manage custom voices</button>
+              </section>
               <section className="rounded-xl border border-[#ff66b2]/30 bg-white/5 p-3">
                 <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#ff99cc]">Playing as</h3>
                 <select aria-label="Choose persona for this chat" value={chat.personaId || activePersona?.id || ''} onChange={(event) => onUpdateChat({ ...chat, personaId: event.target.value, updatedAt: new Date().toISOString() })} className="w-full rounded-lg border border-[#ff66b2]/40 bg-[#1e0818] p-2 text-sm text-white">
