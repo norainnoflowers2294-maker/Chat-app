@@ -39,6 +39,7 @@ interface OpenRouterSettingsModalProps {
   onTestConnection: (key?: string) => Promise<void>;
   firebaseUser: User | null;
   firebaseSyncMessage?: string;
+  firebaseLastSync?: string;
 }
 
 export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = ({
@@ -54,6 +55,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   onTestConnection,
   firebaseUser,
   firebaseSyncMessage = '',
+  firebaseLastSync = '',
 }) => {
   const [showPreferences, setShowPreferences] = useState(false);
   const [frequencyPenalty, setFrequencyPenalty] = useState(config.frequencyPenalty);
@@ -210,6 +212,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     activeChatTitle={activeChat?.title}
     firebaseUser={firebaseUser}
     firebaseSyncMessage={firebaseSyncMessage}
+    firebaseLastSync={firebaseLastSync}
     onApplyRoleplayDefaults={(nextPreferences) => {
       if (!activeChat || !onUpdateChat) return;
       onUpdateChat({
