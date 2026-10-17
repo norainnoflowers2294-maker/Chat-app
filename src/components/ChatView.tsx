@@ -587,6 +587,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
           >
             <Settings className="w-4 h-4 text-[#ff3399]" />
           </button>
+          <img
+            key={activePersona?.id || 'persona-default'}
+            src={resolveImageUrl(activePersona?.avatar || '/colorpop_hero.jpg')}
+            alt={activePersona?.display_name || activePersona?.name || 'Selected persona'}
+            title={`Playing as ${activePersona?.display_name || activePersona?.name || 'your persona'}`}
+            className="ml-1 h-8 w-8 shrink-0 rounded-full border-2 border-[#ff66b2] object-cover shadow-[0_0_12px_rgba(255,0,128,0.4)]"
+          />
         </div>
       </header>
 
