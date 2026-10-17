@@ -17,7 +17,7 @@ const groups = [
   ['Chat', [
     ['autoScroll', 'Scroll to newest message'], ['showTimestamps', 'Show message times'],
     ['chatSystemPrompt', 'Chat rules and response instructions'],
-    ['enterToSend', 'Enter sends; Shift+Enter adds a line'], ['confirmDelete', 'Confirm message deletion'],
+    ['confirmDelete', 'Confirm message deletion'],
     ['showDiagnostics', 'Show connection status in chat'], ['notifyReplies', 'Desktop reply notifications'],
   ]],
   ['Memory & narrator', [
