@@ -207,7 +207,7 @@ export async function syncToFirebase(data: StorageData): Promise<void> {
       openRouterConfig: data.openRouterConfig || DEFAULT_OPENROUTER_CONFIG,
       supabaseConfig: data.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
       updatedAt: new Date().toISOString(),
-    }, user.uid);
+    }, user.uid) as Record<string, unknown>;
 
     await setDoc(doc(db, 'users', user.uid), cloudData, { merge: true });
   } catch (err) {
