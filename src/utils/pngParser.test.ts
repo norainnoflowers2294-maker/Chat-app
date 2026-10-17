@@ -180,13 +180,14 @@ describe('parseCharacterFile', () => {
 
   it('parses a base64 encoded SillyTavern card from a PNG tEXt chunk', async () => {
     const card = { spec: 'chara_card_v2', data: { name: 'Embedded Mira', personality: 'Bold', first_mes: 'Hello!' } };
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
     const keywordBytes = new TextEncoder().encode('chara');
     const payload = btoa(unescape(encodeURIComponent(JSON.stringify(card))));
     const dataBytes = new TextEncoder().encode(payload);
     const chunkData = new Uint8Array([...keywordBytes, 0, ...dataBytes]);
     const length = chunkData.length;
     const bytes = new Uint8Array([
-      ...PNG_SIGNATURE,
+      ...signature,
       (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff,
       0x74, 0x45, 0x58, 0x74,
       ...chunkData, 0, 0, 0, 0,
