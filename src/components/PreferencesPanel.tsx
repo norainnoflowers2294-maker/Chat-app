@@ -117,7 +117,7 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData, onImpor
             : spec === 'color' ? <input type="color" value={String(current)} onChange={e => update(key, e.target.value)} />
             : typeof (spec as any)[0] === 'number' ? <span className="cp-range"><input aria-label={String(label)} type="range" min={(spec as number[])[0]} max={(spec as number[])[1]} step={(spec as number[])[2]} value={Number(current)} onChange={e => update(key, Number(e.target.value))} /><output>{current}</output></span>
             : <select aria-label={String(label)} value={String(current)} onChange={e => update(key, e.target.value)}>{(spec as string[]).map(v => <option key={v} value={v}>{({
-              slow_burn: 'Slow-burn', balanced: 'Balanced', fast: 'Fast',
+              colorpop: 'Pretty Little Fantasies', slow_burn: 'Slow-burn', balanced: 'Balanced', fast: 'Fast',
               first_person: 'First person', third_person: 'Third person',
             } as Record<string, string>)[v] || v.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())}</option>)}</select>}</label>;
         })}
