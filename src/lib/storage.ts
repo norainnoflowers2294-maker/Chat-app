@@ -1,6 +1,6 @@
 import { DEFAULT_PREFERENCES, normalizePreferences, type AppPreferences } from './preferences';
 import { Character, Lorebook, Persona, Plugin, Chat, OpenRouterConfig, SupabaseConfig, StoryMemory } from '../types/roleplay';
-import { INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
+import { ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS, INITIAL_CHARACTERS, INITIAL_LOREBOOKS, INITIAL_PERSONAS, INITIAL_PLUGINS, INITIAL_CHATS } from './defaultData';
 import { db, auth } from './firebase';
 import { DEFAULT_WALLETS, type StoryWallet } from './wallet';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -81,10 +81,19 @@ export function mergeDefaultCharacters(characters: Character[] | undefined): Cha
   const saved = Array.isArray(characters) ? characters : [];
   const savedIds = new Set(saved.map((character) => character.id));
   const savedNames = new Set(saved.map((character) => character.name.trim().toLocaleLowerCase()));
+  const defaultsById = new Map(INITIAL_CHARACTERS.map((character) => [character.id, character]));
+  const refreshedSaved = saved.map((character) => {
+    const defaultCharacter = defaultsById.get(character.id);
+    const previousPlaceholder = ADDITIONAL_CHARACTER_PLACEHOLDER_AVATARS[character.id];
+    if (defaultCharacter && previousPlaceholder && character.avatar === previousPlaceholder) {
+      return { ...character, avatar: defaultCharacter.avatar };
+    }
+    return character;
+  });
   const missingDefaults = INITIAL_CHARACTERS.filter((character) =>
     !savedIds.has(character.id) && !savedNames.has(character.name.trim().toLocaleLowerCase())
   );
-  return [...saved, ...missingDefaults];
+  return [...refreshedSaved, ...missingDefaults];
 }
 
 export function loadLocalData(): StorageData {
