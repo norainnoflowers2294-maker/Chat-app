@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, FileText, Plus, Trash2, Bookmark, Sparkles, BookOpen } from 'lucide-react';
+import { X, FileText, Plus, Trash2, Bookmark, Sparkles, BookOpen, Pencil } from 'lucide-react';
 import { StoryMemory, Chat } from '../types/roleplay';
 
 interface StoryNotesModalProps {
@@ -28,6 +28,7 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
   const [type, setType] = useState<'note' | 'quote' | 'recap'>('note');
   const [selectedChatId, setSelectedChatId] = useState<string>(activeChatId || chats[0]?.id || '');
   const [filterType, setFilterType] = useState<string>('all');
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -35,18 +36,21 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    const previous = memories.find((memory) => memory.id === editingMemoryId);
     const newMem: StoryMemory = {
-      id: `mem_${Date.now()}`,
+      id: previous?.id || `mem_${Date.now()}`,
       chatId: selectedChatId || undefined,
       title: title.trim(),
       type,
       content: content.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: previous?.createdAt || new Date().toISOString(),
+      pinned: previous?.pinned,
     };
 
     onSaveMemory(newMem);
     setTitle('');
     setContent('');
+    setEditingMemoryId(null);
   };
 
   const filtered = memories.filter((m) => {
@@ -118,7 +122,7 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#ff99cc] flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Add New Memory Note
+                <Plus className="w-3.5 h-3.5" /> {editingMemoryId ? 'Edit Memory Note' : 'Add New Memory Note'}
               </span>
               <div className="flex items-center space-x-2">
                 <select
@@ -167,7 +171,7 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
                 disabled={!title.trim() || !content.trim()}
                 className="px-4 py-2 bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white rounded-xl text-xs font-bold shadow-[0_0_15px_rgba(255,0,128,0.6)] transition-all disabled:opacity-50"
               >
-                Save Note
+                {editingMemoryId ? 'Save Changes' : 'Save Note'}
               </button>
             </div>
           </form>
@@ -186,13 +190,11 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#ff007f]/20 text-[#ff99cc] border border-[#ff007f]/40 font-bold">
                         {mem.type}
                       </span>
-                      <button
-                        onClick={() => onDeleteMemory(mem.id)}
-                        className="opacity-0 group-hover:opacity-100 text-[#ff66b2] hover:text-rose-400 transition-opacity p-1"
-                        title="Delete Note"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => onSaveMemory({ ...mem, pinned: !mem.pinned })} aria-label={mem.pinned ? 'Unpin memory' : 'Pin memory'} title={mem.pinned ? 'Unpin memory' : 'Pin memory'} className={`rounded-lg p-2 ${mem.pinned ? 'text-[#FFB400]' : 'text-[#ffd6eb]/60 hover:text-[#FFB400]'}`}><Bookmark className="h-4 w-4" fill={mem.pinned ? 'currentColor' : 'none'} /></button>
+                        <button type="button" onClick={() => { setEditingMemoryId(mem.id); setTitle(mem.title); setContent(mem.content); setType(mem.type); setSelectedChatId(mem.chatId || ''); }} aria-label="Edit memory" title="Edit memory" className="rounded-lg p-2 text-[#079AF0] hover:text-white"><Pencil className="h-4 w-4" /></button>
+                        <button type="button" onClick={() => onDeleteMemory(mem.id)} aria-label="Delete memory" title="Delete memory" className="rounded-lg p-2 text-[#ff66b2] hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-white truncate">{mem.title}</h4>
