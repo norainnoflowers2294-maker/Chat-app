@@ -48,7 +48,7 @@ export const DEFAULT_SOCIAL_WORLD: SocialMediaWorld = {
 };
 
 export function formatSocialWorldContext(world: SocialMediaWorld): string {
-  const profiles = world.profiles.map((profile) => `@${profile.id} — ${profile.name}: ${profile.bio}`).join('\\n');
+  const profiles = world.profiles.map((profile) => `@${profile.id} — ${profile.name}: ${profile.bio}`).join('\n');
   const latestPosts = [...world.posts]
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 12)
@@ -56,7 +56,7 @@ export function formatSocialWorldContext(world: SocialMediaWorld): string {
       const profile = world.profiles.find((item) => item.id === post.profileId);
       return `@${post.profileId} (${profile?.name || 'Unknown'}): "${post.text}"`;
     })
-    .join('\\n');
+    .join('\n');
   return [
     '[SOCIAL MEDIA WORLD — ATTACHED BY USER]',
     'This is a separate fictional social network. Only use it as background when the user has explicitly enabled social media for this chat. Posts are independent events; do not force them into the current scene or assume every character has seen every post. Never write posts or actions for {{user}}.',
@@ -64,5 +64,5 @@ export function formatSocialWorldContext(world: SocialMediaWorld): string {
     profiles || 'No profiles yet.',
     'Recent posts:',
     latestPosts || 'No posts yet.',
-  ].join('\\n');
+  ].join('\n');
 }
