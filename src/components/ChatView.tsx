@@ -78,7 +78,7 @@ interface ChatViewProps {
   onOpenGitHubSyncModal: () => void;
   onOpenSocialMedia: () => void;
   onOpenWallet: (view: 'dashboard' | 'activity') => void;
-  onStartNewChat: () => void;
+  onStartNewChat?: () => void;
   onUpdatePreferences: (value: AppPreferences) => void;
   onTogglePlugin: (pluginId: string) => void;
   onBookmarkMessage: (msg: ChatMessage) => void;
@@ -706,7 +706,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="flex items-center space-x-1.5 sm:space-x-2">
           <button
             type="button"
-            onClick={onStartNewChat}
+            onClick={() => onStartNewChat?.()}
             aria-label="Start another chat with these characters"
             title="Start another chat with these characters"
             className="p-2 rounded-xl bg-[#ff007f]/20 hover:bg-[#ff007f]/40 border border-[#ff66b2]/50 text-[#ffd6eb] transition-colors"
