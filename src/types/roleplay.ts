@@ -160,6 +160,7 @@ export interface Chat {
   weather?: string;
   timeOfDay?: string;
   promptInstructions?: string;
+  oocMode?: boolean;
   socialMediaEnabled?: boolean;
   replyStyle?: 'immersive' | 'dialogue' | 'balanced' | 'screenplay';
   replyLength?: 'short' | 'medium' | 'long';
