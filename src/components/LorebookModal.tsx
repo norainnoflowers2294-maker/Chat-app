@@ -2,6 +2,7 @@ import { resolveImageUrl } from '../utils/imageUrl';
 import React, { useState } from 'react';
 import {
   X,
+  ArrowLeft,
   BookOpen,
   Plus,
   Upload,
@@ -11,6 +12,18 @@ import {
 } from 'lucide-react';
 import { Lorebook, LoreEntry } from '../types/roleplay';
 import { parseLorebookFile } from '../utils/pngParser';
+
+const makeLorebookCover = (name: string, seed = 0) => {
+  const hash = [...name].reduce((value, char) => value + char.charCodeAt(0), seed * 37);
+  const hue = 275 + (Math.abs(hash) % 75);
+  const initials = name.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'L';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue} 72% 30%)"/><stop offset="1" stop-color="hsl(${(hue + 34) % 360} 78% 13%)"/></linearGradient></defs><rect width="320" height="220" rx="28" fill="url(#g)"/><circle cx="258" cy="28" r="86" fill="#ff3399" opacity=".22"/><circle cx="42" cy="208" r="96" fill="#9b51e0" opacity=".3"/><path d="M74 48h172v126H74z" fill="none" stroke="#ffd6eb" stroke-opacity=".42" stroke-width="2"/><text x="160" y="137" text-anchor="middle" font-family="Georgia,serif" font-size="72" font-weight="700" fill="#fff4fa">${initials}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+const lorebookCover = (book: Lorebook, index: number) =>
+  !book.avatar || ['/mansion.jpg', '/roadtrip.jpg', '/penthouse.jpg'].includes(book.avatar)
+    ? makeLorebookCover(book.name, index)
+    : book.avatar;
 
 interface LorebookModalProps {
   isOpen: boolean;
@@ -26,6 +39,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
   onSaveLorebook,
 }) => {
   const [selectedLorebook, setSelectedLorebook] = useState<Lorebook>(lorebooks[0] || null);
+  const [editingEntries, setEditingEntries] = useState(false);
 
   const [entryKeys, setEntryKeys] = useState('');
   const [entryContent, setEntryContent] = useState('');
@@ -48,7 +62,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
         id: `lore_${Date.now()}`,
         name: parsed.name || 'Imported Lorebook',
         description: parsed.description || 'Imported world info',
-        avatar: parsed.avatar || '/mansion.jpg',
+        avatar: parsed.avatar || makeLorebookCover(parsed.name || 'Imported Lorebook', lorebooks.length),
         scan_depth: parsed.scan_depth || 4,
         token_budget: parsed.token_budget || 1500,
         recursive_scanning: Boolean(parsed.recursive_scanning),
@@ -58,6 +72,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
       };
       onSaveLorebook(newLore);
       setSelectedLorebook(newLore);
+      setEditingEntries(false);
     } catch (err) {
       console.error('Failed to import lorebook:', err);
     }
@@ -125,7 +140,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
       id: `lore_${Date.now()}`,
       name: newBookName.trim(),
       description: newBookDesc.trim(),
-      avatar: '/mansion.jpg',
+      avatar: makeLorebookCover(newBookName.trim(), lorebooks.length),
       scan_depth: 4,
       token_budget: 1500,
       recursive_scanning: true,
@@ -136,6 +151,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
 
     onSaveLorebook(newBook);
     setSelectedLorebook(newBook);
+    setEditingEntries(false);
     setIsNewBookModal(false);
     setNewBookName('');
     setNewBookDesc('');
@@ -189,7 +205,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
             {lorebooks.map((lb) => (
               <div
                 key={lb.id}
-                onClick={() => setSelectedLorebook(lb)}
+                onClick={() => { setSelectedLorebook(lb); setEditingEntries(false); }}
                 className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center space-x-3 ${
                   selectedLorebook?.id === lb.id
                     ? 'bg-[#ff007f]/20 border-[#ff007f] shadow-[0_0_15px_rgba(255,0,128,0.4)]'
@@ -197,7 +213,7 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
                 }`}
               >
                 <img
-                  src={resolveImageUrl(lb.avatar || '/mansion.jpg')}
+                  src={resolveImageUrl(lorebookCover(lb, lorebooks.indexOf(lb)))}
                   alt={lb.name}
                   className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/20 shrink-0"
                 />
@@ -212,14 +228,18 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
           {selectedLorebook ? (
             <div className="flex-1 space-y-4">
               <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl flex gap-4 items-center">
-                <img src={resolveImageUrl(selectedLorebook.avatar || '/mansion.jpg')} alt="" className="w-20 h-20 rounded-xl object-cover border border-[#ff3399]/40" />
+                <img src={resolveImageUrl(lorebookCover(selectedLorebook, Math.max(0, lorebooks.findIndex((book) => book.id === selectedLorebook.id))))} alt="" className="w-20 h-20 rounded-xl object-cover border border-[#ff3399]/40" />
                 <div className="flex-1 space-y-1"><h3 className="text-base font-bold text-white">{selectedLorebook.name}</h3><p className="text-xs text-[#ffd6eb]/80">{selectedLorebook.description || 'No description provided.'}</p></div>
+                <button type="button" onClick={() => setEditingEntries((editing) => !editing)} className="cursor-pointer px-3 py-2 rounded-xl bg-[#ff007f]/20 hover:bg-[#ff007f]/40 border border-[#ff66b2]/40 text-white text-xs font-semibold">
+                  {editingEntries ? 'Description' : 'Manage entries'}
+                </button>
                 <label className="cursor-pointer px-3 py-2 rounded-xl bg-[#ff007f]/20 hover:bg-[#ff007f]/40 border border-[#ff66b2]/40 text-white text-xs font-semibold flex items-center gap-2">
                   <ImagePlus className="w-4 h-4" /> Change picture
                   <input type="file" accept="image/*" onChange={handleLorebookImage} className="hidden" />
                 </label>
               </div>
 
+              {editingEntries ? <div className="space-y-4">
               <form onSubmit={handleAddEntry} className="p-4 bg-[#1e0818] border border-[#ff3399]/40 rounded-2xl space-y-3">
                 <div className="font-bold text-white flex items-center gap-1.5">
                   <Plus className="w-3.5 h-3.5 text-[#ff3399]" />
@@ -321,10 +341,14 @@ export const LorebookModal: React.FC<LorebookModalProps> = ({
                   </div>
                 ))}
               </div>
+              </div> : <div className="rounded-2xl border border-[#ff3399]/25 bg-[#1a0515] p-4">
+                <p className="text-sm text-[#ffd6eb]/85">{selectedLorebook.description || 'No description provided.'}</p>
+                <p className="mt-3 text-[11px] text-[#ffd6eb]/60">{selectedLorebook.entries.length} world-info entries · Scan depth {selectedLorebook.scan_depth} · {selectedLorebook.token_budget} token budget</p>
+              </div>}
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[#ffd6eb]/50">
-              Select or create a lorebook to begin editing entries
+              Select or create a lorebook to view its description
             </div>
           )}
         </div>
