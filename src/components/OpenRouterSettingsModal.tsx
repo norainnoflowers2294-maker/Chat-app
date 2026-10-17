@@ -259,7 +259,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
         </div>
 
         <div className="flex shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b border-[#8AABF4]/30 bg-[#1a0515]/60 px-3 pt-2 [scrollbar-width:thin] sm:px-6">
-          <button type="button" onClick={() => setShowPreferences(true)} className="pb-3 px-3 text-xs font-bold whitespace-nowrap text-[#9be3d5]">App settings</button>
+          <button type="button" onClick={() => setShowPreferences(true)} className="min-h-11 shrink-0 whitespace-nowrap px-3 pb-3 text-xs font-bold text-[#9be3d5]">App settings</button>
           <button
             onClick={() => setActiveTab('openrouter')}
             ref={(node) => { tabRefs.current['openrouter'] = node; }}
@@ -279,7 +279,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           <button
             onClick={() => setActiveTab('firebase')}
             ref={(node) => { tabRefs.current['firebase'] = node; }}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`min-h-11 shrink-0 whitespace-nowrap px-3 pb-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'firebase'
                 ? 'border-[#ff007f] text-[#ff3399]'
                 : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
