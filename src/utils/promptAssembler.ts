@@ -170,7 +170,7 @@ You may write only the selected characters’ words and actions and environmenta
   if (postHistoryInstructions.length) {
     resultMessages.push({
       role: 'system',
-      content: `[POST-HISTORY INSTRUCTIONS — FOLLOW FOR THIS REPLY]\nThese instructions are attached to the selected character card and apply immediately before generating the reply. Follow them over conflicting style or point-of-view preferences. Never speak, act, think, or decide for the user or their persona.\n\n${postHistoryInstructions.join('\\n\\n')}`,
+      content: `[POST-HISTORY INSTRUCTIONS — FOLLOW FOR THIS REPLY]\nThese instructions are attached to the selected character card and apply immediately before generating the reply. Follow them over conflicting style or point-of-view preferences. Never speak, act, think, or decide for the user or their persona.\n\n${postHistoryInstructions.join('\n\n')}`,
     });
   }
   return resultMessages;
