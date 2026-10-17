@@ -31,7 +31,7 @@ export const ChatSettingsPanel: React.FC<Props> = ({ chat, characters, personas,
           <button type="button" onClick={onClose} aria-label="Close chat settings" className="rounded-lg p-2 text-white/70 hover:bg-white/10"><X className="h-4 w-4" /></button>
         </header>
 
-        <div className="space-y-5">
+        <div className="space-y-5"><p className="text-xs text-white/60">These settings override app defaults for this chat only. The required rule against writing for {{user}} stays on.</p>
           <fieldset>
             <legend className={labelClass}>Character profiles</legend>
             <p className="mb-2 mt-1 text-xs text-white/55">Selected profiles are sent to the AI with their saved details and instructions.</p>
@@ -58,9 +58,28 @@ export const ChatSettingsPanel: React.FC<Props> = ({ chat, characters, personas,
             </label>
             <label className={labelClass}>Reply length
               <select className={selectClass} value={draft.replyLength || 'medium'} onChange={(event) => setDraft({ ...draft, replyLength: event.target.value as Chat['replyLength'] })}>
-                <option value="short">Short</option><option value="medium">Medium</option><option value="long">Long</option>
+                <option value="short">Short</option><option value="medium">Medium</option><option value="long">Long</option><option value="custom">Custom prose target</option>
               </select>
             </label>
+            {draft.replyLength === 'custom' && <label className={labelClass}>Custom prose target (words)
+              <input className={fieldClass} type="number" min="40" max="1500" step="20" value={draft.customResponseWords ?? 180} onChange={(event) => setDraft({ ...draft, customResponseWords: Math.max(40, Math.min(1500, Number(event.target.value) || 40)) })} />
+              <span className="mt-1 block text-[10px] font-normal normal-case text-white/45">This guides prose length; model output tokens remain a separate safety limit.</span>
+            </label>}
+            <label className={labelClass}>Dialogue versus description <span className="normal-case text-white/60">{draft.dialogueBalance ?? 50}% description</span>
+              <input className="mt-3 w-full accent-pink-500" type="range" min="0" max="100" step="5" value={draft.dialogueBalance ?? 50} onChange={(event) => setDraft({ ...draft, dialogueBalance: Number(event.target.value) })} />
+              <span className="mt-1 flex justify-between text-[10px] font-normal normal-case text-white/45"><span>Mostly dialogue</span><span>Mostly description</span></span>
+            </label>
+            <label className={labelClass}>Scene pacing
+              <select className={selectClass} value={draft.scenePacing || 'balanced'} onChange={(event) => setDraft({ ...draft, scenePacing: event.target.value as NonNullable<Chat['scenePacing']> })}><option value="slow_burn">Slow-burn</option><option value="balanced">Balanced</option><option value="fast">Fast progression</option></select>
+            </label>
+            <label className={labelClass}>NPC activity
+              <select className={selectClass} value={draft.npcActivity || 'balanced'} onChange={(event) => setDraft({ ...draft, npcActivity: event.target.value as NonNullable<Chat['npcActivity']> })}><option value="low">Low</option><option value="balanced">Balanced</option><option value="high">High</option></select>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={draft.knowledgeBoundaries ?? true} onChange={(event) => setDraft({ ...draft, knowledgeBoundaries: event.target.checked })} className="accent-pink-500" />Respect character knowledge boundaries</label>
+            <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={draft.relationshipContinuity ?? true} onChange={(event) => setDraft({ ...draft, relationshipContinuity: event.target.checked })} className="accent-pink-500" />Preserve relationship changes</label>
+            <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={draft.naturalSpeech ?? true} onChange={(event) => setDraft({ ...draft, naturalSpeech: event.target.checked })} className="accent-pink-500" />Natural character-specific speech</label>
+            <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={draft.reduceRepetition ?? true} onChange={(event) => setDraft({ ...draft, reduceRepetition: event.target.checked })} className="accent-pink-500" />Reduce repeated phrasing and beats</label>
+            <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={draft.realisticReactions ?? true} onChange={(event) => setDraft({ ...draft, realisticReactions: event.target.checked })} className="accent-pink-500" />Keep reactions realistic and in-character</label>
             <label className={labelClass}>Point of view
               <select className={selectClass} value={draft.replyPointOfView || 'character'} onChange={(event) => setDraft({ ...draft, replyPointOfView: event.target.value as Chat['replyPointOfView'] })}>
                 <option value="character">Follow character profile</option><option value="first_person">First person</option><option value="third_person">Third person</option>
