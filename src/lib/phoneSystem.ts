@@ -76,3 +76,39 @@ export function formatPhoneStoryContext(state: PhoneSystemState | undefined, cha
     ...lines,
   ].join('\n');
 }
+
+export function mergePhoneSystemData(remote?: Partial<PhoneSystemState> | null, local?: Partial<PhoneSystemState> | null): PhoneSystemState {
+  const remotePhones = Array.isArray(remote?.phones) ? remote.phones : [];
+  const localPhones = Array.isArray(local?.phones) ? local.phones : [];
+  const phonesById = new Map(remotePhones.map((phone) => [phone.id, phone]));
+  for (const localPhone of localPhones) {
+    const remotePhone = phonesById.get(localPhone.id);
+    if (!remotePhone) {
+      phonesById.set(localPhone.id, localPhone);
+      continue;
+    }
+    const itemsById = new Map(remotePhone.items.map((item) => [item.id, item]));
+    for (const localItem of localPhone.items) {
+      const remoteItem = itemsById.get(localItem.id);
+      itemsById.set(localItem.id, remoteItem
+        ? { ...remoteItem, ...localItem, discoveredBy: [...new Set([...remoteItem.discoveredBy, ...localItem.discoveredBy])] }
+        : localItem);
+    }
+    phonesById.set(localPhone.id, {
+      ...remotePhone,
+      ...localPhone,
+      items: [...itemsById.values()].sort((a, b) => b.createdAt - a.createdAt),
+    });
+  }
+  const scratchpadById = new Map((remote?.scratchpad || []).map((entry) => [entry.id, entry]));
+  for (const localEntry of local?.scratchpad || []) {
+    const remoteEntry = scratchpadById.get(localEntry.id);
+    scratchpadById.set(localEntry.id, remoteEntry
+      ? { ...remoteEntry, ...localEntry, discoveredBy: [...new Set([...remoteEntry.discoveredBy, ...localEntry.discoveredBy])] }
+      : localEntry);
+  }
+  return {
+    phones: [...phonesById.values()],
+    scratchpad: [...scratchpadById.values()].sort((a, b) => b.createdAt - a.createdAt),
+  };
+}
