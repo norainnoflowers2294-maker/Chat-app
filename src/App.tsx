@@ -337,6 +337,18 @@ export default function App() {
       scenario: selectedCharacters[0].scenario || 'A new story in the Pretty Little Fantasies universe.',
       bgImage: selectedCharacters[0].avatar || '/penthouse.jpg',
       relationshipScore: 88,
+      replyLength: currentData.appPreferences.responseLengthTarget === 'custom' ? 'custom' : currentData.appPreferences.responseLengthTarget,
+      customResponseWords: currentData.appPreferences.customResponseWords,
+      replyPointOfView: currentData.appPreferences.defaultPointOfView,
+      creativity: currentData.openRouterConfig.temperature,
+      dialogueBalance: currentData.appPreferences.dialogueBalance,
+      scenePacing: currentData.appPreferences.scenePacing,
+      npcActivity: currentData.appPreferences.npcActivity,
+      knowledgeBoundaries: currentData.appPreferences.knowledgeBoundaries,
+      relationshipContinuity: currentData.appPreferences.relationshipContinuity,
+      naturalSpeech: currentData.appPreferences.naturalSpeech,
+      reduceRepetition: currentData.appPreferences.reduceRepetition,
+      realisticReactions: currentData.appPreferences.realisticReactions,
       messages: [],
       openingPending: true,
       createdAt: now,
@@ -662,6 +674,8 @@ export default function App() {
         backupData={createBackupPayload()}
           onSaveConfig={handleSaveOpenRouterConfig}
           diagnostic={diagnostic}
+          activeChat={activeChat || undefined}
+          onUpdateChat={handleUpdateChat}
           onTestConnection={testOpenRouter}
           firebaseUser={firebaseUser}
           firebaseSyncMessage={firebaseSyncMessage}
@@ -1027,6 +1041,8 @@ export default function App() {
         backupData={createBackupPayload()}
         onSaveConfig={handleSaveOpenRouterConfig}
         diagnostic={diagnostic}
+        activeChat={activeChat || undefined}
+        onUpdateChat={handleUpdateChat}
         onTestConnection={testOpenRouter}
         firebaseUser={firebaseUser}
         firebaseSyncMessage={firebaseSyncMessage}
