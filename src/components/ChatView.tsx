@@ -563,6 +563,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         chat: contextChat,
         preferences,
         storyMemories,
+        socialMediaContext,
       });
       const replyLength = chat.replyLength || 'medium';
       const maxTokens = replyLength === 'short'
