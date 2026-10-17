@@ -11,7 +11,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 
-export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'gallery' | 'files' | 'perchance' | 'more';
+export type NavTab = 'home' | 'chats' | 'characters' | 'lorebooks' | 'personas' | 'gallery' | 'files' | 'perchance' | 'social' | 'more';
 
 interface TopNavPillProps {
   activeTab: NavTab;
