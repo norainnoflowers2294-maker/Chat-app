@@ -56,8 +56,11 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
     }
     return all;
   }, [characters]);
-  const [ownerId, setOwnerId] = useState(activeCharacters[0]?.id || people[0]?.id || 'emmy');
-  const [viewerId, setViewerId] = useState(activeCharacters[0]?.id || 'emmy');
+  const defaultPhoneOwner = people.find((person) => person.name.trim().toLowerCase() === (personaName || 'emmy').trim().toLowerCase())
+    || people.find((person) => person.id === 'emmy' || person.name.trim().toLowerCase() === 'emmy')
+    || people[0];
+  const [ownerId, setOwnerId] = useState(defaultPhoneOwner?.id || activeCharacters[0]?.id || 'emmy');
+  const [viewerId, setViewerId] = useState(defaultPhoneOwner?.id || 'emmy');
   const [activeTab, setActiveTab] = useState<PhoneTab>('texts');
   const [unlockedPhoneId, setUnlockedPhoneId] = useState('');
   const [revealedItems, setRevealedItems] = useState<string[]>([]);
@@ -270,6 +273,24 @@ export const CharacterPhoneModal: React.FC<CharacterPhoneModalProps> = ({
               {activeTab === 'scratchpad' && <section>
                 <p style={{ opacity: .7, fontSize: 13 }}>Recent phone discoveries; each entry is visible to the AI only for characters listed as discoverers.</p>
                 {storyDiscoveries.length ? storyDiscoveries.map((entry) => <article key={entry.id} style={{ padding: 12, borderRadius: 14, marginBottom: 8, background: '#37B6A222', border: '1px solid #37B6A266' }}><div>{entry.text}</div><small style={{ opacity: .6 }}>Seen by {entry.discoveredBy.map(peopleName).join(', ')}</small></article>) : <p style={{ opacity: .62 }}>Nothing has been discovered in this chat yet.</p>}
+              </section>}
+              {activeTab === 'texts' && <section aria-label="Chat message threads" style={{ marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 9px', color: '#8BAEF2', fontSize: 14 }}>Chat threads</h3>
+                {(phone?.threads || []).filter((thread) => thread.chatId === chat.id).length
+                  ? (phone?.threads || []).filter((thread) => thread.chatId === chat.id).map((thread) => (
+                    <article key={thread.id} style={{ padding: 12, borderRadius: 15, marginBottom: 10, background: '#078FEC18', border: '1px solid #8BAEF255' }}>
+                      <b style={{ display: 'block', marginBottom: 8 }}>{thread.participantName}</b>
+                      <div style={{ display: 'grid', gap: 7 }}>
+                        {thread.messages.map((message) => (
+                          <div key={message.id} style={{ padding: '8px 10px', borderRadius: 11, background: message.direction === 'outgoing' ? '#00857730' : '#B12FA728', border: '1px solid #ffffff1a' }}>
+                            <div style={{ fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><b>{message.senderName} - </b>{message.content}</div>
+                            <small style={{ display: 'block', marginTop: 4, opacity: .55 }}>{new Date(message.timestamp).toLocaleString()}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))
+                  : <p style={{ margin: '0 0 12px', opacity: .62, fontSize: 12 }}>Text-mode chat messages will appear here as a conversation thread.</p>}
               </section>}
               {activeTab === 'settings' && <section style={{ maxWidth: 420 }}>
                 <p style={{ opacity: .72, fontSize: 13 }}>Set a fictional PIN for {ownerName}’s phone in this chat. The current PIN is private story metadata; default is 0420.</p>
