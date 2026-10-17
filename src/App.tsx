@@ -576,6 +576,8 @@ export default function App() {
           storyMemories={data.storyMemories}
           socialMediaContext={formatSocialWorldContext(data.socialWorld || DEFAULT_SOCIAL_WORLD)}
           phoneContext={formatPhoneStoryContext(data.phoneSystem, activeChat.id, activeChat.characterIds)}
+          phoneSystem={data.phoneSystem}
+          onUpdatePhoneSystem={(phoneSystem) => updateData({ ...dataRef.current, phoneSystem })}
           onOpenPhone={() => setIsPhoneOpen(true)}
           onUpdateChat={handleUpdateChat}
           onSelectChat={handleSelectChat}
