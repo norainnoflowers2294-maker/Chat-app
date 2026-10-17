@@ -163,7 +163,7 @@ describe('loadFromFirebase', () => {
 
     const result = await loadFromFirebase();
 
-    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-uid');
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-user-id');
     expect(getDoc).toHaveBeenCalledWith(mockDocRef);
     expect(result).toEqual(mockData);
   });
@@ -182,7 +182,7 @@ describe('loadFromFirebase', () => {
 
     const result = await loadFromFirebase();
 
-    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-uid');
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-user-id');
     expect(getDoc).toHaveBeenCalledWith(mockDocRef);
     expect(result).toBeNull();
   });
@@ -198,7 +198,7 @@ describe('loadFromFirebase', () => {
 
     const result = await loadFromFirebase();
 
-    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-uid');
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'test-user-id');
     expect(getDoc).toHaveBeenCalledWith(mockDocRef);
     expect(result).toBeNull();
     expect(consoleWarnMock).toHaveBeenCalledWith('Could not load from Firebase Firestore:', mockError);
