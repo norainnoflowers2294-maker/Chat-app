@@ -1,4 +1,4 @@
-import { Character, Lorebook } from '../types/roleplay';
+import { Character, FeatureMark, Lorebook } from '../types/roleplay';
 
 function decodeUtf8(bytes: Uint8Array): string {
   try {
@@ -307,6 +307,26 @@ export function exportCharacterJson(character: Character) {
     spec_version: '2.0',
     data: {
       name: character.name,
+      nicknames: character.nicknames || [],
+      age: character.age || '',
+      ethnicity: character.ethnicity || '',
+      birthday: character.birthday || '',
+      birthYear: character.birthYear || '',
+      zodiacSign: character.zodiacSign || '',
+      avatar: character.avatar,
+      height: character.height || '',
+      bodyType: character.bodyType || '',
+      scars: character.scars || [],
+      birthmarks: character.birthmarks || [],
+      tattoos: character.tattoos || [],
+      hairColor: character.hairColor || '',
+      eyeColor: character.eyeColor || '',
+      voiceDescription: character.voiceDescription || '',
+      voiceTags: character.voiceTags || [],
+      backstory: character.backstory || '',
+      spouse: character.spouse,
+      familyMembers: character.familyMembers || [],
+      pov: character.pov || 'third_person',
       description: character.description,
       personality: character.personality,
       scenario: character.scenario,
@@ -316,6 +336,7 @@ export function exportCharacterJson(character: Character) {
       system_prompt: character.system_prompt || '',
       tags: character.tags,
       alternate_greetings: character.alternate_greetings || [],
+      customFields: character.customFields || {},
     },
   };
 
