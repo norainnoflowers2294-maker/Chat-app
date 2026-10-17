@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { normalizePreferences, DEFAULT_PREFERENCES } from '../src/lib/preferences.ts';
 import { buildOpenRouterMessages } from '../src/utils/promptAssembler.ts';
 const chat = { id: 'chat', messages: Array.from({length:20},(_,i)=>({senderId:'user',content:`Message ${i}`})), pluginIds:[] };
@@ -44,4 +45,30 @@ test('custom response target and roleplay controls are assembled into the real s
  assert.match(system,/may only know what they witnessed/);
  assert.match(system,/Carry forward established changes in trust/);
  assert.match(system,/first person as the responding character/);
+});
+
+test('pinned story memory is preferred in prompt assembly', () => {
+ const notes=[
+  {id:'old',title:'Ordinary',content:'ordinary note',createdAt:'2025-01-01',chatId:'chat'},
+  {id:'pin',title:'Pinned promise',content:'do not forget the promise',createdAt:'2024-01-01',chatId:'chat',pinned:true},
+ ];
+ const system=buildOpenRouterMessages({...params,preferences:normalizePreferences({memoryDepth:'light'}),storyMemories:notes})[0].content;
+ assert.match(system,/Pinned promise: do not forget the promise/);
+});
+test('mobile settings keeps tabs, content scrolling, and save controls in separate regions', () => {
+ const component=readFileSync(new URL('../src/components/PreferencesPanel.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/components/preferences.css',import.meta.url),'utf8');
+ assert.match(component,/scrollIntoView\(\{ block: 'nearest', inline: 'nearest'/);
+ assert.match(component,/aria-pressed=\{tab === i\}/);
+ assert.match(css,/\.cp-preferences nav\{[^}]*overflow-x:auto/);
+ assert.match(css,/\.cp-preferences main\{[^}]*overflow-y:auto/);
+ assert.match(css,/\.cp-preferences footer/);
+ assert.match(css,/env\(safe-area-inset-bottom\)/);
+});
+test('story memories can be edited and pinned through persistent upsert handler', () => {
+ const modal=readFileSync(new URL('../src/components/StoryNotesModal.tsx',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.match(modal,/Edit Memory Note/);
+ assert.match(modal,/Pin memory/);
+ assert.match(app,/existing\.some\(\(item\) => item\.id === memory\.id\)/);
 });
