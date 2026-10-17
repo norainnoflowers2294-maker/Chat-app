@@ -85,6 +85,22 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   const [gitPushResult, setGitPushResult] = useState<{ success: boolean; message: string; output?: string } | null>(null);
 
   useEffect(() => {
+    if (!isOpen || !config.apiKey.trim()) return;
+    let active = true;
+    setModelsLoading(true);
+    setModelsError('');
+    fetchOpenRouterModels(config.apiKey).then((models) => {
+      if (!active) return;
+      setAvailableModels(models);
+      const selected = models.find((entry) => entry.id === config.model.trim());
+      if (selected) setSupportedParameters(selected.supported_parameters || []);
+    }).catch((error) => {
+      if (active) setModelsError(error instanceof Error ? error.message : 'Could not load the OpenRouter model catalog.');
+    }).finally(() => { if (active) setModelsLoading(false); });
+    return () => { active = false; };
+  }, [isOpen, config.apiKey, config.model]);
+
+  useEffect(() => {
     if (!isOpen) return;
     setApiKey(config.apiKey);
     setModel(config.model);
@@ -136,6 +152,11 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     return Number.isFinite(value) ? value : null;
   };
   const isFreeModel = (entry: OpenRouterModelInfo) => modelPrice(entry, 'prompt') === 0 && modelPrice(entry, 'completion') === 0;
+  const isPaidModel = (entry: OpenRouterModelInfo) => {
+    const input = modelPrice(entry, 'prompt');
+    const output = modelPrice(entry, 'completion');
+    return input !== null && output !== null && (input > 0 || output > 0);
+  };
   const isBudgetModel = (entry: OpenRouterModelInfo) => {
     const input = modelPrice(entry, 'prompt');
     const output = modelPrice(entry, 'completion');
@@ -143,6 +164,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   };
   const suggestedRoleplay = (entry: OpenRouterModelInfo) => /claude|mythomax|deepseek|gemini|mistral|nous/i.test(entry.id + ' ' + (entry.name || ''));
   const suggestedGeneral = (entry: OpenRouterModelInfo) => /gpt|llama|gemini|deepseek|mistral|qwen/i.test(entry.id + ' ' + (entry.name || ''));
+  const suggestedFast = (entry: OpenRouterModelInfo) => /flash|turbo|mini|haiku|nemo|fast/i.test(entry.id + ' ' + (entry.name || ''));
   const displayPrice = (value: string | undefined) => {
     const amount = Number(value);
     return Number.isFinite(amount) ? `$${(amount * 1_000_000).toFixed(amount < 0.000001 ? 3 : 2)} / 1M tokens` : 'Pricing not listed';
@@ -411,9 +433,11 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                     const free = isFreeModel(entry);
                     const roleplay = suggestedRoleplay(entry);
                     const general = suggestedGeneral(entry);
+                    const fast = suggestedFast(entry);
+                    const badge = free ? 'Free' : isPaidModel(entry) ? 'Paid' : isBudgetModel(entry) ? 'Budget' : roleplay ? 'Best for roleplay' : fast ? 'Fast suggestion' : general ? 'General chat' : 'Available';
                     return <button type="button" key={entry.id} onClick={() => chooseModel(entry)} className={`block min-h-11 w-full min-w-0 rounded-xl border p-3 text-left transition-colors ${model === entry.id ? 'border-[#FF1493] bg-[#FF1493]/15' : 'border-[#8AABF4]/30 bg-white/5 hover:border-[#079AF0]/60'}`}>
-                      <span className="block break-words font-bold text-white">{entry.name || entry.id}</span><span className="block break-all font-mono text-[10px] text-[#8AABF4]">{entry.id}</span>
-                      <span className="mt-1 block break-words text-[10px] text-[#ffd6eb]/75">{entry.context_length ? `Context ${entry.context_length.toLocaleString()} tokens · ` : ''}Input: {displayPrice(entry.pricing?.prompt)} · Output: {displayPrice(entry.pricing?.completion)}{free ? ' · Free per catalog' : ''}{roleplay ? ' · Roleplay suggestion' : ''}{!roleplay && general ? ' · General chat suggestion' : ''}</span>
+                      <span className="flex min-w-0 items-start justify-between gap-2"><span className="min-w-0"><span className="block break-words font-bold text-white">{entry.name || entry.id}</span><span className="block break-all font-mono text-[10px] text-[#8AABF4]">{entry.id}</span></span><span className="max-w-[42%] shrink-0 break-words rounded-full border border-[#B879C2]/50 bg-[#B12FA7]/25 px-2 py-1 text-center text-[10px] font-semibold text-white">{badge}</span></span>
+                      <span className="mt-1 block break-words text-[10px] text-[#ffd6eb]/75">{entry.context_length ? `Context ${entry.context_length.toLocaleString()} tokens · ` : ''}Input: {displayPrice(entry.pricing?.prompt)} · Output: {displayPrice(entry.pricing?.completion)}{free ? ' · Free per catalog' : ''}{roleplay ? ' · Roleplay suggestion' : ''}{!roleplay && general ? ' · General chat suggestion' : ''}{fast ? ' · Fast suggestion' : ''}</span>
                     </button>;
                   })}
                 </div>
@@ -426,7 +450,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                   try {
                     const result = await sendOpenRouterChatDetailed({ ...config, apiKey: apiKey.trim(), model: model.trim(), temperature: 0, maxTokens: 16, supportedParameters }, [{ role: 'user', content: 'Reply with the single word: connected' }]);
                     setModelTestResult(`Response received from ${result.response.model}${result.response.provider ? ` via ${result.response.provider}` : ''}: ${result.content}`);
-                  } catch (error) { setModelTestResult(error instanceof Error ? error.message : 'The test model request failed.'); }
+                  } catch (error) { setModelTestResult(error instanceof Error ? `${error.message}${'suggestedFix' in error ? ` · ${String(error.suggestedFix)}` : ''}` : 'The test model request failed.'); }
                   finally { setTestingModel(false); }
                 }} disabled={testingModel} className="min-h-11 rounded-xl border border-[#37B6A5]/50 bg-[#00877E]/25 px-4 text-xs font-bold text-white disabled:opacity-50">{testingModel ? 'Testing model…' : 'Test model response (may incur cost)'}</button>
                 {modelTestResult && <p role="status" className="break-words rounded-xl bg-white/5 p-3 text-[11px] text-[#ffd6eb]">{modelTestResult}</p>}
