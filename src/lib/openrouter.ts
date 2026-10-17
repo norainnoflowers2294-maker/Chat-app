@@ -2,6 +2,15 @@ import type { ConnectionDiagnostic, OpenRouterConfig } from '../types/roleplay';
 
 const API = 'https://openrouter.ai/api/v1';
 
+export interface OpenRouterModelInfo {
+  id: string;
+  name?: string;
+  context_length?: number;
+  pricing?: { prompt?: string; completion?: string };
+  supported_parameters?: string[];
+}
+export interface OpenRouterResponseInfo { model: string; provider?: string; }
+
 export class OpenRouterError extends Error {
   status: number;
   suggestedFix: string;
@@ -48,6 +57,26 @@ async function request(path: string, apiKey: string, body?: object) {
   }
 }
 
+export async function fetchOpenRouterModels(apiKey: string): Promise<OpenRouterModelInfo[]> {
+  const data = await request('/models', apiKey);
+  if (!Array.isArray(data.data)) throw new OpenRouterError('OpenRouter returned an invalid model list.');
+  return data.data
+    .filter((model: any) => typeof model?.id === 'string' && model.id.trim())
+    .map((model: any) => ({
+      id: model.id,
+      name: typeof model.name === 'string' ? model.name : undefined,
+      context_length: Number.isFinite(model.context_length) ? model.context_length : undefined,
+      pricing: model.pricing && typeof model.pricing === 'object' ? {
+        prompt: typeof model.pricing.prompt === 'string' ? model.pricing.prompt : undefined,
+        completion: typeof model.pricing.completion === 'string' ? model.pricing.completion : undefined,
+      } : undefined,
+      supported_parameters: Array.isArray(model.supported_parameters)
+        ? model.supported_parameters.filter((parameter: unknown): parameter is string => typeof parameter === 'string')
+        : undefined,
+    }))
+    .sort((a: OpenRouterModelInfo, b: OpenRouterModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
+}
+
 export async function testOpenRouterConnection(apiKey: string): Promise<ConnectionDiagnostic> {
   const start = Date.now();
   try {
@@ -64,17 +93,39 @@ export async function testOpenRouterConnection(apiKey: string): Promise<Connecti
   }
 }
 
-export async function sendOpenRouterChat(config: OpenRouterConfig, messages: { role: string; content: string }[]): Promise<string> {
+export async function sendOpenRouterChatDetailed(
+  config: OpenRouterConfig,
+  messages: { role: string; content: string }[],
+): Promise<{ content: string; response: OpenRouterResponseInfo }> {
   if (!config.model.trim()) throw new OpenRouterError('Choose an OpenRouter model in Settings.', 404);
-  const data = await request('/chat/completions', config.apiKey, {
-    model: config.model.trim(), messages, temperature: config.temperature,
-    max_tokens: config.maxTokens, top_p: config.topP,
-    frequency_penalty: config.frequencyPenalty ?? 0, presence_penalty: config.presencePenalty ?? 0, stream: false,
-  });
+  const supported = config.supportedParameters ? new Set(config.supportedParameters) : null;
+  const body: Record<string, unknown> = {
+    model: config.model.trim(),
+    messages,
+    max_tokens: config.maxTokens,
+    stream: false,
+  };
+  if (!supported || supported.has('temperature')) body.temperature = config.temperature;
+  if (!supported || supported.has('top_p')) body.top_p = config.topP;
+  if (supported?.has('frequency_penalty')) body.frequency_penalty = config.frequencyPenalty ?? 0;
+  if (supported?.has('presence_penalty')) body.presence_penalty = config.presencePenalty ?? 0;
+
+  const data = await request('/chat/completions', config.apiKey, body);
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
     throw new OpenRouterError('The model returned no text. Try again or choose another model.');
   }
-  return content;
+  return {
+    content,
+    response: {
+      model: typeof data.model === 'string' ? data.model : config.model.trim(),
+      ...(typeof data.provider === 'string' ? { provider: data.provider } : {}),
+    },
+  };
+}
+
+export async function sendOpenRouterChat(config: OpenRouterConfig, messages: { role: string; content: string }[]): Promise<string> {
+  const result = await sendOpenRouterChatDetailed(config, messages);
+  return result.content;
 }
 
