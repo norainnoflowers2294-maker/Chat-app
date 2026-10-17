@@ -144,13 +144,13 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
 
   const popularModels = [
     { id: 'gryphe/mythomax-l2-13b', label: 'Mythomax L2 13B (Recommended for Roleplay)', badge: 'Gold Standard' },
-    { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', badge: 'DeepSeek' },
-    { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo', badge: 'Mistral' },
-    { id: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash', badge: 'Google' },
-    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B', badge: 'Meta' },
-    { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2', badge: 'Mistral' },
-    { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini', badge: 'OpenAI' },
-    { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', badge: 'Anthropic' },
+    { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', badge: 'Smart & Affordable' },
+    { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo', badge: 'Fast & Lightweight' },
+    { id: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash', badge: 'Fast & Affordable' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B', badge: 'Open & Versatile' },
+    { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2', badge: 'Balanced & Affordable' },
+    { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini', badge: 'Fast & Affordable' },
+    { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', badge: 'Best for Roleplay' },
   ];
 
   if (showPreferences) return <PreferencesPanel value={preferences} onSave={onSavePreferences} onClose={() => setShowPreferences(false)} onExportData={onExportData} />;
