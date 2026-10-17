@@ -30,6 +30,13 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
   const [filterType, setFilterType] = useState<string>('all');
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
 
+  const chatsById = useMemo(() => {
+    return chats.reduce((acc, chat) => {
+      acc[chat.id] = chat;
+      return acc;
+    }, {} as Record<string, Chat>);
+  }, [chats]);
+
   if (!isOpen) return null;
 
   const handleAddNote = (e: React.FormEvent) => {
@@ -58,13 +65,6 @@ export const StoryNotesModal: React.FC<StoryNotesModalProps> = ({
     if (filterType === 'all') return true;
     return m.type === filterType;
   });
-
-  const chatsById = useMemo(() => {
-    return chats.reduce((acc, chat) => {
-      acc[chat.id] = chat;
-      return acc;
-    }, {} as Record<string, Chat>);
-  }, [chats]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
