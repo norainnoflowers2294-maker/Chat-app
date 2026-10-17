@@ -51,6 +51,7 @@ import {
 } from './types/roleplay';
 import {
   loadLocalData,
+  loadLocalDataAsync,
   saveLocalData,
   syncToFirebase,
   loadFromFirebase,
@@ -63,6 +64,10 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 export default function App() {
   const [data, setData] = useState<StorageData>(loadLocalData);
   const dataRef = useRef(data);
+  const [storageHydrated, setStorageHydrated] = useState(false);
+  const localSaveRevisionRef = useRef(0);
+  const firebaseSyncRevisionRef = useRef(0);
+  const firebaseSyncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [firebaseSyncMessage, setFirebaseSyncMessage] = useState('');
   const preferences = normalizePreferences(data.appPreferences);
   useEffect(() => {
@@ -118,22 +123,55 @@ export default function App() {
     lastChecked: null,
   });
 
-  // Sync state on change
+  const enqueueFirebaseSync = (snapshot: StorageData): Promise<void> => {
+    const revision = ++firebaseSyncRevisionRef.current;
+    const operation = firebaseSyncQueueRef.current.catch(() => undefined).then(async () => {
+      if (revision !== firebaseSyncRevisionRef.current) return;
+      await syncToFirebase(snapshot);
+      if (revision === firebaseSyncRevisionRef.current) {
+        setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.');
+      }
+    });
+    firebaseSyncQueueRef.current = operation;
+    return operation;
+  };
+
+  // Save immediately on-device, then serialize Firebase writes so older snapshots
+  // cannot finish after and replace a newer conversation.
   const updateData = (newData: StorageData) => {
     dataRef.current = newData;
     setData(newData);
-    saveLocalData(newData);
-    if (newData.appPreferences?.cloudSync === false) {
-      setFirebaseSyncMessage('Changes are saved on this device. Firebase sync is turned off in App Settings.');
-      return;
-    }
-    if (!auth.currentUser) {
-      setFirebaseSyncMessage('Changes are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
-      return;
-    }
-    void syncToFirebase(newData)
-      .then(() => setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.'))
-      .catch((error) => setFirebaseSyncMessage(`Firebase could not save the latest changes: ${error instanceof Error ? error.message : String(error)}`));
+    const saveRevision = ++localSaveRevisionRef.current;
+
+    void saveLocalData(newData).then(() => {
+      if (saveRevision !== localSaveRevisionRef.current) return;
+      if (newData.appPreferences?.cloudSync === false) {
+        firebaseSyncRevisionRef.current += 1;
+        setFirebaseSyncMessage('Chats and app data are saved on this device. Firebase sync is turned off in App Settings.');
+        return;
+      }
+      if (!auth.currentUser) {
+        setFirebaseSyncMessage('Chats and app data are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
+        return;
+      }
+      setFirebaseSyncMessage('Saving chats and app data to Firebase…');
+      void enqueueFirebaseSync(newData).catch((error) => {
+        if (saveRevision === localSaveRevisionRef.current) {
+          setFirebaseSyncMessage(`Firebase could not save the latest changes: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
+    }).catch((error) => {
+      if (saveRevision === localSaveRevisionRef.current) {
+        setFirebaseSyncMessage(`Could not save on this device: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (auth.currentUser && newData.appPreferences?.cloudSync !== false) {
+        void enqueueFirebaseSync(newData).catch((syncError) => {
+          if (saveRevision === localSaveRevisionRef.current) {
+            setFirebaseSyncMessage(`Device and Firebase saves failed: ${syncError instanceof Error ? syncError.message : String(syncError)}`);
+          }
+        });
+      }
+    });
   };
 
   // Test OpenRouter Connection
@@ -144,21 +182,34 @@ export default function App() {
     setDiagnostic(await testOpenRouterConnection(key));
   };
 
-  // Initialize
+  // Hydrate the newest local snapshot before allowing edits. IndexedDB keeps
+  // chat histories available even when imported images fill localStorage.
   useEffect(() => {
-    // Check initial active chat
-    if (data.activeChatId) {
-      const found = data.chats.find((c) => c.id === data.activeChatId);
-      if (found) setActiveChat(found);
-    } else if (data.chats.length > 0) {
-      setActiveChat(data.chats[0]);
-    }
+    let mounted = true;
+    const hydration = loadLocalDataAsync().then((saved) => {
+      if (mounted) {
+        dataRef.current = saved;
+        setData(saved);
+        const selected = saved.chats.find((item) => item.id === saved.activeChatId) || saved.chats[0] || null;
+        setActiveChat(selected);
+        setStorageHydrated(true);
+      }
+      return saved;
+    }).catch((error) => {
+      console.warn('Could not hydrate saved app data:', error);
+      if (mounted) {
+        setFirebaseSyncMessage('Could not read the full local backup. The app is opening the available saved data.');
+        setStorageHydrated(true);
+      }
+      return dataRef.current;
+    });
 
-    // Auth state listener
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setFirebaseUser(u);
-      if (!u) {
-        setFirebaseSyncMessage('Changes are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      await hydration;
+      if (!mounted) return;
+      if (!user) {
+        setFirebaseSyncMessage('Chats and app data are saved on this device. Sign in under Settings → Firebase Cloud to back them up.');
         return;
       }
       if (dataRef.current.appPreferences?.cloudSync === false) {
@@ -168,7 +219,7 @@ export default function App() {
 
       try {
         const remote = await loadFromFirebase();
-        const local = dataRef.current;
+        const current = dataRef.current;
         const mergeById = <T extends { id: string; updatedAt?: string }>(cloudItems: T[] | undefined, localItems: T[]): T[] => {
           const merged = new Map((cloudItems || []).map((item) => [item.id, item]));
           for (const item of localItems) {
@@ -180,49 +231,55 @@ export default function App() {
           return [...merged.values()];
         };
         const merged: StorageData = {
-          ...local,
-          appPreferences: normalizePreferences({ ...(remote?.appPreferences || {}), ...local.appPreferences }),
-          characters: mergeDefaultCharacters(mergeById(remote?.characters, local.characters)),
-          chats: mergeById(remote?.chats, local.chats),
-          lorebooks: mergeById(remote?.lorebooks, local.lorebooks),
-          personas: mergeById(remote?.personas, local.personas),
-          plugins: mergeById(remote?.plugins, local.plugins),
-          storyMemories: mergeById(remote?.storyMemories, local.storyMemories),
-          savedMessages: mergeById(remote?.savedMessages, local.savedMessages),
-          wallets: mergeById(remote?.wallets, local.wallets),
-          activeChatId: local.activeChatId || remote?.activeChatId,
+          ...current,
+          appPreferences: normalizePreferences({ ...(remote?.appPreferences || {}), ...current.appPreferences }),
+          characters: mergeDefaultCharacters(mergeById(remote?.characters, current.characters)),
+          chats: mergeById(remote?.chats, current.chats),
+          lorebooks: mergeById(remote?.lorebooks, current.lorebooks),
+          personas: mergeById(remote?.personas, current.personas),
+          plugins: mergeById(remote?.plugins, current.plugins),
+          storyMemories: mergeById(remote?.storyMemories, current.storyMemories),
+          savedMessages: mergeById(remote?.savedMessages, current.savedMessages),
+          wallets: mergeById(remote?.wallets, current.wallets),
+          activeChatId: current.activeChatId || remote?.activeChatId,
           openRouterConfig: {
             ...(remote?.openRouterConfig || {}),
-            ...local.openRouterConfig,
-            apiKey: local.openRouterConfig.apiKey || remote?.openRouterConfig?.apiKey || '',
+            ...current.openRouterConfig,
+            apiKey: current.openRouterConfig.apiKey || remote?.openRouterConfig?.apiKey || '',
           },
-          supabaseConfig: local.supabaseConfig,
-          socialWorld: remote?.socialWorld || local.socialWorld,
+          supabaseConfig: current.supabaseConfig,
+          socialWorld: remote?.socialWorld || current.socialWorld,
         };
         dataRef.current = merged;
         setData(merged);
-        saveLocalData(merged);
-        await syncToFirebase(merged);
-        setFirebaseSyncMessage('All characters, chats, lorebooks, and images are backed up to Firebase.');
+        const selected = merged.chats.find((item) => item.id === merged.activeChatId);
+        if (selected) setActiveChat(selected);
+        await saveLocalData(merged);
+        await enqueueFirebaseSync(merged);
       } catch (error) {
         setFirebaseSyncMessage(`Firebase could not finish syncing: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
 
-    // Test OpenRouter if key exists
-    if (data.openRouterConfig.apiKey) {
-      testOpenRouter(data.openRouterConfig.apiKey);
-    } else {
-      setDiagnostic({
-        status: 'error',
-        lastChecked: Date.now(),
-        errorCategory: 'missing_key',
-        errorMessage: 'OpenRouter API Key is not set.',
-        suggestedFix: 'Click "Setup OpenRouter" or open Settings to enter your API key from openrouter.ai/keys.',
-      });
-    }
+    void hydration.then((saved) => {
+      if (!mounted) return;
+      if (saved.openRouterConfig.apiKey) {
+        void testOpenRouter(saved.openRouterConfig.apiKey);
+      } else {
+        setDiagnostic({
+          status: 'error',
+          lastChecked: Date.now(),
+          errorCategory: 'missing_key',
+          errorMessage: 'OpenRouter API Key is not set.',
+          suggestedFix: 'Click "Setup OpenRouter" or open Settings to enter your API key from openrouter.ai/keys.',
+        });
+      }
+    });
 
-    return () => unsubscribe();
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   // Handlers for updates
@@ -487,6 +544,14 @@ export default function App() {
           setActiveTab('home');
         }}
       />
+    );
+  }
+
+  if (!storageHydrated) {
+    return (
+      <main className="min-h-screen grid place-items-center bg-[#0d020b] text-[#ffd6eb]" role="status">
+        Loading your saved chats…
+      </main>
     );
   }
 
