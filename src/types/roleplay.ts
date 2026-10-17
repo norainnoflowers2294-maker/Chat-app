@@ -156,6 +156,7 @@ export interface Chat {
   scenario: string;
   bgImage?: string;
   messages: ChatMessage[];
+  openingPending?: boolean;
   relationshipScore?: number;
   inventory?: string[];
   weather?: string;
