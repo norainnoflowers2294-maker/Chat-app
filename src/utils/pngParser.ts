@@ -14,7 +14,9 @@ function decodeUtf8(bytes: Uint8Array): string {
 
 async function inflatePngText(bytes: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === 'undefined') throw new Error('PNG text decompression is unavailable');
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  const safeBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(safeBuffer).set(bytes);
+  const stream = new Blob([safeBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
