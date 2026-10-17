@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Persona } from '../types/roleplay';
+import { parsePersonaFile } from '../utils/pngParser';
 
 interface PersonaCreatorViewProps {
   initialPersona?: Persona | null;
@@ -216,28 +217,28 @@ export const PersonaCreatorView: React.FC<PersonaCreatorViewProps> = ({
     showToast('Persona JSON exported!');
   };
 
-  const handleImportJSON = (file: File) => {
+  const handleImportCard = async (file: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const json = JSON.parse(e.target?.result as string);
-        setName(json.name || json.full_name || name);
-        setDisplayName(json.display_name || json.name || displayName);
-        setNicknames(json.nicknames || nicknames);
-        setOccupation(json.occupation || occupation);
-        if (json.avatar || json.avatar_url) setAvatar(json.avatar || json.avatar_url);
-        setDescription(json.description || json.personality_description || description);
-        setAppearance(json.appearance || json.physical_description || appearance);
-        setBackstory(json.backstory || backstory);
-        setSpeakingStyle(json.speaking_style || speakingStyle);
-        if (Array.isArray(json.traits)) setTraits(json.traits);
-        showToast('Imported persona card data!');
-      } catch (err) {
-        showToast('Invalid JSON file.');
-      }
-    };
-    reader.readAsText(file);
+    try {
+      const card = await parsePersonaFile(file);
+      setName(card.name || '');
+      setDisplayName(card.display_name || card.name || '');
+      setNicknames(card.nicknames || '');
+      setOccupation(card.occupation || '');
+      setAvatar(card.avatar || '/colorpop_hero.jpg');
+      setDescription(card.description || '');
+      setAppearance(card.appearance || '');
+      setBackstory(card.backstory || '');
+      setSpeakingStyle(card.speaking_style || '');
+      setTraits(card.traits || []);
+      setIsDefault(card.is_default ?? false);
+      showToast(card.description || card.backstory || card.traits?.length
+        ? 'Imported persona card and picture!'
+        : 'Imported PNG picture. This file has no embedded persona fields.');
+    } catch (err) {
+      console.error('Persona import error:', err);
+      showToast('Could not read this persona card. Try a JSON or embedded-card PNG.');
+    }
   };
 
   return (
@@ -274,15 +275,15 @@ export const PersonaCreatorView: React.FC<PersonaCreatorViewProps> = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
-          {/* Import JSON */}
+          {/* Import JSON or embedded PNG card */}
           <label className="px-3 py-2 bg-white/10 hover:bg-white/20 text-[#ffd6eb] hover:text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 border border-white/10">
             <Upload className="w-3.5 h-3.5 text-cyan-400" />
             <span>Import Card</span>
             <input
               type="file"
-              accept=".json"
+              accept=".json,.png"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleImportJSON(e.target.files[0])}
+              onChange={(e) => e.target.files?.[0] && handleImportCard(e.target.files[0])}
             />
           </label>
 
