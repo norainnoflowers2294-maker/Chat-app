@@ -47,7 +47,7 @@ import {
   ConnectionDiagnostic,
 } from '../types/roleplay';
 import { buildOpenRouterMessages } from '../utils/promptAssembler';
-import { parseSlashCommand } from '../lib/slashCommands';
+import { getSlashCommandSuggestions, parseSlashCommand, type SlashCommand } from '../lib/slashCommands';
 import { DualTrackOverlay } from './DualTrackOverlay';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 
@@ -118,29 +118,149 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [regeneratingMsgId, setRegeneratingMsgId] = useState<string | null>(null);
+  const [commandSuggestionIndex, setCommandSuggestionIndex] = useState(0);
 
   // Dual Track Screen State (Left and Right Slide-over Panels)
   const [isDualTrackOpen, setIsDualTrackOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   // Active entities in this chat
   const activeCharacters = characters.filter((c) => chat.characterIds.includes(c.id));
   const activePersona = chat.personaId ? personas.find((p) => p.id === chat.personaId) || null : personas[0] || null;
   const activeLorebooks = lorebooks.filter((l) => chat.lorebookIds.includes(l.id)).slice(0, 3);
   const activePlugins = plugins.filter((p) => chat.pluginIds.includes(p.id)).slice(0, 5);
+  const slashSuggestions = getSlashCommandSuggestions(inputText);
 
   const scrollToBottom = () => {
-    if (preferences.autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: preferences.reducedMotion ? 'auto' : 'smooth' });
+    if (preferences.autoScroll && shouldAutoScrollRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: preferences.reducedMotion ? 'auto' : 'smooth' });
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [chat.messages, loading, preferences.autoScroll, preferences.reducedMotion]);
 
+  useEffect(() => {
+    shouldAutoScrollRef.current = true;
+    scrollToBottom();
+  }, [chat.id]);
+
   useEffect(() => () => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   }, []);
+
+
+  const handleContinueStory = async () => {
+    if (loading) return;
+    setErrorDetails(null);
+    setLoading(true);
+    try {
+      const apiMessages = buildOpenRouterMessages({
+        characters: activeCharacters,
+        persona: activePersona,
+        lorebooks: activeLorebooks,
+        plugins: activePlugins,
+        chat,
+        preferences,
+        storyMemories,
+      });
+      apiMessages.push({
+        role: 'user',
+        content: 'Continue the current scene naturally from the last line. Do not repeat previous text, summarize, fade out, or decide what {{user}} says, thinks, or does.',
+      });
+      const replyLength = chat.replyLength || 'medium';
+      const maxTokens = replyLength === 'short'
+        ? Math.min(openRouterConfig.maxTokens, 512)
+        : replyLength === 'long' ? Math.min(4096, Math.round(openRouterConfig.maxTokens * 1.5)) : openRouterConfig.maxTokens;
+      const botReply = await sendOpenRouterChat({
+        ...openRouterConfig,
+        temperature: chat.creativity ?? openRouterConfig.temperature,
+        maxTokens,
+      }, apiMessages);
+      const responder = activeCharacters[0] || { id: 'char_bot', name: 'Roleplay' };
+      const replyMessage: ChatMessage = {
+        id: `msg_continue_${Date.now()}`,
+        senderId: responder.id,
+        senderName: responder.name,
+        avatar: responder.avatar,
+        content: botReply,
+        timestamp: Date.now(),
+        swipes: [botReply],
+        currentSwipeIndex: 0,
+      };
+      onUpdateChat({ ...chat, messages: [...chat.messages, replyMessage], updatedAt: new Date().toISOString() });
+    } catch (err: any) {
+      setErrorDetails({
+        message: err.message || 'Could not continue the scene.',
+        suggestedFix: err.suggestedFix || 'Check your OpenRouter connection and try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeSlashCommand = async (command: SlashCommand) => {
+    if (command.type === 'wallet') {
+      onOpenWallet(command.view);
+    } else if (command.type === 'narrator') {
+      const enabled = command.enabled ?? !preferences.narratorEnabled;
+      const nextPreferences = { ...preferences, narratorEnabled: enabled, ...(command.frequency ? { narratorFrequency: command.frequency } : {}) };
+      onUpdatePreferences(nextPreferences);
+      const detail = command.frequency ? ' Narration detail: ' + command.frequency + '.' : '';
+      setCommandNotice('Narrator ' + (enabled ? 'enabled.' : 'disabled.') + detail);
+      setTimeout(() => setCommandNotice(null), 3500);
+    } else if (command.type === 'roll') {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const result = roll >= 18 ? 'Critical Success! (Natural ' + roll + ')' : roll >= 10 ? 'Success (Rolled ' + roll + ')' : 'Failure (Rolled ' + roll + ')';
+      setDiceResult(result);
+      setTimeout(() => setDiceResult(null), 4000);
+    } else if (command.type === 'continue') {
+      await handleContinueStory();
+    } else if (command.type === 'rewind') {
+      const lastReplyIndex = chat.messages.map((message) => message.senderId).lastIndexOf(activeCharacters[0]?.id || '');
+      const fallbackIndex = chat.messages.map((message) => message.senderId).lastIndexOf('char_bot');
+      const targetIndex = lastReplyIndex >= 0 ? lastReplyIndex : fallbackIndex;
+      if (targetIndex < 0) {
+        setCommandNotice('There is no character reply to rewind yet.');
+      } else if (preferences.confirmDelete && !window.confirm('Remove the latest character reply?')) {
+        return;
+      } else {
+        const removed = chat.messages[targetIndex];
+        onUpdateChat({ ...chat, messages: chat.messages.filter((_, index) => index !== targetIndex), updatedAt: new Date().toISOString() });
+        setCommandNotice(`Removed the latest reply from ${removed.senderName}.`);
+      }
+      setTimeout(() => setCommandNotice(null), 3000);
+    } else if (command.type === 'tts') {
+      if (command.action === 'stop') {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        setSpeakingMessageId(null);
+        setCommandNotice('Reading stopped.');
+      } else {
+        const latestReply = [...chat.messages].reverse().find((message) => message.senderId !== 'user');
+        if (!latestReply) {
+          setCommandNotice('There is no character reply to read aloud yet.');
+        } else {
+          handleSpeakMessage(latestReply, command.action === 'play');
+          setCommandNotice(command.action === 'play' ? 'Reading the latest reply aloud.' : (speakingMessageId === latestReply.id ? 'Reading stopped.' : 'Reading the latest reply aloud.'));
+        }
+      }
+      setTimeout(() => setCommandNotice(null), 3000);
+    } else {
+      setCommandNotice('Commands: /continue, /rewind, /nar, /cash, /cashapp, /roll, /tts, /help.');
+      setTimeout(() => setCommandNotice(null), 4500);
+    }
+  };
+
+  const runQuickCommand = (value: string) => {
+    const command = parseSlashCommand(value);
+    if (!command || loading) return;
+    setInputText('');
+    void executeSlashCommand(command);
+  };
 
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -151,26 +271,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const command = parseSlashCommand(inputText.trim());
     if (command) {
       setInputText('');
-      if (command.type === 'wallet') {
-        onOpenWallet(command.view);
-        return;
-      }
-      if (command.type === 'narrator') {
-        const enabled = command.enabled ?? !preferences.narratorEnabled;
-        const nextPreferences = { ...preferences, narratorEnabled: enabled, ...(command.frequency ? { narratorFrequency: command.frequency } : {}) };
-        onUpdatePreferences(nextPreferences);
-        const detail = command.frequency ? ' Narration detail: ' + command.frequency + '.' : '';
-        setCommandNotice('Narrator ' + (enabled ? 'enabled.' : 'disabled.') + detail);
-        setTimeout(() => setCommandNotice(null), 3500);
-        return;
-      }
-      if (command.type === 'roll') {
-        const roll = Math.floor(Math.random() * 20) + 1;
-        const result = roll >= 18 ? 'Critical Success! (Natural ' + roll + ')' : roll >= 10 ? 'Success (Rolled ' + roll + ')' : 'Failure (Rolled ' + roll + ')';
-        setDiceResult(result);
-        setTimeout(() => setDiceResult(null), 4000);
-        return;
-      }
+      await executeSlashCommand(command);
+      return;
     }
 
     const userMessage: ChatMessage = {
@@ -262,14 +364,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTimeout(() => setSavedSuccessMsg(null), 2500);
   };
 
-  const handleSpeakMessage = (msg: ChatMessage) => {
+  const handleSpeakMessage = (msg: ChatMessage, restart = false) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
       setCommandNotice('Text-to-speech is not available in this browser.');
       setTimeout(() => setCommandNotice(null), 3000);
       return;
     }
     window.speechSynthesis.cancel();
-    if (speakingMessageId === msg.id) {
+    if (speakingMessageId === msg.id && !restart) {
       setSpeakingMessageId(null);
       return;
     }
@@ -532,6 +634,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Messages Scroll Area */}
       {/* Clicking the message area backs out of both sides if dual track is open */}
       <div
+        ref={messagesViewportRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          shouldAutoScrollRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+        }}
         onClick={() => {
           if (isDualTrackOpen) setIsDualTrackOpen(false);
         }}
@@ -674,6 +781,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Chat Input Bar */}
       <div className="relative z-20 p-3 sm:p-4 bg-[#140410]/95 backdrop-blur-md border-t border-[#ff3399]/40">
+        <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#ffd6eb]/50">Quick</span>
+          {[
+            ['Continue', '/continue'],
+            ['Rewind', '/rewind'],
+            ['Narrator', '/nar'],
+            ['Wallet', '/cash'],
+            ['Cash App', '/cashapp'],
+            ['Roll', '/roll'],
+            ['Read Aloud', '/tts'],
+          ].map(([label, command]) => (
+            <button key={command} type="button" disabled={loading} onClick={() => runQuickCommand(command)} className="shrink-0 rounded-full border border-[#ff66b2]/30 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-[#ffd6eb] hover:border-[#ff66b2]/70 hover:bg-[#ff007f]/20 disabled:opacity-40">
+              {label}
+            </button>
+          ))}
+        </div>
         <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center space-x-2">
           {/* Quick Dice Roll Action */}
           <button
@@ -687,15 +810,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           {/* Text Input */}
           <div className="relative flex-1">
+            {slashSuggestions.length > 0 && <div role="listbox" aria-label="Slash commands" className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-56 overflow-y-auto rounded-2xl border border-[#ff66b2]/40 bg-[#170411]/98 p-1.5 shadow-[0_0_24px_rgba(255,0,128,0.25)]">
+              {slashSuggestions.map((suggestion, index) => (
+                <button key={suggestion.name} type="button" role="option" aria-selected={index === commandSuggestionIndex} onMouseDown={(event) => event.preventDefault()} onClick={() => { setInputText(suggestion.usage + ' '); setCommandSuggestionIndex(index); }} className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs ${index === commandSuggestionIndex ? 'bg-[#ff007f]/25 text-white' : 'text-[#ffd6eb]/80 hover:bg-white/5'}`}>
+                  <span className="font-mono font-bold">{suggestion.usage}</span>
+                  <span className="truncate text-right text-[10px] opacity-70">{suggestion.description}</span>
+                </button>
+              ))}
+            </div>}
             <textarea
               rows={1}
               placeholder={`Reply to ${activeCharacters.map((c) => c.name).join(' & ')} as ${
                 activePersona?.name || 'yourself'
-              }...`}
+              }... Type / for commands`}
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => { setInputText(e.target.value); setCommandSuggestionIndex(0); }}
               onKeyDown={(e) => {
+                if (slashSuggestions.length > 0 && e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setCommandSuggestionIndex((index) => (index + 1) % slashSuggestions.length);
+                  return;
+                }
+                if (slashSuggestions.length > 0 && e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setCommandSuggestionIndex((index) => (index - 1 + slashSuggestions.length) % slashSuggestions.length);
+                  return;
+                }
                 if (preferences.enterToSend && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  if (slashSuggestions.length > 0 && inputText.trim() !== slashSuggestions[commandSuggestionIndex]?.usage) {
+                    e.preventDefault();
+                    setInputText(slashSuggestions[commandSuggestionIndex].usage + ' ');
+                    return;
+                  }
                   e.preventDefault();
                   handleSendMessage();
                 }
