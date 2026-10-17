@@ -110,7 +110,7 @@ describe('loadLocalData', () => {
 
     const result = loadLocalData();
 
-    expect(result.characters).toEqual(customData.characters as any);
+    expect(result.characters).toEqual([...customData.characters, ...INITIAL_CHARACTERS] as any);
     expect(result.lorebooks).toEqual(customData.lorebooks as any);
     expect(result.personas).toEqual(customData.personas as any);
     expect(result.plugins).toEqual(customData.plugins as any);
