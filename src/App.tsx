@@ -608,6 +608,13 @@ export default function App() {
           wallet={activeWallet || undefined}
           onSaveWallet={handleSaveWallet}
           socialWorld={data.socialWorld || DEFAULT_SOCIAL_WORLD}
+          openRouterConfig={data.openRouterConfig}
+          preferences={preferences}
+          persona={activeWalletPersona || null}
+          lorebooks={data.lorebooks.filter((book) => activeChat.lorebookIds.includes(book.id))}
+          plugins={data.plugins.filter((plugin) => activeChat.pluginIds.includes(plugin.id))}
+          storyMemories={data.storyMemories.filter((memory) => memory.chatId === activeChat.id || memory.chatId === 'global')}
+          socialMediaContext={formatSocialWorldContext(data.socialWorld || DEFAULT_SOCIAL_WORLD)}
         />
 
         {/* Global Modals (Accessible from Chat View) */}
