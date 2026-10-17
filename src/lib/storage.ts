@@ -146,7 +146,7 @@ function normalizeStoredData(parsed: any): StorageData {
     storyMemories: parsed.storyMemories || DEFAULT_MEMORIES,
     wallets: Array.isArray(parsed.wallets) ? parsed.wallets : DEFAULT_WALLETS,
     socialWorld: parsed.socialWorld?.profiles ? parsed.socialWorld : DEFAULT_SOCIAL_WORLD,
-    phoneSystem: parsed.phoneSystem && Array.isArray(parsed.phoneSystem.phones) ? parsed.phoneSystem : DEFAULT_PHONE_SYSTEM,
+    phoneSystem: parsed.phoneSystem && Array.isArray(parsed.phoneSystem.phones) ? { phones: parsed.phoneSystem.phones, scratchpad: Array.isArray(parsed.phoneSystem.scratchpad) ? parsed.phoneSystem.scratchpad : [] } : DEFAULT_PHONE_SYSTEM,
     savedMessages: parsed.savedMessages || DEFAULT_SAVED_MSGS,
   };
 }
