@@ -649,7 +649,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
 
     let instruction = '';
-    let allowNarrator = false;
+    let allowNarrator = action === 'Narrator';
     if (action === 'Time Skip') {
       const duration = window.prompt('Jump forward by how much time? (minutes, hours, days, or weeks)', '1 hour');
       if (!duration?.trim()) return;
@@ -1309,7 +1309,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             ['Surprise 🎁', 'Surprise', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
             ['Group Chat 💌', 'Group Chat', 'bg-[#079AF0] border-[#8AABF4] hover:bg-[#0B168C]'],
             ['Rewind', '/rewind', 'bg-[#FF3B04] border-[#FF9086] hover:bg-[#F54950]'],
-            ['Narrator', '/nar', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
+            ['Narrator Mode', '/nar', 'bg-[#B12FA7] border-[#B879C2] hover:bg-[#B40061]'],
             ['Wallet', '/cash', 'bg-[#00877E] border-[#37B6A5] hover:bg-[#0B168C]'],
             ['Cash App', '/cashapp', 'bg-[#FE0088] border-[#FC76AA] hover:bg-[#B40061]'],
             ['Read Aloud', '/tts', 'bg-[#DE0A60] border-[#FC76AA] hover:bg-[#B12FA7]'],
