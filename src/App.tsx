@@ -9,6 +9,7 @@ import { testOpenRouterConnection } from './lib/openrouter';
 import React, { useEffect, useState } from 'react';
 import { ColorPopHeader } from './components/ColorPopHeader';
 import { TopNavPill, NavTab } from './components/TopNavPill';
+import { AppDrawers } from './components/AppDrawers';
 import { ColorPopHero } from './components/ColorPopHero';
 import { ActionCards } from './components/ActionCards';
 import { CategoryPills, CategoryFilter } from './components/CategoryPills';
@@ -576,6 +577,27 @@ export default function App() {
             onOpenMoreMenu={() => setIsSettingsOpen(true)}
           />
         </div>
+
+        <AppDrawers
+          activeTab={activeTab}
+          chats={data.chats}
+          activeChat={activeChat}
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'chats') setInChatMode(false);
+            else if (tab === 'characters' || tab === 'gallery' || tab === 'files') setIsCreateCharacterOpen(false);
+            else if (tab === 'lorebooks') setIsLoreModalOpen(true);
+            else if (tab === 'personas') { setIsPersonaCreatorOpen(false); setPersonaToEdit(null); }
+          }}
+          onSelectChat={handleSelectChat}
+          onOpenWallet={handleOpenWallet}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenPlugins={() => setIsPluginModalOpen(true)}
+          onOpenStoryNotes={() => setIsStoryNotesOpen(true)}
+          onOpenSavedMessages={() => setIsSavedMessagesOpen(true)}
+          onOpenScenes={() => setIsSceneGeneratorOpen(true)}
+          onOpenGitHubSync={() => setIsGitSyncOpen(true)}
+        />
 
         {/* Prominent Track Screen Button on Dashboard */}
         <button
