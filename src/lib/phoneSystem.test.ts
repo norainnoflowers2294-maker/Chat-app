@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { addPhoneItem, ensureFictionalPhone, formatPhoneStoryContext, mergePhoneSystemData, recordPhoneDiscovery, DEFAULT_PHONE_SYSTEM } from './phoneSystem';
+import { addPhoneItem, addPhoneThreadMessage, ensureFictionalPhone, formatPhoneStoryContext, mergePhoneSystemData, recordPhoneDiscovery, DEFAULT_PHONE_SYSTEM } from './phoneSystem';
 
 describe('fictional phone discovery access', () => {
   it('keeps Lucious and Emmy phone discoveries distinct in both access directions', () => {
@@ -32,6 +32,40 @@ describe('fictional phone discovery access', () => {
     const item = state.phones[0].items[0];
     state = recordPhoneDiscovery(state, 'chat-1', 'lucious', item, 'Emmy');
     expect(formatPhoneStoryContext(state, 'chat-2', ['lucious'])).toBe('');
+  });
+});
+
+describe('fictional phone conversation threads', () => {
+  it('keeps outgoing and incoming text-mode messages together in the correct chat phone', () => {
+    let state = addPhoneThreadMessage(
+      DEFAULT_PHONE_SYSTEM, 'chat-text', 'emmy', 'Emmy', 'lucious', 'Lucious',
+      { senderId: 'user', senderName: 'Emmy', content: 'Are you home?', direction: 'outgoing', timestamp: 100 },
+    );
+    state = addPhoneThreadMessage(
+      state, 'chat-text', 'emmy', 'Emmy', 'lucious', 'Lucious',
+      { senderId: 'lucious', senderName: 'Lucious', content: 'Just got in.', direction: 'incoming', timestamp: 200 },
+    );
+    const emmyPhone = state.phones.find((phone) => phone.ownerId === 'emmy')!;
+    expect(emmyPhone.threads).toHaveLength(1);
+    expect(emmyPhone.threads![0].participantName).toBe('Lucious');
+    expect(emmyPhone.threads![0].messages.map((message) => message.senderName + ' - ' + message.content)).toEqual([
+      'Emmy - Are you home?',
+      'Lucious - Just got in.',
+    ]);
+    expect(state.phones.some((phone) => phone.ownerId === 'lucious')).toBe(false);
+  });
+
+  it('merges phone thread messages across Firebase and local state', () => {
+    const remote = addPhoneThreadMessage(
+      DEFAULT_PHONE_SYSTEM, 'chat-thread-merge', 'emmy', 'Emmy', 'lucious', 'Lucious',
+      { senderId: 'user', senderName: 'Emmy', content: 'Cloud message', direction: 'outgoing', id: 'cloud-message', timestamp: 100 },
+    );
+    const local = addPhoneThreadMessage(
+      DEFAULT_PHONE_SYSTEM, 'chat-thread-merge', 'emmy', 'Emmy', 'lucious', 'Lucious',
+      { senderId: 'lucious', senderName: 'Lucious', content: 'Device reply', direction: 'incoming', id: 'local-message', timestamp: 200 },
+    );
+    const merged = mergePhoneSystemData(remote, local);
+    expect(merged.phones[0].threads![0].messages.map((message) => message.id)).toEqual(['cloud-message', 'local-message']);
   });
 });
 
