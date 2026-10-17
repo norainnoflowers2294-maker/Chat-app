@@ -551,7 +551,7 @@ export default function App() {
         onOpenSearch={() => setIsCharModalOpen(true)}
         onOpenFavorites={() => setIsSavedMessagesOpen(true)}
         onOpenGitPush={() => setIsGitSyncOpen(true)}
-        userAvatar={firebaseUser?.photoURL || '/colorpop_hero.jpg'}
+        userAvatar={(activeChat && data.personas.find((persona) => persona.id === activeChat.personaId)?.avatar) || firebaseUser?.photoURL || '/colorpop_hero.jpg'}
         userName={firebaseUser?.displayName || 'The Muse'}
       />
 
