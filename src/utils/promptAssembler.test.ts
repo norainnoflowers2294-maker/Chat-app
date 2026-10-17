@@ -225,7 +225,7 @@ describe('buildOpenRouterMessages', () => {
     expect(system).toContain('dialogue-forward');
     expect(system).toContain('first person as the responding character');
     expect(system).toContain('playful banter');
-    expect(system).toContain('Creativity: 1.4');
+    expect(system).toContain('Creativity target: 1.4');
     expect(system).toContain('Use lots of banter.');
   });
 
