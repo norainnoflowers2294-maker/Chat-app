@@ -228,6 +228,7 @@ export async function loadFromFirebase(): Promise<Partial<StorageData> | null> {
     }
   } catch (err) {
     console.warn('Could not load from Firebase Firestore:', err);
+    throw err;
   }
   return null;
 }
