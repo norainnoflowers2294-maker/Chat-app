@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  BookOpen, BriefcaseBusiness, FileText, FolderOpen, Home, Image, MessageSquare,
+  BookOpen, FileText, FolderOpen, Home, Image, MessageSquare,
   PanelLeft, PanelRight, Puzzle, Settings, Sparkles, Users, UserRound, WalletCards, X,
   Bookmark, GitBranch,
 } from 'lucide-react';
