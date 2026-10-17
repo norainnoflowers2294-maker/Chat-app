@@ -16,6 +16,7 @@ const groups = [
   ]],
   ['Chat', [
     ['autoScroll', 'Scroll to newest message'], ['showTimestamps', 'Show message times'],
+    ['chatSystemPrompt', 'Chat rules and response instructions'],
     ['enterToSend', 'Enter sends; Shift+Enter adds a line'], ['confirmDelete', 'Confirm message deletion'],
     ['showDiagnostics', 'Show connection status in chat'], ['notifyReplies', 'Desktop reply notifications'],
   ]],
@@ -65,11 +66,13 @@ export function PreferencesPanel({ value, onSave, onClose, onExportData }: Props
           const [key, label] = field;
           const spec = (field as readonly unknown[])[2];
           const current = draft[key as keyof AppPreferences];
+          if (key === 'chatSystemPrompt') return <label className="cp-setting cp-setting-block" key={key}><span>{label}</span><textarea value={String(current || '')} maxLength={6000} rows={7} placeholder="Tell the AI how to respond in every chat. Example: Never write dialogue, thoughts, or actions for {{user}}. Keep character voices distinct and leave room for my reply." onChange={e => update(key, e.target.value)} /><small>{String(current || '').length}/6000 characters. These rules are added to the AI system prompt for every chat.</small></label>;
           return <label className="cp-setting" key={key}><span>{label}</span>{!spec ? <input type="checkbox" checked={Boolean(current)} onChange={e => update(key, e.target.checked)} />
             : spec === 'color' ? <input type="color" value={String(current)} onChange={e => update(key, e.target.value)} />
             : typeof (spec as any)[0] === 'number' ? <span className="cp-range"><input type="range" min={(spec as number[])[0]} max={(spec as number[])[1]} step={(spec as number[])[2]} value={Number(current)} onChange={e => update(key, Number(e.target.value))} /><output>{current}</output></span>
             : <select value={String(current)} onChange={e => update(key, e.target.value)}>{(spec as string[]).map(v => <option key={v}>{v}</option>)}</select>}</label>;
         })}
+        {tab === 1 && <p>Chat rules are sent with every AI request as system instructions. Per-chat instructions can still be added in Chat Settings.</p>}
         {tab === 2 && <p>Continuity and narrator preferences guide AI replies. Saved notes come from Story Notes; these controls do not create a separate timeline or wardrobe database.</p>}
         {tab === 1 && <p>Notifications show only “A reply is ready,” without chat text. On mobile, browser support varies.</p>}
         {tab === 3 && <><p>Chats always save on this device. Cloud sync only runs while signed in and enabled. Turning it off does not erase existing cloud data. API keys stay out of these exports.</p>
