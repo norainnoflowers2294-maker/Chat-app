@@ -1,7 +1,7 @@
 import { PreferencesPanel } from './PreferencesPanel';
 import type { AppPreferences } from '../lib/preferences';
 import { resolveImageUrl } from '../utils/imageUrl';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Wifi,
@@ -10,7 +10,6 @@ import {
   Loader2,
   KeyRound,
   Sliders,
-  Database,
   GitBranch,
   ExternalLink,
   ShieldCheck,
@@ -34,8 +33,6 @@ interface OpenRouterSettingsModalProps {
   onSaveConfig: (cfg: OpenRouterConfig, supabaseCfg?: SupabaseConfig) => void;
   diagnostic: ConnectionDiagnostic;
   onTestConnection: (key?: string) => Promise<void>;
-  supabaseConfig: SupabaseConfig;
-  onSaveSupabaseConfig: (cfg: SupabaseConfig) => void;
   firebaseUser: User | null;
   firebaseSyncMessage?: string;
 }
@@ -48,8 +45,6 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   onSaveConfig,
   diagnostic,
   onTestConnection,
-  supabaseConfig,
-  onSaveSupabaseConfig,
   firebaseUser,
   firebaseSyncMessage = '',
 }) => {
@@ -62,10 +57,9 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   const [maxTokens, setMaxTokens] = useState(config.maxTokens);
   const [topP, setTopP] = useState(config.topP);
 
-  const [supaUrl, setSupaUrl] = useState(supabaseConfig.url);
-  const [supaKey, setSupaKey] = useState(supabaseConfig.anonKey);
-
-  const [activeTab, setActiveTab] = useState<'openrouter' | 'firebase' | 'supabase' | 'github'>('openrouter');
+  const [activeTab, setActiveTab] = useState<'openrouter' | 'firebase' | 'github'>('openrouter');
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  useEffect(() => { tabRefs.current[activeTab]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }, [activeTab]);
   const [testing, setTesting] = useState(false);
 
   const [githubToken, setGithubToken] = useState(() => { try { return localStorage.getItem('plf_github_backup_token') || ''; } catch { return ''; } });
@@ -83,11 +77,17 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
     setFrequencyPenalty(config.frequencyPenalty);
     setPresencePenalty(config.presencePenalty);
     setShowPreferences(false);
-    setSupaUrl(supabaseConfig.url);
-    setSupaKey(supabaseConfig.anonKey);
-  }, [isOpen, config, supabaseConfig]);
+  }, [isOpen, config]);
 
   if (!isOpen) return null;
+
+  const hasUnsavedChanges = apiKey !== config.apiKey || model !== config.model || temperature !== config.temperature ||
+    maxTokens !== config.maxTokens || topP !== config.topP || frequencyPenalty !== config.frequencyPenalty ||
+    presencePenalty !== config.presencePenalty;
+  const requestClose = () => {
+    if (hasUnsavedChanges && !window.confirm('Discard unsaved settings changes?')) return;
+    onClose();
+  };
 
   const handleTest = async () => {
     setTesting(true);
@@ -104,10 +104,6 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
       topP,
       frequencyPenalty,
       presencePenalty,
-    }, {
-      url: supaUrl,
-      anonKey: supaKey,
-      connected: Boolean(supaUrl && supaKey),
     });
     onClose();
   };
@@ -156,15 +152,15 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
   if (showPreferences) return <PreferencesPanel value={preferences} onSave={onSavePreferences} onClose={() => setShowPreferences(false)} onExportData={onExportData} />;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#140410] border-2 border-[#ff3399]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,128,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#ff3399]/30 bg-[#0d020b]">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#ff007f] to-[#ff3399] flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,0,128,0.6)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-0 backdrop-blur-md animate-in fade-in duration-200 sm:p-4">
+      <div className="relative flex h-[100dvh] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-2xl flex-col overflow-hidden border-2 border-[#079AF0]/45 bg-[#140410] shadow-[0_0_50px_rgba(7,154,240,0.28)] sm:h-auto sm:max-h-[90dvh] sm:rounded-3xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-[#8AABF4]/30 bg-[#0d020b] px-4 py-4 sm:px-6">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#079AF0] via-[#B12FA7] to-[#FF3B04] flex items-center justify-center text-white shadow-[0_0_15px_rgba(7,154,240,0.4)]">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white tracking-wide">
+              <h2 className="break-words text-base font-bold text-white tracking-wide sm:text-lg">
                 Settings &amp; OpenRouter Diagnostics
               </h2>
               <p className="text-xs text-[#ffd6eb]/70">
@@ -180,11 +176,12 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           </button>
         </div>
 
-        <div className="flex overflow-x-auto shrink-0 border-b border-[#ff3399]/30 bg-[#1a0515]/60 px-6 pt-2">
+        <div className="flex shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b border-[#8AABF4]/30 bg-[#1a0515]/60 px-3 pt-2 [scrollbar-width:thin] sm:px-6">
           <button type="button" onClick={() => setShowPreferences(true)} className="pb-3 px-3 text-xs font-bold whitespace-nowrap text-[#9be3d5]">App settings</button>
           <button
             onClick={() => setActiveTab('openrouter')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+            ref={(node) => { tabRefs.current['openrouter'] = node; }}
+            className={`min-h-11 shrink-0 whitespace-nowrap px-3 pb-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'openrouter'
                 ? 'border-[#ff007f] text-[#ff3399]'
                 : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
@@ -199,6 +196,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
 
           <button
             onClick={() => setActiveTab('firebase')}
+            ref={(node) => { tabRefs.current['firebase'] = node; }}
             className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'firebase'
                 ? 'border-[#ff007f] text-[#ff3399]'
@@ -213,19 +211,8 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           </button>
 
           <button
-            onClick={() => setActiveTab('supabase')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'supabase'
-                ? 'border-[#ff007f] text-[#ff3399]'
-                : 'border-transparent text-[#ffd6eb]/70 hover:text-white'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span>Supabase</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('github')}
+            ref={(node) => { tabRefs.current['github'] = node; }}
             className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'github'
                 ? 'border-[#ff007f] text-[#ff3399]'
@@ -237,7 +224,7 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs text-[#ffd6eb]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-6 px-4 pb-8 pt-4 text-xs text-[#ffd6eb] sm:p-6">
           {activeTab === 'openrouter' && (
             <div className="space-y-5">
               <div
@@ -347,11 +334,11 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
                           : 'bg-[#1a0515] border-[#ff3399]/20 hover:border-[#ff3399]/50'
                       }`}
                     >
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-white">{m.label}</div>
-                        <div className="font-mono text-[10px] text-[#ffb3d9]/70">{m.id}</div>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="break-words font-bold text-white">{m.label}</div>
+                        <div className="break-all font-mono text-[10px] text-[#8AABF4]/80">{m.id}</div>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-[#ffd6eb] border border-white/20">
+                      <span className="max-w-[45%] shrink-0 whitespace-normal break-words text-center text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#B12FA7]/25 text-[#ffd6eb] border border-[#B879C2]/50">
                         {m.badge}
                       </span>
                     </div>
@@ -486,41 +473,6 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
             </div>
           )}
 
-          {activeTab === 'supabase' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-2">
-                <h4 className="font-bold text-white">Supabase Cloud Storage</h4>
-                <p className="text-[11px] text-[#ffd6eb]/70">
-                  Optionally configure Supabase credentials to sync alongside Firebase.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-white">Supabase Project URL</label>
-                  <input
-                    type="text"
-                    placeholder="https://xyzcompany.supabase.co"
-                    value={supaUrl}
-                    onChange={(e) => setSupaUrl(e.target.value)}
-                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-white">Supabase Anon Key</label>
-                  <input
-                    type="password"
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
-                    value={supaKey}
-                    onChange={(e) => setSupaKey(e.target.value)}
-                    className="w-full bg-[#1e0818] border border-[#ff3399]/40 focus:border-[#ff3399] rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'github' && (
             <div className="space-y-4">
               <div className="p-4 bg-[#1a0515] border border-[#ff3399]/40 rounded-2xl space-y-3">
@@ -606,21 +558,21 @@ export const OpenRouterSettingsModal: React.FC<OpenRouterSettingsModalProps> = (
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[#ff3399]/30 bg-[#0d020b]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#8AABF4]/30 bg-[#0d020b] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6">
           <div className="text-[11px] text-[#ffd6eb]/60">
             OpenRouter AI &bull; Firebase &bull; Supabase &bull; ColorPop
           </div>
 
           <div className="flex items-center space-x-3">
             <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-[#ffd6eb] font-bold text-xs transition-colors"
+              onClick={requestClose}
+              className="min-h-11 rounded-xl bg-[#0B168C] px-4 py-2 text-[#ffd6eb] hover:bg-[#079AF0] font-bold text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#ff3399] hover:from-[#ff1a8c] hover:to-[#ff4da6] text-white font-bold text-xs shadow-[0_0_15px_rgba(255,0,128,0.7)] transition-all"
+              className="min-h-11 rounded-xl bg-gradient-to-r from-[#B12FA7] to-[#079AF0] px-5 py-2 text-white font-bold text-xs shadow-[0_0_15px_rgba(7,154,240,0.35)] transition-all"
             >
               Save Settings
             </button>
