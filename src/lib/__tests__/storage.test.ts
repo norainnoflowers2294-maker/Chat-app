@@ -94,11 +94,11 @@ describe('loadLocalData', () => {
 
   it('should return parsed data if valid JSON with custom data exists', () => {
     const customData = {
-      characters: [{ id: 'char1', name: 'Custom Char' }],
-      lorebooks: [{ id: 'lore1', name: 'Custom Lorebook' }],
-      personas: [{ id: 'pers1', name: 'Custom Persona' }],
-      plugins: [{ id: 'plug1', name: 'Custom Plugin' }],
-      chats: [{ id: 'chat1', name: 'Custom Chat' }],
+      characters: [{ id: 'char1', name: 'Custom Char' } as any],
+      lorebooks: [{ id: 'lore1', name: 'Custom Lorebook' } as any],
+      personas: [{ id: 'pers1', name: 'Custom Persona' } as any],
+      plugins: [{ id: 'plug1', name: 'Custom Plugin' } as any],
+      chats: [{ id: 'chat1', name: 'Custom Chat' } as any],
       activeChatId: 'chat1',
       openRouterConfig: { apiKey: 'test-key' },
       supabaseConfig: { url: 'test-url' },
@@ -149,7 +149,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return data if document exists', async () => {
-    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-uid' }, writable: true });
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
@@ -169,7 +169,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null if document does not exist', async () => {
-    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-uid' }, writable: true });
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
@@ -188,7 +188,7 @@ describe('loadFromFirebase', () => {
   });
 
   it('should return null and log warning if error occurs during fetch', async () => {
-    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-uid' }, writable: true });
+    Object.defineProperty(auth, 'currentUser', { value: { uid: 'test-user-id' } as any, writable: true });
 
     const mockDocRef = { id: 'mock-doc-ref' };
     (doc as any).mockReturnValue(mockDocRef);
